@@ -175,11 +175,16 @@ public sealed class ForagingSystem : ICausalSystem
 
                     if (!fedThisStep)
                     {
+                        var minimumDestinationEnergy =
+                            1 -
+                            current.Needs.EnergyReserve;
+
                         var destination =
                             FindNearestAvailableResource(
                                 current,
                                 food.Values,
-                                FoodSeekingRadiusDegrees);
+                                FoodSeekingRadiusDegrees,
+                                minimumDestinationEnergy);
 
                         if (destination is null)
                         {
@@ -187,7 +192,8 @@ public sealed class ForagingSystem : ICausalSystem
                                 FindNearestAvailableResource(
                                     current,
                                     food.Values,
-                                    ScarcityMigrationRadiusDegrees);
+                                    ScarcityMigrationRadiusDegrees,
+                                    minimumDestinationEnergy);
 
                             if (destination is not null)
                             {
@@ -287,15 +293,25 @@ public sealed class ForagingSystem : ICausalSystem
         FindNearestAvailableResource(
             PersonState person,
             IEnumerable<FoodResourceState> resources,
-            double searchRadiusDegrees)
+            double searchRadiusDegrees,
+            double minimumAvailableEnergy = 0)
     {
+        if (!double.IsFinite(minimumAvailableEnergy) ||
+            minimumAvailableEnergy < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(minimumAvailableEnergy));
+        }
+
         FoodResourceState? nearest = null;
         var nearestDistanceSquared =
             double.PositiveInfinity;
 
         foreach (var resource in resources)
         {
-            if (resource.AvailableEnergy <= 0)
+            if (resource.AvailableEnergy <= 0 ||
+                resource.AvailableEnergy <
+                    minimumAvailableEnergy)
             {
                 continue;
             }

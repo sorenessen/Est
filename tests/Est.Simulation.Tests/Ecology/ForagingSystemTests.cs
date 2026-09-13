@@ -601,6 +601,82 @@ public sealed class ForagingSystemTests
     }
 
     [Fact]
+    public void Step_InsufficientLocalRecoveryDoesNotBlockScarcityMigration()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.5);
+
+        var localFood =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                2,
+                availableEnergy: 0,
+                capacityEnergy: 20,
+                recoveryEnergyPerDay: 0.03);
+
+        var distantFood =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                10,
+                availableEnergy: 20,
+                capacityEnergy: 20);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [localFood, distantFood]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            0.25,
+            changedPerson.LongitudeDegrees,
+            10);
+
+        Assert.Equal(
+            PersonActivity.Traveling,
+            changedPerson.Activity);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "scarcityMigrations"]);
+
+        var changedLocalFood =
+            Assert.Single(
+                result.World.FoodResources,
+                resource =>
+                    resource.Id == localFood.Id);
+
+        Assert.Equal(
+            0.03,
+            changedLocalFood.AvailableEnergy,
+            10);
+    }
+
+    [Fact]
     public void Step_ScarcityMigrationRemainsBounded()
     {
         var planet = CreatePlanet();
