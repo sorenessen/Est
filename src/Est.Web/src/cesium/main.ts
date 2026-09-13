@@ -768,6 +768,8 @@ if (sessionId) {
     feedingEvents: 0,
     travelFeedingEvents: 0,
     continuedFoodTravel: 0,
+    energyConsumed: 0,
+    energyRecovered: 0,
     demographicMigrations: 0,
     foodSeekingTravel: 0,
     scarcityMigrations: 0,
@@ -811,6 +813,12 @@ if (sessionId) {
 
         cumulativeMetrics.continuedFoodTravel +=
           event.metrics.continuedFoodTravel ?? 0
+
+        cumulativeMetrics.energyConsumed +=
+          event.metrics.energyConsumed ?? 0
+
+        cumulativeMetrics.energyRecovered +=
+          event.metrics.energyRecovered ?? 0
 
         cumulativeMetrics.foodSeekingTravel +=
           event.metrics.foodSeekingTravel ?? 0
@@ -1084,6 +1092,47 @@ if (sessionId) {
               <div class="simulation-metric">
                 <span class="simulation-metric-label">Predation deaths</span>
                 <strong>−${cumulativeMetrics.predationDeaths.toFixed(0)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Ecology
+            </div>
+
+            <div class="simulation-telemetry-grid">
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Energy consumed
+                </span>
+                <strong>${cumulativeMetrics.energyConsumed.toFixed(1)}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Energy recovered
+                </span>
+                <strong>${cumulativeMetrics.energyRecovered.toFixed(1)}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Energy / feeding
+                </span>
+                <strong>${(
+                  cumulativeMetrics.feedingEvents > 0
+                    ? cumulativeMetrics.energyConsumed /
+                      cumulativeMetrics.feedingEvents
+                    : 0
+                ).toFixed(3)}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Feeding events
+                </span>
+                <strong>${cumulativeMetrics.feedingEvents}</strong>
               </div>
             </div>
           </div>
