@@ -10,6 +10,8 @@ public sealed class ForagingSystem : ICausalSystem
 {
     private const double HungerThreshold = 0.6;
     private const double DefaultSearchRadiusDegrees = 1;
+    private const double FoodSeekingRadiusDegrees = 5;
+    private const double TravelDegreesPerDay = 0.25;
     private const long MaximumIntegrationStepSeconds = 86_400;
 
     private readonly PlanetId _planetId;
@@ -101,6 +103,7 @@ public sealed class ForagingSystem : ICausalSystem
             {
                 var current = person;
                 var fedThisStep = false;
+                var traveledThisStep = false;
 
                 if (current.Needs.EnergyReserve <
                     HungerThreshold)
@@ -155,10 +158,29 @@ public sealed class ForagingSystem : ICausalSystem
 
                     if (!fedThisStep)
                     {
-                        current =
-                            current.WithSurvivalState(
-                                current.Needs,
-                                PersonActivity.Foraging);
+                        var destination =
+                            FindNearestAvailableResource(
+                                current,
+                                food.Values,
+                                FoodSeekingRadiusDegrees);
+
+                        if (destination is not null)
+                        {
+                            current =
+                                MoveTowardResource(
+                                    current,
+                                    destination,
+                                    elapsedDays);
+
+                            traveledThisStep = true;
+                        }
+                        else
+                        {
+                            current =
+                                current.WithSurvivalState(
+                                    current.Needs,
+                                    PersonActivity.Foraging);
+                        }
                     }
                 }
 
@@ -175,10 +197,12 @@ public sealed class ForagingSystem : ICausalSystem
                 var activity =
                     fedThisStep
                         ? PersonActivity.Eating
-                        : needs.EnergyReserve <
-                            HungerThreshold
-                            ? PersonActivity.Foraging
-                            : PersonActivity.Idle;
+                        : traveledThisStep
+                            ? PersonActivity.Traveling
+                            : needs.EnergyReserve <
+                                HungerThreshold
+                                ? PersonActivity.Foraging
+                                : PersonActivity.Idle;
 
                 survivors.Add(
                     current.WithSurvivalState(
@@ -219,6 +243,18 @@ public sealed class ForagingSystem : ICausalSystem
         PersonState person,
         IEnumerable<FoodResourceState> resources)
     {
+        return FindNearestAvailableResource(
+            person,
+            resources,
+            _searchRadiusDegrees);
+    }
+
+    private static FoodResourceState?
+        FindNearestAvailableResource(
+            PersonState person,
+            IEnumerable<FoodResourceState> resources,
+            double searchRadiusDegrees)
+    {
         FoodResourceState? nearest = null;
         var nearestDistanceSquared =
             double.PositiveInfinity;
@@ -235,7 +271,7 @@ public sealed class ForagingSystem : ICausalSystem
                 person.LatitudeDegrees;
 
             var longitudeDelta =
-                LongitudeDelta(
+                SignedLongitudeDelta(
                     resource.LongitudeDegrees,
                     person.LongitudeDegrees);
 
@@ -244,8 +280,8 @@ public sealed class ForagingSystem : ICausalSystem
                 longitudeDelta * longitudeDelta;
 
             if (distanceSquared >
-                _searchRadiusDegrees *
-                _searchRadiusDegrees)
+                searchRadiusDegrees *
+                searchRadiusDegrees)
             {
                 continue;
             }
@@ -262,14 +298,69 @@ public sealed class ForagingSystem : ICausalSystem
         return nearest;
     }
 
-    private static double LongitudeDelta(
-        double first,
-        double second)
+    private static PersonState MoveTowardResource(
+        PersonState person,
+        FoodResourceState resource,
+        double elapsedDays)
     {
-        var delta = Math.Abs(first - second);
+        var latitudeDelta =
+            resource.LatitudeDegrees -
+            person.LatitudeDegrees;
 
-        return delta <= 180
-            ? delta
-            : 360 - delta;
+        var longitudeDelta =
+            SignedLongitudeDelta(
+                resource.LongitudeDegrees,
+                person.LongitudeDegrees);
+
+        var distance =
+            Math.Sqrt(
+                latitudeDelta * latitudeDelta +
+                longitudeDelta * longitudeDelta);
+
+        if (distance <= 0)
+        {
+            return person;
+        }
+
+        var travelDistance =
+            Math.Min(
+                distance,
+                TravelDegreesPerDay * elapsedDays);
+
+        var fraction =
+            travelDistance / distance;
+
+        var latitude =
+            Math.Clamp(
+                person.LatitudeDegrees +
+                    latitudeDelta * fraction,
+                -89.999,
+                89.999);
+
+        var longitude =
+            WrapLongitude(
+                person.LongitudeDegrees +
+                    longitudeDelta * fraction);
+
+        return person.MoveTo(
+            latitude,
+            longitude);
+    }
+
+    private static double SignedLongitudeDelta(
+        double target,
+        double source)
+    {
+        return
+            ((target - source + 540) % 360)
+            - 180;
+    }
+
+    private static double WrapLongitude(
+        double longitude)
+    {
+        return
+            ((longitude + 540) % 360)
+            - 180;
     }
 }

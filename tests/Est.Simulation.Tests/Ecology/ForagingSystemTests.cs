@@ -252,6 +252,178 @@ public sealed class ForagingSystemTests
     }
 
     [Fact]
+    public void Step_HungryPersonTravelsTowardDiscoverableFood()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.25);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                3,
+                10);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id,
+                    searchRadiusDegrees: 1));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            0,
+            changedPerson.LatitudeDegrees,
+            10);
+
+        Assert.Equal(
+            0.25,
+            changedPerson.LongitudeDegrees,
+            10);
+
+        Assert.Equal(
+            PersonActivity.Traveling,
+            changedPerson.Activity);
+
+        Assert.Equal(
+            10,
+            Assert.Single(
+                result.World.FoodResources)
+                .AvailableEnergy);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["feedingEvents"]);
+    }
+
+    [Fact]
+    public void Step_HungryPersonDoesNotTeleportToFood()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.25);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                2,
+                10);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id,
+                    searchRadiusDegrees: 1));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.True(
+            changedPerson.LongitudeDegrees > 0);
+
+        Assert.True(
+            changedPerson.LongitudeDegrees < 1);
+
+        Assert.Equal(
+            PersonActivity.Traveling,
+            changedPerson.Activity);
+    }
+
+    [Fact]
+    public void Step_HungryPersonEventuallyReachesAndConsumesFood()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.25);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                2,
+                10);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                5 * 86_400L,
+                new ForagingSystem(
+                    planet.Id,
+                    searchRadiusDegrees: 1));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            PersonActivity.Eating,
+            changedPerson.Activity);
+
+        Assert.True(
+            changedPerson.LongitudeDegrees > 0);
+
+        Assert.True(
+            Assert.Single(
+                result.World.FoodResources)
+                .AvailableEnergy < 10);
+
+        Assert.True(
+            result.Change.Metrics["feedingEvents"] > 0);
+    }
+
+    [Fact]
     public void Step_LongAdvanceWithFoodIntegratesSurvivalDaily()
     {
         var planet = CreatePlanet();
