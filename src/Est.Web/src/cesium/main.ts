@@ -109,6 +109,28 @@ appRoot.innerHTML = `
 
       <div id="presentationStatus">Automatic scale inactive.</div>
 
+      <style>
+        .simulation-diagnostics {
+          margin-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          padding-top: 10px;
+        }
+
+        .simulation-diagnostics > summary {
+          cursor: pointer;
+          user-select: none;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          opacity: 0.72;
+        }
+
+        .simulation-diagnostics[open] > summary {
+          margin-bottom: 4px;
+        }
+      </style>
+
       <section
         id="sessionStatus"
         class="simulation-telemetry"
@@ -1096,6 +1118,9 @@ if (sessionId) {
             </div>
           </div>
 
+          <details class="simulation-diagnostics">
+            <summary>Diagnostics</summary>
+
           <div class="simulation-telemetry-section">
             <div class="simulation-telemetry-section-title">
               Ecology
@@ -1166,13 +1191,6 @@ if (sessionId) {
 
               <div class="simulation-metric">
                 <span class="simulation-metric-label">
-                  Feeding events
-                </span>
-                <strong>${cumulativeMetrics.feedingEvents}</strong>
-              </div>
-
-              <div class="simulation-metric">
-                <span class="simulation-metric-label">
                   Travel feedings
                 </span>
                 <strong>${cumulativeMetrics.travelFeedingEvents}</strong>
@@ -1193,6 +1211,7 @@ if (sessionId) {
               </div>
             </div>
           </div>
+          </details>
         `
       } else {
         populationPoints.removeAll()
