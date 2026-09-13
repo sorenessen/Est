@@ -18,13 +18,19 @@ public sealed class WolfPredatorSystemTests
             CreatePerson(
                 planet.Id,
                 latitude: 10,
-                longitude: 20);
+                longitude: 20,
+                id: new PersonId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000101")));
 
         var wolf =
             CreateWolf(
                 planet.Id,
                 latitude: 10.05,
-                longitude: 20.05);
+                longitude: 20.05,
+                id: new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000301")));
 
         var world =
             new WorldState(
@@ -69,6 +75,82 @@ public sealed class WolfPredatorSystemTests
 
         Assert.Equal(
             1,
+            result.Change.Metrics["predationDeaths"]);
+    }
+
+    [Fact]
+    public void Step_FailedAttackLetsHumanFlee()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.05,
+                id: new PersonId(
+                    Guid.Parse(
+                        "159dfc07-5c90-45d6-bf6b-be33bc2eb035")));
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                id: new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000301")));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(86_400),
+                [planet],
+                [person],
+                [],
+                [wolf]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            PersonActivity.Fleeing,
+            changedPerson.Activity);
+
+        Assert.True(
+            changedPerson.LongitudeDegrees >
+            person.LongitudeDegrees);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            AnimalActivity.Attacking,
+            changedWolf.Activity);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["wolfAttacks"]);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["failedAttacks"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["successfulKills"]);
+
+        Assert.Equal(
+            0,
             result.Change.Metrics["predationDeaths"]);
     }
 
@@ -296,13 +378,19 @@ public sealed class WolfPredatorSystemTests
             CreatePerson(
                 planet.Id,
                 latitude: 0,
-                longitude: 0);
+                longitude: 0,
+                id: new PersonId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000101")));
 
         var wolf =
             CreateWolf(
                 planet.Id,
                 latitude: 0,
-                longitude: 0.05);
+                longitude: 0.05,
+                id: new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000301")));
 
         var world =
             new WorldState(
@@ -344,10 +432,11 @@ public sealed class WolfPredatorSystemTests
     private static PersonState CreatePerson(
         PlanetId planetId,
         double latitude,
-        double longitude)
+        double longitude,
+        PersonId? id = null)
     {
         return new PersonState(
-            new PersonId(Guid.NewGuid()),
+            id ?? new PersonId(Guid.NewGuid()),
             planetId,
             PersonSex.Female,
             -800_000_000,
@@ -358,9 +447,11 @@ public sealed class WolfPredatorSystemTests
     private static AnimalState CreateWolf(
         PlanetId planetId,
         double latitude,
-        double longitude)
+        double longitude,
+        AnimalId? id = null)
     {
         return new AnimalState(
+            id ??
             new AnimalId(
                 Guid.Parse(
                     "00000000-0000-0000-0000-000000000301")),

@@ -12,6 +12,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private const double HumanFleeDegreesPerDay = 0.25;
     private const double ThreatDetectionRadiusDegrees = 1;
     private const double AttackRadiusDegrees = 0.12;
+    private const double AttackSuccessProbability = 0.55;
     private const double EnergyUsePerDay = 0.08;
     private const double EnergyPerKill = 0.65;
     private const long MaximumIntegrationStepSeconds = 86_400;
@@ -62,6 +63,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
 
         var wolfAttacks = 0;
         var successfulKills = 0;
+        var failedAttacks = 0;
         var predationDeaths = 0;
         var chaseSteps = 0;
         var fleeSteps = 0;
@@ -180,6 +182,50 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 }
 
                 wolfAttacks++;
+
+                var attackTimeSeconds =
+                    checked(
+                        world.CurrentTime.TotalSeconds +
+                        (elapsedSeconds -
+                         remainingSeconds));
+
+                if (!AttackSucceeds(
+                        attackTimeSeconds,
+                        wolf.Id,
+                        target.Id))
+                {
+                    failedAttacks++;
+
+                    var fleeingTarget =
+                        MovePersonAway(
+                            target,
+                            wolf,
+                            elapsedDays);
+
+                    var targetIndex =
+                        population.FindIndex(
+                            person =>
+                                person.Id ==
+                                target.Id);
+
+                    if (targetIndex >= 0)
+                    {
+                        population[targetIndex] =
+                            fleeingTarget;
+                        fleeSteps++;
+                    }
+
+                    animals[index] =
+                        wolf.WithState(
+                            wolf.LatitudeDegrees,
+                            wolf.LongitudeDegrees,
+                            energy,
+                            wolf.Health,
+                            AnimalActivity.Attacking);
+
+                    continue;
+                }
+
                 successfulKills++;
                 predationDeaths++;
 
@@ -210,6 +256,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
             {
                 ["wolfAttacks"] = wolfAttacks,
                 ["successfulKills"] = successfulKills,
+                ["failedAttacks"] = failedAttacks,
                 ["predationDeaths"] = predationDeaths,
                 ["chaseSteps"] = chaseSteps,
                 ["fleeSteps"] = fleeSteps,
@@ -269,6 +316,64 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         return nearest;
+    }
+
+    private static bool AttackSucceeds(
+        long attackTimeSeconds,
+        AnimalId wolfId,
+        PersonId targetId)
+    {
+        const ulong offsetBasis =
+            14_695_981_039_346_656_037UL;
+
+        var hash = offsetBasis;
+
+        static ulong Mix(
+            ulong current,
+            byte value)
+        {
+            const ulong localPrime =
+                1_099_511_628_211UL;
+
+            return
+                (current ^ value) *
+                localPrime;
+        }
+
+        foreach (var value in
+                 BitConverter.GetBytes(
+                     attackTimeSeconds))
+        {
+            hash = Mix(hash, value);
+        }
+
+        Span<byte> wolfBytes =
+            stackalloc byte[16];
+        wolfId.Value.TryWriteBytes(
+            wolfBytes);
+
+        foreach (var value in wolfBytes)
+        {
+            hash = Mix(hash, value);
+        }
+
+        Span<byte> targetBytes =
+            stackalloc byte[16];
+        targetId.Value.TryWriteBytes(
+            targetBytes);
+
+        foreach (var value in targetBytes)
+        {
+            hash = Mix(hash, value);
+        }
+
+        var unitValue =
+            (hash >> 11) *
+            (1d / (1UL << 53));
+
+        return
+            unitValue <
+            AttackSuccessProbability;
     }
 
     private static PersonState MovePersonAway(
