@@ -228,6 +228,7 @@ civilization simulation.
 - [x] Add purposeful food-seeking travel rather than teleporting distant food consumption.
 - [ ] Replace the current proof-oriented ecology constants with explicit model policy when the next requirements justify it.
 - [x] Add meaningful resource renewal and depletion pressure.
+- [x] Add scarcity-driven migration toward viable food beyond the local foraging radius.
 - [ ] Evaluate a minimal prey/hunting loop.
 - [ ] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.

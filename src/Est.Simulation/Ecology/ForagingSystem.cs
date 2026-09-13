@@ -11,6 +11,7 @@ public sealed class ForagingSystem : ICausalSystem
     private const double HungerThreshold = 0.6;
     private const double DefaultSearchRadiusDegrees = 1;
     private const double FoodSeekingRadiusDegrees = 5;
+    private const double ScarcityMigrationRadiusDegrees = 30;
     private const double TravelDegreesPerDay = 0.25;
     private const long MaximumIntegrationStepSeconds = 86_400;
 
@@ -81,6 +82,7 @@ public sealed class ForagingSystem : ICausalSystem
         var feedingEvents = 0;
         var starvationDeaths = 0;
         var exhaustedResources = 0;
+        var scarcityMigrations = 0;
         var energyConsumed = 0d;
         var energyRecovered = 0d;
 
@@ -179,6 +181,20 @@ public sealed class ForagingSystem : ICausalSystem
                                 food.Values,
                                 FoodSeekingRadiusDegrees);
 
+                        if (destination is null)
+                        {
+                            destination =
+                                FindNearestAvailableResource(
+                                    current,
+                                    food.Values,
+                                    ScarcityMigrationRadiusDegrees);
+
+                            if (destination is not null)
+                            {
+                                scarcityMigrations++;
+                            }
+                        }
+
                         if (destination is not null)
                         {
                             current =
@@ -249,6 +265,8 @@ public sealed class ForagingSystem : ICausalSystem
                 ["energyRecovered"] = energyRecovered,
                 ["exhaustedResources"] =
                     exhaustedResources,
+                ["scarcityMigrations"] =
+                    scarcityMigrations,
                 ["starvationDeaths"] =
                     starvationDeaths,
                 ["survivors"] = population.Count
