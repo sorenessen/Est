@@ -80,6 +80,8 @@ public sealed class ForagingSystem : ICausalSystem
 
         var foragingAttempts = 0;
         var feedingEvents = 0;
+        var travelFeedingEvents = 0;
+        var continuedFoodTravel = 0;
         var starvationDeaths = 0;
         var exhaustedResources = 0;
         var foodSeekingTravel = 0;
@@ -170,6 +172,13 @@ public sealed class ForagingSystem : ICausalSystem
                                     PersonActivity.Eating);
 
                             feedingEvents++;
+
+                            if (current.Activity ==
+                                PersonActivity.Traveling)
+                            {
+                                travelFeedingEvents++;
+                            }
+
                             energyConsumed += consumed;
                             fedThisStep = true;
                         }
@@ -191,6 +200,12 @@ public sealed class ForagingSystem : ICausalSystem
                         if (destination is not null)
                         {
                             foodSeekingTravel++;
+
+                            if (current.Activity ==
+                                PersonActivity.Traveling)
+                            {
+                                continuedFoodTravel++;
+                            }
                         }
                         else
                         {
@@ -277,6 +292,10 @@ public sealed class ForagingSystem : ICausalSystem
             {
                 ["foragingAttempts"] = foragingAttempts,
                 ["feedingEvents"] = feedingEvents,
+                ["travelFeedingEvents"] =
+                    travelFeedingEvents,
+                ["continuedFoodTravel"] =
+                    continuedFoodTravel,
                 ["energyConsumed"] = energyConsumed,
                 ["energyRecovered"] = energyRecovered,
                 ["exhaustedResources"] =

@@ -765,6 +765,9 @@ if (sessionId) {
     births: 0,
     demographicDeaths: 0,
     starvationDeaths: 0,
+    feedingEvents: 0,
+    travelFeedingEvents: 0,
+    continuedFoodTravel: 0,
     demographicMigrations: 0,
     foodSeekingTravel: 0,
     scarcityMigrations: 0,
@@ -799,6 +802,15 @@ if (sessionId) {
       if (event.cause === 'foraging') {
         cumulativeMetrics.starvationDeaths +=
           event.metrics.starvationDeaths ?? 0
+
+        cumulativeMetrics.feedingEvents +=
+          event.metrics.feedingEvents ?? 0
+
+        cumulativeMetrics.travelFeedingEvents +=
+          event.metrics.travelFeedingEvents ?? 0
+
+        cumulativeMetrics.continuedFoodTravel +=
+          event.metrics.continuedFoodTravel ?? 0
 
         cumulativeMetrics.foodSeekingTravel +=
           event.metrics.foodSeekingTravel ?? 0
@@ -1091,9 +1103,30 @@ if (sessionId) {
 
               <div class="simulation-metric">
                 <span class="simulation-metric-label">
-                  Food seeking
+                  Food-seeking steps
                 </span>
                 <strong>${cumulativeMetrics.foodSeekingTravel}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Continued travel
+                </span>
+                <strong>${cumulativeMetrics.continuedFoodTravel}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Feeding events
+                </span>
+                <strong>${cumulativeMetrics.feedingEvents}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Travel feedings
+                </span>
+                <strong>${cumulativeMetrics.travelFeedingEvents}</strong>
               </div>
 
               <div class="simulation-metric">
