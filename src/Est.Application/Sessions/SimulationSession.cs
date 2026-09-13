@@ -81,6 +81,15 @@ public sealed class SimulationSession
                             new WolfPredatorSystem(
                                 planetId));
 
+        var reproductionSystems =
+            definition.PopulationModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new ReproductionSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var populationSystems =
             definition.PopulationModels
                 .Select(
@@ -94,6 +103,7 @@ public sealed class SimulationSession
             energyBalanceSystems
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
+                .Concat(reproductionSystems)
                 .Concat(populationSystems)
                 .ToArray();
     }

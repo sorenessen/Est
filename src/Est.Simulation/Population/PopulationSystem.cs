@@ -104,58 +104,7 @@ public sealed class PopulationSystem : ICausalSystem
             survivors.Add(moved);
         }
 
-        var hasAdultMale = survivors.Any(
-            person =>
-                person.Sex == PersonSex.Male &&
-                person.AgeYears(
-                    world.CurrentTime.TotalSeconds)
-                >= _parameters
-                    .ReproductiveAgeMinimumYears);
-
-        var births = new List<PersonState>();
-
-        if (hasAdultMale && elapsedSeconds > 0)
-        {
-            foreach (var mother in survivors)
-            {
-                if (mother.Sex != PersonSex.Female)
-                {
-                    continue;
-                }
-
-                var age = mother.AgeYears(
-                    world.CurrentTime.TotalSeconds);
-
-                if (age <
-                        _parameters
-                            .ReproductiveAgeMinimumYears ||
-                    age >
-                        _parameters
-                            .ReproductiveAgeMaximumYears)
-                {
-                    continue;
-                }
-
-                if (!Occurs(
-                        _parameters
-                            .AnnualBirthRatePerEligibleFemale,
-                        years,
-                        random))
-                {
-                    continue;
-                }
-
-                births.Add(
-                    CreateChild(
-                        mother,
-                        world.CurrentTime.TotalSeconds
-                            + elapsedSeconds,
-                        random));
-            }
-        }
-
         var nextPopulation = survivors
-            .Concat(births)
             .ToArray();
 
         var operation =
@@ -166,13 +115,13 @@ public sealed class PopulationSystem : ICausalSystem
         return new SimulationChange(
             operation,
             "population-dynamics",
-            "Birth, death, and migration changed planetary population.",
+            "Death and demographic migration changed planetary population.",
             _planetId,
             elapsedSeconds,
             new Dictionary<string, double>
             {
                 ["previousPopulation"] = existing.Length,
-                ["births"] = births.Count,
+                ["births"] = 0,
                 ["deaths"] = deaths,
                 ["migrations"] = migrations,
                 ["newPopulation"] = nextPopulation.Length
@@ -210,45 +159,6 @@ public sealed class PopulationSystem : ICausalSystem
         return person.MoveTo(
             latitude,
             longitude);
-    }
-
-    private PersonState CreateChild(
-        PersonState mother,
-        long birthTimeSeconds,
-        DeterministicRandom random)
-    {
-        var distance =
-            random.NextDouble()
-            * Math.Min(
-                0.25,
-                _parameters.LocalMigrationDegrees);
-
-        var angle =
-            random.NextDouble()
-            * Math.PI * 2;
-
-        var latitude =
-            Math.Clamp(
-                mother.LatitudeDegrees
-                    + Math.Cos(angle) * distance,
-                -89.999,
-                89.999);
-
-        var longitude =
-            WrapLongitude(
-                mother.LongitudeDegrees
-                    + Math.Sin(angle) * distance);
-
-        return new PersonState(
-            new PersonId(random.NextGuid()),
-            mother.PlanetId,
-            random.NextDouble() < 0.5
-                ? PersonSex.Female
-                : PersonSex.Male,
-            birthTimeSeconds,
-            latitude,
-            longitude,
-            mother.Id);
     }
 
     private static bool Occurs(

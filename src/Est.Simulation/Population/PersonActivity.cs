@@ -6,5 +6,7 @@ public enum PersonActivity
     Foraging,
     Eating,
     Traveling,
-    Fleeing
+    Fleeing,
+    SeekingPartner,
+    Mating
 }

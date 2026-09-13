@@ -576,6 +576,10 @@ function renderPopulation(
         return Color.fromCssColorString('#4ddcff')
       case 'Fleeing':
         return Color.fromCssColorString('#ff4fd8')
+      case 'SeekingPartner':
+        return Color.fromCssColorString('#b388ff')
+      case 'Mating':
+        return Color.fromCssColorString('#ff6fae')
       case 'Idle':
       default:
         return Color.fromCssColorString('#ffd166')
@@ -813,14 +817,16 @@ if (sessionId) {
       observedTimelineEvents.add(event.eventId)
 
       if (event.cause === 'population-dynamics') {
-        cumulativeMetrics.births +=
-          event.metrics.births ?? 0
-
         cumulativeMetrics.demographicDeaths +=
           event.metrics.deaths ?? 0
 
         cumulativeMetrics.demographicMigrations +=
           event.metrics.migrations ?? 0
+      }
+
+      if (event.cause === 'reproduction') {
+        cumulativeMetrics.births +=
+          event.metrics.births ?? 0
       }
 
       if (event.cause === 'foraging') {
@@ -1023,6 +1029,24 @@ if (sessionId) {
                 ></span>
                 <span class="simulation-metric-label">Fleeing</span>
                 <strong>${activityCounts.Fleeing ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span
+                  class="activity-dot"
+                  style="background:#b388ff;box-shadow:0 0 8px #b388ff"
+                ></span>
+                <span class="simulation-metric-label">Seeking partner</span>
+                <strong>${activityCounts.SeekingPartner ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span
+                  class="activity-dot"
+                  style="background:#ff6fae;box-shadow:0 0 8px #ff6fae"
+                ></span>
+                <span class="simulation-metric-label">Mating</span>
+                <strong>${activityCounts.Mating ?? 0}</strong>
               </div>
             </div>
           </div>
