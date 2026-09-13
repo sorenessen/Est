@@ -1378,6 +1378,18 @@ public sealed class SessionEndpointTests
 
                 Assert.Null(
                     person.ParentId);
+
+                Assert.Equal(
+                    "Idle",
+                    person.Activity);
+
+                Assert.Equal(
+                    1,
+                    person.EnergyReserve);
+
+                Assert.Equal(
+                    1,
+                    person.Health);
             });
 
         var populationModel =

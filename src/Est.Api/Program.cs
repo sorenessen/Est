@@ -652,7 +652,10 @@ static WorldResponse ToWorldResponse(
                         person.BirthTimeSeconds,
                         person.LatitudeDegrees,
                         person.LongitudeDegrees,
-                        person.ParentId?.Value))
+                        person.ParentId?.Value,
+                        person.Activity.ToString(),
+                        person.Needs.EnergyReserve,
+                        person.Needs.Health))
             .ToArray(),
         world.FoodResources
             .Select(

@@ -38,6 +38,9 @@ export interface PopulationPersonResponse {
   latitudeDegrees: number
   longitudeDegrees: number
   parentId: string | null
+  activity: string
+  energyReserve: number
+  health: number
 }
 
 export interface WorldResponse {

@@ -14,7 +14,10 @@ public sealed record PopulationPersonResponse(
     long BirthTimeSeconds,
     double LatitudeDegrees,
     double LongitudeDegrees,
-    Guid? ParentId);
+    Guid? ParentId,
+    string Activity,
+    double EnergyReserve,
+    double Health);
 
 public sealed record FoodResourceResponse(
     Guid FoodResourceId,
