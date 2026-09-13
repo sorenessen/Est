@@ -3,7 +3,17 @@ namespace Est.Api.Contracts;
 public sealed record WorldResponse(
     Guid WorldId,
     long CurrentTimeSeconds,
-    PlanetResponse[] Planets);
+    PlanetResponse[] Planets,
+    PopulationPersonResponse[] Population);
+
+public sealed record PopulationPersonResponse(
+    Guid PersonId,
+    Guid PlanetId,
+    string Sex,
+    long BirthTimeSeconds,
+    double LatitudeDegrees,
+    double LongitudeDegrees,
+    Guid? ParentId);
 
 public sealed record PlanetResponse(
     Guid PlanetId,

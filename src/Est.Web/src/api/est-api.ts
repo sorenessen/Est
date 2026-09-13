@@ -30,10 +30,21 @@ export interface PlanetResponse {
   environment: PlanetEnvironmentResponse
 }
 
+export interface PopulationPersonResponse {
+  personId: string
+  planetId: string
+  sex: string
+  birthTimeSeconds: number
+  latitudeDegrees: number
+  longitudeDegrees: number
+  parentId: string | null
+}
+
 export interface WorldResponse {
   worldId: string
   currentTimeSeconds: number
   planets: PlanetResponse[]
+  population: PopulationPersonResponse[]
 }
 
 export class EstApi {

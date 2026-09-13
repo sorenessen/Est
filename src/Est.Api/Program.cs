@@ -7,6 +7,7 @@ using Est.Application.Worlds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -124,7 +125,24 @@ app.MapPost(
                                                 .SurfacePressurePascals,
                                             planet.Environment
                                                 .Atmosphere
-                                                .CompositionByMoleFraction))))
+                                                .CompositionByMoleFraction)),
+                                    planet.SyntheticPopulation is null
+                                        ? null
+                                        : new SyntheticPopulationCreationSpecification(
+                                            planet.SyntheticPopulation
+                                                .FounderCount,
+                                            planet.SyntheticPopulation
+                                                .Seed,
+                                            planet.SyntheticPopulation
+                                                .CenterLatitudeDegrees,
+                                            planet.SyntheticPopulation
+                                                .CenterLongitudeDegrees,
+                                            planet.SyntheticPopulation
+                                                .SpreadDegrees,
+                                            planet.SyntheticPopulation
+                                                .MinimumAgeYears,
+                                            planet.SyntheticPopulation
+                                                .MaximumAgeYears)))
                         .ToArray());
 
             var world =
@@ -159,9 +177,26 @@ app.MapPost(
                     .Cast<PlanetaryEnergyBalanceModelDefinition>()
                     .ToArray();
 
+            var populationModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.SyntheticPopulation is null
+                                ? null
+                                : new PopulationModelDefinition(
+                                    world.Planets[index].Id,
+                                    new PopulationModelParameters(
+                                        seed:
+                                            planet.SyntheticPopulation
+                                                .Seed)))
+                    .Where(model => model is not null)
+                    .Cast<PopulationModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
-                    energyBalanceModels);
+                    energyBalanceModels,
+                    populationModels);
 
             var sessionId =
                 manager.Create(
@@ -591,6 +626,18 @@ static WorldResponse ToWorldResponse(
                                 planet.Environment.Atmosphere.SurfacePressurePascals,
                                 planet.Environment.Atmosphere
                                     .CompositionByMoleFraction))))
+            .ToArray(),
+        world.Population
+            .Select(
+                person =>
+                    new PopulationPersonResponse(
+                        person.Id.Value,
+                        person.PlanetId.Value,
+                        person.Sex.ToString(),
+                        person.BirthTimeSeconds,
+                        person.LatitudeDegrees,
+                        person.LongitudeDegrees,
+                        person.ParentId?.Value))
             .ToArray());
 }
 
@@ -617,6 +664,33 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .IceFreeTemperatureKelvin,
                         model.Parameters
                             .IceResponseTimescaleSeconds))
+            .ToArray(),
+        definition.PopulationModels
+            .Select(
+                model =>
+                    new PopulationModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters.Seed,
+                        model.Parameters
+                            .AnnualBirthRatePerEligibleFemale,
+                        model.Parameters
+                            .AnnualAdultMigrationRate,
+                        model.Parameters
+                            .AnnualBaseMortalityRate,
+                        model.Parameters
+                            .AnnualElderMortalityRate,
+                        model.Parameters
+                            .ReproductiveAgeMinimumYears,
+                        model.Parameters
+                            .ReproductiveAgeMaximumYears,
+                        model.Parameters
+                            .ElderAgeYears,
+                        model.Parameters
+                            .LocalMigrationDegrees,
+                        model.Parameters
+                            .LongMigrationProbability,
+                        model.Parameters
+                            .LongMigrationDegrees))
             .ToArray());
 }
 

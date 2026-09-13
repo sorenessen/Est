@@ -15,7 +15,22 @@ public sealed record PlanetCreationRequest(
     double MeanRadiusMeters,
     [property: JsonRequired]
     PlanetEnvironmentCreationRequest Environment,
-    PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null);
+    PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null,
+    SyntheticPopulationCreationRequest? SyntheticPopulation = null);
+
+public sealed record SyntheticPopulationCreationRequest(
+    [property: JsonRequired]
+    int FounderCount,
+    [property: JsonRequired]
+    int Seed,
+    [property: JsonRequired]
+    double CenterLatitudeDegrees,
+    [property: JsonRequired]
+    double CenterLongitudeDegrees,
+    [property: JsonRequired]
+    double SpreadDegrees,
+    double MinimumAgeYears = 18,
+    double MaximumAgeYears = 35);
 
 public sealed record PlanetaryEnergyBalanceModelRequest(
     [property: JsonRequired]

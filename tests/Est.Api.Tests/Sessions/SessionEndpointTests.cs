@@ -1179,4 +1179,117 @@ public sealed class SessionEndpointTests
     }
 
 
+    [Fact]
+    public async Task CreateSession_WithSyntheticPopulation_ExposesPopulationAndModel()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Earth",
+                    5.9722e24,
+                    6_371_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288.15,
+                        0.71,
+                        0.03,
+                        new AtmosphereCreationRequest(
+                            101_325,
+                            new Dictionary<string, double>
+                            {
+                                ["N2"] = 0.7808,
+                                ["O2"] = 0.2095,
+                                ["Ar"] = 0.0093,
+                                ["CO2"] = 0.0004
+                            })),
+                    null,
+                    new SyntheticPopulationCreationRequest(
+                        100,
+                        42,
+                        0,
+                        25,
+                        3))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        var createBody =
+            await createResponse.Content.ReadAsStringAsync();
+
+        Assert.True(
+            createResponse.StatusCode ==
+            HttpStatusCode.Created,
+            $"Expected Created but received " +
+            $"{createResponse.StatusCode}: {createBody}");
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        var definition =
+            await client.GetFromJsonAsync<
+                SimulationDefinitionResponse>(
+                $"/sessions/{created.SessionId}/definition");
+
+        Assert.NotNull(world);
+        Assert.NotNull(definition);
+
+        var planet =
+            Assert.Single(world.Planets);
+
+        Assert.Equal(
+            100,
+            world.Population.Length);
+
+        Assert.All(
+            world.Population,
+            person =>
+            {
+                Assert.Equal(
+                    planet.PlanetId,
+                    person.PlanetId);
+
+                Assert.InRange(
+                    person.LatitudeDegrees,
+                    -3,
+                    3);
+
+                Assert.InRange(
+                    person.LongitudeDegrees,
+                    22,
+                    28);
+
+                Assert.Null(
+                    person.ParentId);
+            });
+
+        var populationModel =
+            Assert.Single(
+                definition.PopulationModels);
+
+        Assert.Equal(
+            planet.PlanetId,
+            populationModel.PlanetId);
+
+        Assert.Equal(
+            42,
+            populationModel.Seed);
+    }
+
+
 }
