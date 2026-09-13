@@ -11,7 +11,7 @@ public sealed class PopulationSystemTests
     private const long OneYearSeconds = 31_536_000;
 
     [Fact]
-    public void Step_PreservesSourceWorldAndAdvancesSurvivalState()
+    public void Step_PreservesSourceWorldAndSurvivalState()
     {
         const long oneDaySeconds = 86_400;
 
@@ -53,9 +53,10 @@ public sealed class PopulationSystemTests
             world.Population[0]
                 .Needs.EnergyReserve);
 
-        Assert.True(
+        Assert.Equal(
+            1,
             result.World.Population[0]
-                .Needs.EnergyReserve < 1);
+                .Needs.EnergyReserve);
 
         Assert.Equal(
             oneDaySeconds,
@@ -156,78 +157,6 @@ public sealed class PopulationSystemTests
         Assert.Equal(
             1,
             result.Change.Metrics["deaths"]);
-    }
-
-    [Fact]
-    public void Step_WithoutFoodEventuallyCausesStarvation()
-    {
-        var planet = CreateEarth();
-
-        var world = new WorldState(
-            WorldId.New(),
-            SimulationTime.Zero,
-            [planet],
-            CreateFounders(planet.Id));
-
-        var system = new PopulationSystem(
-            planet.Id,
-            new PopulationModelParameters(
-                seed: 5,
-                annualBirthRatePerEligibleFemale: 0,
-                annualAdultMigrationRate: 0,
-                annualBaseMortalityRate: 0,
-                annualElderMortalityRate: 0));
-
-        var result =
-            SimulationStepRunner.Step(
-                world,
-                60 * 86_400,
-                system);
-
-        Assert.Empty(result.World.Population);
-
-        Assert.Equal(
-            4,
-            result.Change.Metrics[
-                "starvationDeaths"]);
-    }
-
-    [Fact]
-    public void Step_HungryPeopleBeginForaging()
-    {
-        var planet = CreateEarth();
-
-        var world = new WorldState(
-            WorldId.New(),
-            SimulationTime.Zero,
-            [planet],
-            CreateFounders(planet.Id));
-
-        var system = new PopulationSystem(
-            planet.Id,
-            new PopulationModelParameters(
-                seed: 6,
-                annualBirthRatePerEligibleFemale: 0,
-                annualAdultMigrationRate: 0,
-                annualBaseMortalityRate: 0,
-                annualElderMortalityRate: 0));
-
-        var result =
-            SimulationStepRunner.Step(
-                world,
-                15 * 86_400,
-                system);
-
-        Assert.All(
-            result.World.Population,
-            person =>
-                Assert.Equal(
-                    PersonActivity.Foraging,
-                    person.Activity));
-
-        Assert.Equal(
-            4,
-            result.Change.Metrics["foraging"]);
     }
 
     [Fact]

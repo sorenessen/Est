@@ -53,8 +53,9 @@ public sealed class ForagingSystemTests
                 result.World.FoodResources);
 
         Assert.Equal(
-            1,
-            changedPerson.Needs.EnergyReserve);
+            1 - (1d / 30d),
+            changedPerson.Needs.EnergyReserve,
+            10);
 
         Assert.Equal(
             PersonActivity.Eating,
@@ -67,7 +68,7 @@ public sealed class ForagingSystemTests
 
         Assert.Equal(
             1,
-            result.Change.Metrics["fed"]);
+            result.Change.Metrics["feedingEvents"]);
 
         Assert.Equal(
             0.75,
@@ -175,8 +176,9 @@ public sealed class ForagingSystemTests
                 result.World.Population);
 
         Assert.Equal(
-            0.25,
-            changedPerson.Needs.EnergyReserve);
+            0.25 - (1d / 30d),
+            changedPerson.Needs.EnergyReserve,
+            10);
 
         Assert.Equal(
             PersonActivity.Foraging,
@@ -190,7 +192,7 @@ public sealed class ForagingSystemTests
 
         Assert.Equal(
             0,
-            result.Change.Metrics["fed"]);
+            result.Change.Metrics["feedingEvents"]);
     }
 
     [Fact]
@@ -233,7 +235,7 @@ public sealed class ForagingSystemTests
                 result.World.Population);
 
         Assert.Equal(
-            0.45,
+            0.45 - (1d / 30d),
             changedPerson.Needs.EnergyReserve,
             10);
 
@@ -247,6 +249,154 @@ public sealed class ForagingSystemTests
             1,
             result.Change.Metrics[
                 "exhaustedResources"]);
+    }
+
+    [Fact]
+    public void Step_LongAdvanceWithFoodIntegratesSurvivalDaily()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                1);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                0,
+                100);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                365 * 86_400L,
+                new ForagingSystem(
+                    planet.Id));
+
+        var survivor =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.True(
+            survivor.Needs.Health > 0);
+
+        Assert.True(
+            survivor.Needs.EnergyReserve > 0);
+
+        Assert.True(
+            result.Change.Metrics[
+                "feedingEvents"] > 1);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "starvationDeaths"]);
+
+        Assert.Equal(
+            365 * 86_400L,
+            result.Change.ElapsedSeconds);
+    }
+
+    [Fact]
+    public void Step_LongAdvanceWithoutFoodCausesStarvation()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                1);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                []);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                60 * 86_400L,
+                new ForagingSystem(
+                    planet.Id));
+
+        Assert.Empty(
+            result.World.Population);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "starvationDeaths"]);
+
+        Assert.Equal(
+            60 * 86_400L,
+            result.Change.ElapsedSeconds);
+    }
+
+    [Fact]
+    public void Step_LongAdvanceStillProducesOneCausalChange()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                1);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                0,
+                100);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                365 * 86_400L,
+                new ForagingSystem(
+                    planet.Id));
+
+        Assert.Single(
+            result.Changes);
+
+        Assert.Equal(
+            365 * 86_400L,
+            result.ElapsedSeconds);
+
+        Assert.Equal(
+            365 * 86_400L,
+            result.World
+                .CurrentTime
+                .TotalSeconds);
     }
 
     private static PersonState CreateHungryPerson(

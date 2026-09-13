@@ -10,6 +10,7 @@ public sealed class ForagingSystem : ICausalSystem
 {
     private const double HungerThreshold = 0.6;
     private const double DefaultSearchRadiusDegrees = 1;
+    private const long MaximumIntegrationStepSeconds = 86_400;
 
     private readonly PlanetId _planetId;
     private readonly double _searchRadiusDegrees;
@@ -63,7 +64,7 @@ public sealed class ForagingSystem : ICausalSystem
                     person =>
                         person.PlanetId == _planetId)
                 .OrderBy(person => person.Id.Value)
-                .ToArray();
+                .ToList();
 
         var food =
             world.FoodResources
@@ -71,110 +72,146 @@ public sealed class ForagingSystem : ICausalSystem
                     resource =>
                         resource.PlanetId == _planetId)
                 .OrderBy(resource => resource.Id.Value)
-                .ToArray();
+                .ToDictionary(
+                    resource => resource.Id);
 
-        var updatedFood =
-            food.ToDictionary(
-                resource => resource.Id);
-
-        var updatedPopulation =
-            new List<PersonState>(
-                population.Length);
-
-        var foragers = 0;
-        var fed = 0;
+        var foragingAttempts = 0;
+        var feedingEvents = 0;
+        var starvationDeaths = 0;
         var exhaustedResources = 0;
         var energyConsumed = 0d;
 
-        foreach (var person in population)
+        var remainingSeconds = elapsedSeconds;
+
+        while (remainingSeconds > 0)
         {
-            if (person.Needs.EnergyReserve >=
-                HungerThreshold)
-            {
-                updatedPopulation.Add(person);
-                continue;
-            }
-
-            foragers++;
-
-            var resource =
-                FindNearestAvailableResource(
-                    person,
-                    updatedFood.Values);
-
-            if (resource is null)
-            {
-                updatedPopulation.Add(
-                    person.WithSurvivalState(
-                        person.Needs,
-                        PersonActivity.Foraging));
-
-                continue;
-            }
-
-            var energyNeeded =
-                1 - person.Needs.EnergyReserve;
-
-            var consumed =
+            var stepSeconds =
                 Math.Min(
-                    energyNeeded,
-                    resource.AvailableEnergy);
+                    MaximumIntegrationStepSeconds,
+                    remainingSeconds);
 
-            if (consumed <= 0)
+            var elapsedDays =
+                stepSeconds / 86_400d;
+
+            var survivors =
+                new List<PersonState>(
+                    population.Count);
+
+            foreach (var person in population)
             {
-                updatedPopulation.Add(
-                    person.WithSurvivalState(
-                        person.Needs,
-                        PersonActivity.Foraging));
+                var current = person;
+                var fedThisStep = false;
 
-                continue;
+                if (current.Needs.EnergyReserve <
+                    HungerThreshold)
+                {
+                    foragingAttempts++;
+
+                    var resource =
+                        FindNearestAvailableResource(
+                            current,
+                            food.Values);
+
+                    if (resource is not null)
+                    {
+                        var energyNeeded =
+                            1 -
+                            current.Needs.EnergyReserve;
+
+                        var consumed =
+                            Math.Min(
+                                energyNeeded,
+                                resource.AvailableEnergy);
+
+                        if (consumed > 0)
+                        {
+                            var remainingResource =
+                                resource.Consume(consumed);
+
+                            food[resource.Id] =
+                                remainingResource;
+
+                            if (resource.AvailableEnergy > 0 &&
+                                remainingResource
+                                    .AvailableEnergy == 0)
+                            {
+                                exhaustedResources++;
+                            }
+
+                            current =
+                                current.WithSurvivalState(
+                                    current.Needs
+                                        .WithEnergyReserve(
+                                            current.Needs
+                                                .EnergyReserve +
+                                            consumed),
+                                    PersonActivity.Eating);
+
+                            feedingEvents++;
+                            energyConsumed += consumed;
+                            fedThisStep = true;
+                        }
+                    }
+
+                    if (!fedThisStep)
+                    {
+                        current =
+                            current.WithSurvivalState(
+                                current.Needs,
+                                PersonActivity.Foraging);
+                    }
+                }
+
+                var needs =
+                    current.Needs.AdvanceWithoutFood(
+                        elapsedDays);
+
+                if (needs.Health <= 0)
+                {
+                    starvationDeaths++;
+                    continue;
+                }
+
+                var activity =
+                    fedThisStep
+                        ? PersonActivity.Eating
+                        : needs.EnergyReserve <
+                            HungerThreshold
+                            ? PersonActivity.Foraging
+                            : PersonActivity.Idle;
+
+                survivors.Add(
+                    current.WithSurvivalState(
+                        needs,
+                        activity));
             }
 
-            var remainingResource =
-                resource.Consume(consumed);
-
-            updatedFood[resource.Id] =
-                remainingResource;
-
-            if (resource.AvailableEnergy > 0 &&
-                remainingResource.AvailableEnergy == 0)
-            {
-                exhaustedResources++;
-            }
-
-            var needs =
-                person.Needs.WithEnergyReserve(
-                    person.Needs.EnergyReserve +
-                    consumed);
-
-            updatedPopulation.Add(
-                person.WithSurvivalState(
-                    needs,
-                    PersonActivity.Eating));
-
-            fed++;
-            energyConsumed += consumed;
+            population = survivors;
+            remainingSeconds -= stepSeconds;
         }
 
         var operation =
             new ReplacePlanetForagingStateOperation(
                 _planetId,
-                updatedPopulation,
-                updatedFood.Values);
+                population,
+                food.Values);
 
         return new SimulationChange(
             operation,
             "foraging",
-            "Hungry people consumed nearby food resources.",
+            "Survival needs and nearby food resources changed.",
             _planetId,
             elapsedSeconds,
             new Dictionary<string, double>
             {
-                ["foragers"] = foragers,
-                ["fed"] = fed,
+                ["foragingAttempts"] = foragingAttempts,
+                ["feedingEvents"] = feedingEvents,
                 ["energyConsumed"] = energyConsumed,
                 ["exhaustedResources"] =
-                    exhaustedResources
+                    exhaustedResources,
+                ["starvationDeaths"] =
+                    starvationDeaths,
+                ["survivors"] = population.Count
             });
     }
 
