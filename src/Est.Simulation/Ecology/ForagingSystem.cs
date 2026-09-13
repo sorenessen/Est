@@ -149,6 +149,10 @@ public sealed class ForagingSystem : ICausalSystem
 
                         if (consumed > 0)
                         {
+                            var wasTraveling =
+                                current.Activity ==
+                                PersonActivity.Traveling;
+
                             var remainingResource =
                                 resource.Consume(consumed);
 
@@ -173,8 +177,7 @@ public sealed class ForagingSystem : ICausalSystem
 
                             feedingEvents++;
 
-                            if (current.Activity ==
-                                PersonActivity.Traveling)
+                            if (wasTraveling)
                             {
                                 travelFeedingEvents++;
                             }

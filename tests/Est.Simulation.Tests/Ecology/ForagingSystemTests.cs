@@ -542,6 +542,67 @@ public sealed class ForagingSystemTests
     }
 
     [Fact]
+    public void Step_TravelingPersonWhoReachesFoodCountsTravelFeeding()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.5);
+
+        person =
+            person.WithSurvivalState(
+                person.Needs,
+                PersonActivity.Traveling);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                0.5,
+                availableEnergy: 20,
+                capacityEnergy: 20);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id,
+                    searchRadiusDegrees: 1));
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "feedingEvents"]);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "travelFeedingEvents"]);
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            PersonActivity.Eating,
+            changedPerson.Activity);
+    }
+
+    [Fact]
     public void Step_LocalScarcityTriggersMigrationTowardDistantFood()
     {
         var planet = CreatePlanet();
