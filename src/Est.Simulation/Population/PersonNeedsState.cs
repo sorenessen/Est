@@ -2,6 +2,9 @@ namespace Est.Simulation.Population;
 
 public sealed record PersonNeedsState
 {
+    internal const double EnergyConsumedPerDay =
+        1d / 30d;
+
     public PersonNeedsState(
         double energyReserve = 1,
         double health = 1)
@@ -48,12 +51,11 @@ public sealed record PersonNeedsState
                 nameof(elapsedDays));
         }
 
-        const double energyConsumedPerDay = 1d / 30d;
         const double starvationHealthLossPerDay =
             1d / 14d;
 
         var requiredEnergy =
-            elapsedDays * energyConsumedPerDay;
+            elapsedDays * EnergyConsumedPerDay;
 
         var remainingEnergy =
             Math.Max(
@@ -64,7 +66,7 @@ public sealed record PersonNeedsState
             requiredEnergy <= EnergyReserve
                 ? 0
                 : (requiredEnergy - EnergyReserve)
-                    / energyConsumedPerDay;
+                    / EnergyConsumedPerDay;
 
         var remainingHealth =
             Math.Max(

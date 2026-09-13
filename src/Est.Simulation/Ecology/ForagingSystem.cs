@@ -176,8 +176,8 @@ public sealed class ForagingSystem : ICausalSystem
                     if (!fedThisStep)
                     {
                         var minimumDestinationEnergy =
-                            1 -
-                            current.Needs.EnergyReserve;
+                            PersonNeedsState
+                                .EnergyConsumedPerDay;
 
                         var destination =
                             FindNearestAvailableResource(

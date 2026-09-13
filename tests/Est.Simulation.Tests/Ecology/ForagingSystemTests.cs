@@ -601,6 +601,68 @@ public sealed class ForagingSystemTests
     }
 
     [Fact]
+    public void Step_PartialFoodPatchCanBeScarcityMigrationDestination()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.5);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                10,
+                availableEnergy: 0.1,
+                capacityEnergy: 0.1);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            0.25,
+            changedPerson.LongitudeDegrees,
+            10);
+
+        Assert.Equal(
+            PersonActivity.Traveling,
+            changedPerson.Activity);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "scarcityMigrations"]);
+
+        Assert.Equal(
+            0.1,
+            Assert.Single(
+                result.World.FoodResources)
+                .AvailableEnergy,
+            10);
+    }
+
+    [Fact]
     public void Step_InsufficientLocalRecoveryDoesNotBlockScarcityMigration()
     {
         var planet = CreatePlanet();
