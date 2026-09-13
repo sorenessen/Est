@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 
 namespace Est.Simulation.Worlds;
@@ -7,7 +8,7 @@ namespace Est.Simulation.Worlds;
 public sealed record WorldState
 {
     public WorldState(WorldId id, SimulationTime currentTime)
-        : this(id, currentTime, [])
+        : this(id, currentTime, [], [])
     {
     }
 
@@ -15,6 +16,15 @@ public sealed record WorldState
         WorldId id,
         SimulationTime currentTime,
         IEnumerable<PlanetState> planets)
+        : this(id, currentTime, planets, [])
+    {
+    }
+
+    public WorldState(
+        WorldId id,
+        SimulationTime currentTime,
+        IEnumerable<PlanetState> planets,
+        IEnumerable<PersonState> population)
     {
         if (id.Value == Guid.Empty)
         {
@@ -24,8 +34,10 @@ public sealed record WorldState
         }
 
         ArgumentNullException.ThrowIfNull(planets);
+        ArgumentNullException.ThrowIfNull(population);
 
         var planetArray = planets.ToImmutableArray();
+        var populationArray = population.ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -43,9 +55,39 @@ public sealed record WorldState
                 nameof(planets));
         }
 
+        if (populationArray.Any(person => person is null))
+        {
+            throw new ArgumentException(
+                "World population cannot contain null entries.",
+                nameof(population));
+        }
+
+        if (populationArray
+            .GroupBy(person => person.Id)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain duplicate person identities.",
+                nameof(population));
+        }
+
+        var planetIds = planetArray
+            .Select(planet => planet.Id)
+            .ToHashSet();
+
+        if (populationArray.Any(
+                person =>
+                    !planetIds.Contains(person.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every person must belong to a planet in the world.",
+                nameof(population));
+        }
+
         Id = id;
         CurrentTime = currentTime;
         Planets = planetArray;
+        Population = populationArray;
     }
 
     public WorldId Id { get; private init; }
@@ -53,6 +95,8 @@ public sealed record WorldState
     public SimulationTime CurrentTime { get; private init; }
 
     public ImmutableArray<PlanetState> Planets { get; private init; }
+
+    public ImmutableArray<PersonState> Population { get; private init; }
 
     public WorldState AdvanceBy(long seconds)
     {
@@ -67,7 +111,8 @@ public sealed record WorldState
         return new WorldState(
             Id,
             CurrentTime,
-            Planets);
+            Planets,
+            Population);
     }
 
     public WorldState Fork()
@@ -75,7 +120,20 @@ public sealed record WorldState
         return new WorldState(
             WorldId.New(),
             CurrentTime,
-            Planets);
+            Planets,
+            Population);
+    }
+
+    public WorldState ReplacePopulation(
+        IEnumerable<PersonState> population)
+    {
+        ArgumentNullException.ThrowIfNull(population);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            population);
     }
 
     public WorldState AddPlanet(PlanetState planet)

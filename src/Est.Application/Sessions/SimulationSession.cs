@@ -3,6 +3,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -47,14 +48,27 @@ public sealed class SimulationSession
         _timeline = timeline;
         Definition = definition;
 
-        _causalSystems =
+        var energyBalanceSystems =
             definition.PlanetaryEnergyBalanceModels
                 .Select(
                     model =>
                         (ICausalSystem)
                             new PlanetaryEnergyBalanceSystem(
                                 model.PlanetId,
-                                model.Parameters))
+                                model.Parameters));
+
+        var populationSystems =
+            definition.PopulationModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new PopulationSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
+        _causalSystems =
+            energyBalanceSystems
+                .Concat(populationSystems)
                 .ToArray();
     }
 

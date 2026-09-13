@@ -1,6 +1,7 @@
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -14,6 +15,10 @@ public class SimulationDefinitionTests
         Assert.Empty(
             SimulationDefinition.Empty
                 .PlanetaryEnergyBalanceModels);
+
+        Assert.Empty(
+            SimulationDefinition.Empty
+                .PopulationModels);
     }
 
     [Fact]
@@ -85,6 +90,81 @@ public class SimulationDefinitionTests
             SimulationTime.Zero);
 
         SimulationDefinition.Empty.ValidateFor(world);
+    }
+
+    [Fact]
+    public void Constructor_PreservesConfiguredPopulationModel()
+    {
+        var planetId = PlanetId.New();
+
+        var model =
+            new PopulationModelDefinition(
+                planetId,
+                new PopulationModelParameters(
+                    seed: 42));
+
+        var definition =
+            new SimulationDefinition(
+                populationModels: [model]);
+
+        var configured =
+            Assert.Single(
+                definition.PopulationModels);
+
+        Assert.Same(model, configured);
+    }
+
+    [Fact]
+    public void Constructor_RejectsDuplicatePopulationModelForPlanet()
+    {
+        var planetId = PlanetId.New();
+
+        Assert.Throws<ArgumentException>(
+            () => new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planetId,
+                        new PopulationModelParameters()),
+                    new PopulationModelDefinition(
+                        planetId,
+                        new PopulationModelParameters())
+                ]));
+    }
+
+    [Fact]
+    public void ValidateFor_AcceptsPopulationModelForExistingPlanet()
+    {
+        var planetId = PlanetId.New();
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planetId,
+                        new PopulationModelParameters())
+                ]);
+
+        definition.ValidateFor(
+            CreateWorld(planetId));
+    }
+
+    [Fact]
+    public void ValidateFor_RejectsPopulationModelForUnknownPlanet()
+    {
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        PlanetId.New(),
+                        new PopulationModelParameters())
+                ]);
+
+        Assert.Throws<ArgumentException>(
+            () => definition.ValidateFor(
+                CreateWorld(PlanetId.New())));
     }
 
     private static WorldState CreateWorld(PlanetId planetId)
