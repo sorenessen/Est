@@ -286,7 +286,8 @@ public sealed class ForagingSystem : ICausalSystem
         return FindNearestAvailableResource(
             person,
             resources,
-            _searchRadiusDegrees);
+            _searchRadiusDegrees,
+            PersonNeedsState.EnergyConsumedPerDay);
     }
 
     private static FoodResourceState?
