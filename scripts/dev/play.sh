@@ -28,6 +28,15 @@ payload='{
             "Ar": 0.01
           }
         }
+      },
+      "syntheticPopulation": {
+        "founderCount": 100,
+        "seed": 42,
+        "centerLatitudeDegrees": 0,
+        "centerLongitudeDegrees": 25,
+        "spreadDegrees": 3,
+        "minimumAgeYears": 18,
+        "maximumAgeYears": 35
       }
     }
   ]

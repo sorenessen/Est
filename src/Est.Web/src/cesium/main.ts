@@ -25,6 +25,7 @@ import {
   Ion,
   JulianDate,
   Material,
+  PointPrimitiveCollection,
   Rectangle,
   sampleTerrainMostDetailed,
   SingleTileImageryProvider,
@@ -160,6 +161,11 @@ const viewer = new Viewer('cesiumContainer', {
   timeline: false,
 })
 
+const populationPoints =
+  viewer.scene.primitives.add(
+    new PointPrimitiveCollection(),
+  )
+
 const nightLightsLayer =
   viewer.imageryLayers.addImageryProvider(
     nightLightsProvider,
@@ -200,15 +206,10 @@ viewer.scene.globe.dynamicAtmosphereLighting = true
 
 viewer.camera.setView({
   destination: Cartesian3.fromDegrees(
-    -77.0365,
-    38.8977,
-    1_500,
+    25,
+    0,
+    18_000_000,
   ),
-  orientation: {
-    heading: 0,
-    pitch: -0.65,
-    roll: 0,
-  },
 })
 
 function requireElement<T extends HTMLElement>(
@@ -505,6 +506,40 @@ const evaluationPanelResizeObserver = new ResizeObserver(
 
 evaluationPanelResizeObserver.observe(renderEvaluationPanel)
 
+function renderPopulation(
+  population: Array<{
+    personId: string
+    planetId: string
+    latitudeDegrees: number
+    longitudeDegrees: number
+  }>,
+  planetId: string,
+) {
+  populationPoints.removeAll()
+
+  const visiblePopulation =
+    population.filter(
+      person => person.planetId === planetId,
+    )
+
+  for (const person of visiblePopulation) {
+    populationPoints.add({
+      id: person.personId,
+      position: Cartesian3.fromDegrees(
+        person.longitudeDegrees,
+        person.latitudeDegrees,
+        100,
+      ),
+      pixelSize: 7,
+      color: Color.fromCssColorString('#ffd166'),
+      outlineColor: Color.BLACK,
+      outlineWidth: 1,
+    })
+  }
+
+  return visiblePopulation.length
+}
+
 const queryParameters =
   new URLSearchParams(window.location.search)
 
@@ -521,9 +556,24 @@ if (sessionId) {
 
     const planet = world.planets[0]
 
-    sessionStatus.textContent = planet
-      ? `${planet.name} · ${planet.environment.meanSurfaceTemperatureKelvin.toFixed(2)} K · t=${session.currentTimeSeconds}s`
-      : `Session ${session.sessionId} · no planets`
+    if (planet) {
+      const populationCount =
+        renderPopulation(
+          world.population,
+          planet.planetId,
+        )
+
+      sessionStatus.textContent =
+        `${planet.name} · ` +
+        `${planet.environment.meanSurfaceTemperatureKelvin.toFixed(2)} K · ` +
+        `Population ${populationCount.toLocaleString()} · ` +
+        `t=${session.currentTimeSeconds}s`
+    } else {
+      populationPoints.removeAll()
+
+      sessionStatus.textContent =
+        `Session ${session.sessionId} · no planets`
+    }
   } catch (error) {
     console.error(error)
     sessionStatus.textContent = 'Simulation session could not be loaded.'
