@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -7,7 +8,8 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
+    private const int LegacySchemaVersion = 1;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -28,6 +30,9 @@ public static class WorldSnapshotSerializer
             WorldId = world.Id.Value,
             CurrentTimeSeconds = world.CurrentTime.TotalSeconds,
             Planets = world.Planets
+                .Select(ToSnapshot)
+                .ToArray(),
+            Population = world.Population
                 .Select(ToSnapshot)
                 .ToArray()
         };
@@ -52,7 +57,8 @@ public static class WorldSnapshotSerializer
             ?? throw new JsonException(
                 "Snapshot JSON did not contain a world.");
 
-        if (snapshot.SchemaVersion != CurrentSchemaVersion)
+        if (snapshot.SchemaVersion != LegacySchemaVersion &&
+            snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
                 $"Snapshot schema version {snapshot.SchemaVersion} is not supported.");
@@ -68,10 +74,58 @@ public static class WorldSnapshotSerializer
             .Select(FromSnapshot)
             .ToArray();
 
+        PersonState[] population;
+
+        if (snapshot.SchemaVersion == LegacySchemaVersion)
+        {
+            population = [];
+        }
+        else
+        {
+            if (snapshot.Population is null)
+            {
+                throw new JsonException(
+                    "Snapshot population collection is required.");
+            }
+
+            population = snapshot.Population
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
-            planets);
+            planets,
+            population);
+    }
+
+    private static PersonSnapshot ToSnapshot(PersonState person)
+    {
+        return new PersonSnapshot
+        {
+            PersonId = person.Id.Value,
+            PlanetId = person.PlanetId.Value,
+            Sex = person.Sex,
+            BirthTimeSeconds = person.BirthTimeSeconds,
+            LatitudeDegrees = person.LatitudeDegrees,
+            LongitudeDegrees = person.LongitudeDegrees,
+            ParentId = person.ParentId?.Value
+        };
+    }
+
+    private static PersonState FromSnapshot(PersonSnapshot snapshot)
+    {
+        return new PersonState(
+            new PersonId(snapshot.PersonId),
+            new PlanetId(snapshot.PlanetId),
+            snapshot.Sex,
+            snapshot.BirthTimeSeconds,
+            snapshot.LatitudeDegrees,
+            snapshot.LongitudeDegrees,
+            snapshot.ParentId.HasValue
+                ? new PersonId(snapshot.ParentId.Value)
+                : null);
     }
 
     private static PlanetSnapshot ToSnapshot(PlanetState planet)
@@ -152,6 +206,18 @@ public static class WorldSnapshotSerializer
         public required Guid WorldId { get; set; }
         public required long CurrentTimeSeconds { get; set; }
         public required PlanetSnapshot[] Planets { get; set; }
+        public PersonSnapshot[]? Population { get; set; }
+    }
+
+    private sealed class PersonSnapshot
+    {
+        public required Guid PersonId { get; set; }
+        public required Guid PlanetId { get; set; }
+        public required PersonSex Sex { get; set; }
+        public required long BirthTimeSeconds { get; set; }
+        public required double LatitudeDegrees { get; set; }
+        public required double LongitudeDegrees { get; set; }
+        public Guid? ParentId { get; set; }
     }
 
     private sealed class PlanetSnapshot

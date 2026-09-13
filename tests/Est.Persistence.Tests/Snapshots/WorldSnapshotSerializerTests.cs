@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -75,6 +76,115 @@ public class WorldSnapshotSerializerTests
             0.01,
             restoredPlanet.Environment.Atmosphere
                 .CompositionByMoleFraction["Ar"]);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesPopulationState()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var parentId =
+            new PersonId(
+                Guid.Parse(
+                    "00000000-0000-0000-0000-000000000001"));
+
+        var childId =
+            new PersonId(
+                Guid.Parse(
+                    "00000000-0000-0000-0000-000000000002"));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(123_456),
+                [planet],
+                [
+                    new PersonState(
+                        parentId,
+                        planet.Id,
+                        PersonSex.Female,
+                        -800_000_000,
+                        12.5,
+                        -45.25),
+                    new PersonState(
+                        childId,
+                        planet.Id,
+                        PersonSex.Male,
+                        100_000,
+                        12.75,
+                        -45.0,
+                        parentId)
+                ]);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                WorldSnapshotSerializer.Serialize(world));
+
+        Assert.True(
+            world.Population.SequenceEqual(
+                restored.Population));
+
+        Assert.Equal(
+            parentId,
+            restored.Population[1].ParentId);
+    }
+
+    [Fact]
+    public void Deserialize_LegacyVersionOneHasEmptyPopulation()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 1,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 42,
+              "planets": []
+            }
+            """;
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(json);
+
+        Assert.Equal(
+            worldId,
+            restored.Id.Value);
+
+        Assert.Equal(
+            42,
+            restored.CurrentTime.TotalSeconds);
+
+        Assert.Empty(restored.Population);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwoRequiresPopulationCollection()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 2,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": []
+            }
+            """;
+
+        Assert.Throws<JsonException>(
+            () => WorldSnapshotSerializer.Deserialize(json));
     }
 
     [Fact]

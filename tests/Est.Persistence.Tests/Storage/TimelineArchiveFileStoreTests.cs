@@ -283,15 +283,18 @@ public class TimelineArchiveFileStoreTests
                     CreateTimelineWithHistory(),
                     CreateProvenance());
 
-            var modified =
-                json.Replace(
-                    "\"schemaVersion\": 1",
-                    "\"schemaVersion\": 999",
-                    StringComparison.Ordinal);
+            var root =
+                System.Text.Json.Nodes.JsonNode
+                    .Parse(json)?
+                    .AsObject()
+                ?? throw new InvalidOperationException(
+                    "Serialized archive did not contain a JSON object.");
+
+            root["schemaVersion"] = 999;
 
             File.WriteAllText(
                 path,
-                modified);
+                root.ToJsonString());
 
             Assert.Throws<NotSupportedException>(
                 () => store.Load(path));
