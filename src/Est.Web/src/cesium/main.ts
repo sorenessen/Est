@@ -512,6 +512,9 @@ function renderPopulation(
     planetId: string
     latitudeDegrees: number
     longitudeDegrees: number
+    activity: string
+    energyReserve: number
+    health: number
   }>,
   planetId: string,
 ) {
@@ -522,7 +525,31 @@ function renderPopulation(
       person => person.planetId === planetId,
     )
 
+  const activityColor = (activity: string) => {
+    switch (activity) {
+      case 'Foraging':
+        return Color.fromCssColorString('#f8961e')
+      case 'Eating':
+        return Color.fromCssColorString('#90be6d')
+      case 'Traveling':
+        return Color.fromCssColorString('#4cc9f0')
+      case 'Idle':
+      default:
+        return Color.fromCssColorString('#ffd166')
+    }
+  }
+
   for (const person of visiblePopulation) {
+    const energy =
+      Math.max(0, Math.min(1, person.energyReserve))
+
+    const health =
+      Math.max(0, Math.min(1, person.health))
+
+    const color =
+      activityColor(person.activity)
+        .withAlpha(0.35 + health * 0.65)
+
     populationPoints.add({
       id: person.personId,
       position: Cartesian3.fromDegrees(
@@ -530,8 +557,8 @@ function renderPopulation(
         person.latitudeDegrees,
         100,
       ),
-      pixelSize: 7,
-      color: Color.fromCssColorString('#ffd166'),
+      pixelSize: 5 + energy * 3,
+      color,
       outlineColor: Color.BLACK,
       outlineWidth: 1,
     })
@@ -548,36 +575,72 @@ const sessionId = queryParameters.get('session')
 if (sessionId) {
   const api = new EstApi('/api')
 
-  try {
-    const [session, world] = await Promise.all([
-      api.getSession(sessionId),
-      api.getWorld(sessionId),
-    ])
+  const simulationStepSeconds = 86_400
+  const simulationTickMilliseconds = 500
 
-    const planet = world.planets[0]
+  let simulationTickInProgress = false
 
-    if (planet) {
-      const populationCount =
-        renderPopulation(
-          world.population,
-          planet.planetId,
-        )
-
-      sessionStatus.textContent =
-        `${planet.name} · ` +
-        `${planet.environment.meanSurfaceTemperatureKelvin.toFixed(2)} K · ` +
-        `Population ${populationCount.toLocaleString()} · ` +
-        `t=${session.currentTimeSeconds}s`
-    } else {
-      populationPoints.removeAll()
-
-      sessionStatus.textContent =
-        `Session ${session.sessionId} · no planets`
+  const refreshSimulation = async (
+    advance: boolean,
+  ) => {
+    if (simulationTickInProgress) {
+      return
     }
-  } catch (error) {
-    console.error(error)
-    sessionStatus.textContent = 'Simulation session could not be loaded.'
+
+    simulationTickInProgress = true
+
+    try {
+      const session =
+        advance
+          ? await api.advanceSession(
+              sessionId,
+              simulationStepSeconds,
+            )
+          : await api.getSession(sessionId)
+
+      const world =
+        await api.getWorld(sessionId)
+
+      const planet = world.planets[0]
+
+      if (planet) {
+        const populationCount =
+          renderPopulation(
+            world.population,
+            planet.planetId,
+          )
+
+        const simulatedDays =
+          session.currentTimeSeconds / 86_400
+
+        sessionStatus.textContent =
+          `${planet.name} · ` +
+          `${planet.environment.meanSurfaceTemperatureKelvin.toFixed(2)} K · ` +
+          `Population ${populationCount.toLocaleString()} · ` +
+          `Day ${simulatedDays.toFixed(0)}`
+      } else {
+        populationPoints.removeAll()
+
+        sessionStatus.textContent =
+          `Session ${session.sessionId} · no planets`
+      }
+    } catch (error) {
+      console.error(error)
+      sessionStatus.textContent =
+        'Simulation session could not be updated.'
+    } finally {
+      simulationTickInProgress = false
+    }
   }
+
+  await refreshSimulation(false)
+
+  window.setInterval(
+    () => {
+      void refreshSimulation(true)
+    },
+    simulationTickMilliseconds,
+  )
 }
 
 const ramp = document.createElement('canvas')

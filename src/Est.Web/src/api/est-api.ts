@@ -67,11 +67,43 @@ export class EstApi {
     return response.json() as Promise<T>
   }
 
+  private async post<T>(
+    path: string,
+    body: unknown,
+  ): Promise<T> {
+    const response = await fetch(
+      `${this.baseUrl}${path}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    )
+
+    if (!response.ok) {
+      throw new Error(`Est API request failed: ${response.status}`)
+    }
+
+    return response.json() as Promise<T>
+  }
+
   getSession(sessionId: string): Promise<SessionResponse> {
     return this.get(`/sessions/${encodeURIComponent(sessionId)}`)
   }
 
   getWorld(sessionId: string): Promise<WorldResponse> {
     return this.get(`/sessions/${encodeURIComponent(sessionId)}/world`)
+  }
+
+  advanceSession(
+    sessionId: string,
+    seconds: number,
+  ): Promise<SessionResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/advance`,
+      { seconds },
+    )
   }
 }
