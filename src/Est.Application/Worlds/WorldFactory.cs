@@ -1,3 +1,4 @@
+using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -40,12 +41,23 @@ public static class WorldFactory
                                 .SyntheticFood))
                 .ToArray();
 
+        var animals =
+            specification.Planets
+                .SelectMany(
+                    (planetSpecification, index) =>
+                        CreateAnimals(
+                            planets[index],
+                            planetSpecification
+                                .SyntheticAnimals))
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
             planets,
             population,
-            foodResources);
+            foodResources,
+            animals);
     }
 
     private static PlanetState CreatePlanet(
@@ -71,6 +83,67 @@ public static class WorldFactory
                 new AtmosphereState(
                     atmosphere.SurfacePressurePascals,
                     atmosphere.CompositionByMoleFraction)));
+    }
+
+    private static IEnumerable<AnimalState> CreateAnimals(
+        PlanetState planet,
+        SyntheticAnimalCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return [];
+        }
+
+        ValidateAnimalSpecification(specification);
+
+        var random =
+            new Random(specification.Seed);
+
+        var animals =
+            new AnimalState[specification.WolfCount];
+
+        for (var index = 0;
+             index < animals.Length;
+             index++)
+        {
+            var radius =
+                Math.Sqrt(random.NextDouble()) *
+                specification.SpreadDegrees;
+
+            var angle =
+                random.NextDouble() *
+                Math.PI *
+                2;
+
+            var latitude =
+                Math.Clamp(
+                    specification.CenterLatitudeDegrees +
+                    Math.Sin(angle) * radius,
+                    -90,
+                    90);
+
+            var longitude =
+                NormalizeLongitude(
+                    specification.CenterLongitudeDegrees +
+                    Math.Cos(angle) * radius);
+
+            var idBytes = new byte[16];
+            random.NextBytes(idBytes);
+
+            animals[index] =
+                new AnimalState(
+                    new AnimalId(
+                        new Guid(idBytes)),
+                    planet.Id,
+                    AnimalSpecies.Wolf,
+                    latitude,
+                    longitude,
+                    energyReserve: 0.35,
+                    health: 1,
+                    activity: AnimalActivity.Hunting);
+        }
+
+        return animals;
     }
 
     private static IEnumerable<FoodResourceState>
@@ -200,6 +273,43 @@ public static class WorldFactory
         }
 
         return population;
+    }
+
+    private static void ValidateAnimalSpecification(
+        SyntheticAnimalCreationSpecification specification)
+    {
+        if (specification.WolfCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(specification.WolfCount));
+        }
+
+        if (!double.IsFinite(
+                specification.CenterLatitudeDegrees) ||
+            specification.CenterLatitudeDegrees < -90 ||
+            specification.CenterLatitudeDegrees > 90)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    specification.CenterLatitudeDegrees));
+        }
+
+        if (!double.IsFinite(
+                specification.CenterLongitudeDegrees) ||
+            specification.CenterLongitudeDegrees < -180 ||
+            specification.CenterLongitudeDegrees > 180)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    specification.CenterLongitudeDegrees));
+        }
+
+        if (!double.IsFinite(specification.SpreadDegrees) ||
+            specification.SpreadDegrees < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(specification.SpreadDegrees));
+        }
     }
 
     private static void ValidateFoodSpecification(

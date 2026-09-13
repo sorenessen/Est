@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -9,12 +10,13 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
     private const int FoodSchemaVersion = 4;
     private const int RenewableFoodSchemaVersion = 5;
+    private const int AnimalSchemaVersion = 6;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -41,6 +43,9 @@ public static class WorldSnapshotSerializer
                 .Select(ToSnapshot)
                 .ToArray(),
             FoodResources = world.FoodResources
+                .Select(ToSnapshot)
+                .ToArray(),
+            Animals = world.Animals
                 .Select(ToSnapshot)
                 .ToArray()
         };
@@ -69,6 +74,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != PopulationSchemaVersion &&
             snapshot.SchemaVersion != SurvivalSchemaVersion &&
             snapshot.SchemaVersion != FoodSchemaVersion &&
+            snapshot.SchemaVersion != RenewableFoodSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -132,12 +138,63 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        AnimalState[] animals;
+
+        if (snapshot.SchemaVersion <
+            AnimalSchemaVersion)
+        {
+            animals = [];
+        }
+        else
+        {
+            if (snapshot.Animals is null)
+            {
+                throw new JsonException(
+                    "Snapshot animals collection is required.");
+            }
+
+            animals = snapshot.Animals
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
             planets,
             population,
-            foodResources);
+            foodResources,
+            animals);
+    }
+
+    private static AnimalSnapshot ToSnapshot(
+        AnimalState animal)
+    {
+        return new AnimalSnapshot
+        {
+            AnimalId = animal.Id.Value,
+            PlanetId = animal.PlanetId.Value,
+            Species = animal.Species,
+            LatitudeDegrees = animal.LatitudeDegrees,
+            LongitudeDegrees = animal.LongitudeDegrees,
+            EnergyReserve = animal.EnergyReserve,
+            Health = animal.Health,
+            Activity = animal.Activity
+        };
+    }
+
+    private static AnimalState FromSnapshot(
+        AnimalSnapshot snapshot)
+    {
+        return new AnimalState(
+            new AnimalId(snapshot.AnimalId),
+            new PlanetId(snapshot.PlanetId),
+            snapshot.Species,
+            snapshot.LatitudeDegrees,
+            snapshot.LongitudeDegrees,
+            snapshot.EnergyReserve,
+            snapshot.Health,
+            snapshot.Activity);
     }
 
     private static FoodResourceSnapshot ToSnapshot(
@@ -358,6 +415,19 @@ public static class WorldSnapshotSerializer
         public required PlanetSnapshot[] Planets { get; set; }
         public PersonSnapshot[]? Population { get; set; }
         public FoodResourceSnapshot[]? FoodResources { get; set; }
+        public AnimalSnapshot[]? Animals { get; set; }
+    }
+
+    private sealed class AnimalSnapshot
+    {
+        public required Guid AnimalId { get; set; }
+        public required Guid PlanetId { get; set; }
+        public required AnimalSpecies Species { get; set; }
+        public required double LatitudeDegrees { get; set; }
+        public required double LongitudeDegrees { get; set; }
+        public required double EnergyReserve { get; set; }
+        public required double Health { get; set; }
+        public required AnimalActivity Activity { get; set; }
     }
 
     private sealed class FoodResourceSnapshot

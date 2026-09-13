@@ -159,7 +159,20 @@ app.MapPost(
                                             planet.SyntheticFood
                                                 .EnergyPerPatch,
                                             planet.SyntheticFood
-                                                .RecoveryEnergyPerDay)))
+                                                .RecoveryEnergyPerDay),
+                                    planet.SyntheticAnimals is null
+                                        ? null
+                                        : new SyntheticAnimalCreationSpecification(
+                                            planet.SyntheticAnimals
+                                                .WolfCount,
+                                            planet.SyntheticAnimals
+                                                .Seed,
+                                            planet.SyntheticAnimals
+                                                .CenterLatitudeDegrees,
+                                            planet.SyntheticAnimals
+                                                .CenterLongitudeDegrees,
+                                            planet.SyntheticAnimals
+                                                .SpreadDegrees)))
                         .ToArray());
 
             var world =
@@ -670,6 +683,19 @@ static WorldResponse ToWorldResponse(
                         resource.AvailableEnergy,
                         resource.CapacityEnergy,
                         resource.RecoveryEnergyPerDay))
+            .ToArray(),
+        world.Animals
+            .Select(
+                animal =>
+                    new AnimalResponse(
+                        animal.Id.Value,
+                        animal.PlanetId.Value,
+                        animal.Species.ToString(),
+                        animal.LatitudeDegrees,
+                        animal.LongitudeDegrees,
+                        animal.EnergyReserve,
+                        animal.Health,
+                        animal.Activity.ToString()))
             .ToArray());
 }
 

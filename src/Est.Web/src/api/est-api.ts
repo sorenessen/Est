@@ -43,11 +43,46 @@ export interface PopulationPersonResponse {
   health: number
 }
 
+export interface AnimalResponse {
+  animalId: string
+  planetId: string
+  species: string
+  latitudeDegrees: number
+  longitudeDegrees: number
+  energyReserve: number
+  health: number
+  activity: string
+}
+
 export interface WorldResponse {
   worldId: string
   currentTimeSeconds: number
   planets: PlanetResponse[]
   population: PopulationPersonResponse[]
+  animals: AnimalResponse[]
+}
+
+export interface TimelineEventResponse {
+  eventId: string
+  occurredAtSeconds: number
+  cause: string
+  summary: string
+  affectedPlanetId: string | null
+  elapsedSeconds: number
+  metrics: Record<string, number>
+}
+
+export interface TimelineResponse {
+  timelineId: string
+  worldId: string
+  parentTimelineId: string | null
+  parentCheckpointId: string | null
+  currentTimeSeconds: number
+  checkpoints: Array<{
+    checkpointId: string
+    timeSeconds: number
+  }>
+  events: TimelineEventResponse[]
 }
 
 export class EstApi {
@@ -95,6 +130,12 @@ export class EstApi {
 
   getWorld(sessionId: string): Promise<WorldResponse> {
     return this.get(`/sessions/${encodeURIComponent(sessionId)}/world`)
+  }
+
+  getTimeline(sessionId: string): Promise<TimelineResponse> {
+    return this.get(
+      `/sessions/${encodeURIComponent(sessionId)}/timeline`,
+    )
   }
 
   advanceSession(

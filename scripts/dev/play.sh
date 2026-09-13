@@ -43,9 +43,16 @@ payload='{
         "seed": 84,
         "centerLatitudeDegrees": 0,
         "centerLongitudeDegrees": 25,
-        "spreadDegrees": 3,
-        "energyPerPatch": 100,
-        "recoveryEnergyPerDay": 2
+        "spreadDegrees": 20,
+        "energyPerPatch": 20,
+        "recoveryEnergyPerDay": 0.03
+      },
+      "syntheticAnimals": {
+        "wolfCount": 1,
+        "seed": 126,
+        "centerLatitudeDegrees": 0,
+        "centerLongitudeDegrees": 25,
+        "spreadDegrees": 1
       }
     }
   ]

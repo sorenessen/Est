@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
+using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -144,6 +145,98 @@ public class WorldSnapshotSerializerTests
         Assert.Equal(
             parentId,
             restored.Population[1].ParentId);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesAnimals()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var wolf =
+            new AnimalState(
+                new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000201")),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                12.5,
+                -45.25,
+                energyReserve: 0.42,
+                health: 0.73,
+                activity: AnimalActivity.Traveling);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(123_456),
+                [planet],
+                [],
+                [],
+                [wolf]);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                WorldSnapshotSerializer.Serialize(world));
+
+        Assert.Equal(
+            wolf,
+            Assert.Single(restored.Animals));
+    }
+
+    [Fact]
+    public void Deserialize_VersionFiveGetsEmptyAnimals()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 5,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [],
+              "population": [],
+              "foodResources": []
+            }
+            """;
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(json);
+
+        Assert.Empty(restored.Animals);
+    }
+
+    [Fact]
+    public void Deserialize_VersionSixRequiresAnimals()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 6,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [],
+              "population": [],
+              "foodResources": []
+            }
+            """;
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    json));
     }
 
     [Fact]

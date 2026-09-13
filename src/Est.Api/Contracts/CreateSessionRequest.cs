@@ -17,7 +17,8 @@ public sealed record PlanetCreationRequest(
     PlanetEnvironmentCreationRequest Environment,
     PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null,
     SyntheticPopulationCreationRequest? SyntheticPopulation = null,
-    SyntheticFoodCreationRequest? SyntheticFood = null);
+    SyntheticFoodCreationRequest? SyntheticFood = null,
+    SyntheticAnimalCreationRequest? SyntheticAnimals = null);
 
 public sealed record SyntheticPopulationCreationRequest(
     [property: JsonRequired]
@@ -47,6 +48,18 @@ public sealed record SyntheticFoodCreationRequest(
     [property: JsonRequired]
     double EnergyPerPatch,
     double RecoveryEnergyPerDay = 0);
+
+public sealed record SyntheticAnimalCreationRequest(
+    [property: JsonRequired]
+    int WolfCount,
+    [property: JsonRequired]
+    int Seed,
+    [property: JsonRequired]
+    double CenterLatitudeDegrees,
+    [property: JsonRequired]
+    double CenterLongitudeDegrees,
+    [property: JsonRequired]
+    double SpreadDegrees);
 
 public sealed record PlanetaryEnergyBalanceModelRequest(
     [property: JsonRequired]

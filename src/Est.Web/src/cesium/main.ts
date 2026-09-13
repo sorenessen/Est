@@ -108,7 +108,16 @@ appRoot.innerHTML = `
       </div>
 
       <div id="presentationStatus">Automatic scale inactive.</div>
-      <div id="sessionStatus">No simulation session selected.</div>
+
+      <section
+        id="sessionStatus"
+        class="simulation-telemetry"
+        aria-label="Simulation telemetry"
+      >
+        <div class="simulation-telemetry-empty">
+          No simulation session selected.
+        </div>
+      </section>
     </div>
   </section>
 
@@ -162,6 +171,16 @@ const viewer = new Viewer('cesiumContainer', {
 })
 
 const populationPoints =
+  viewer.scene.primitives.add(
+    new PointPrimitiveCollection(),
+  )
+
+const animalPoints =
+  viewer.scene.primitives.add(
+    new PointPrimitiveCollection(),
+  )
+
+const bloodEffectPoints =
   viewer.scene.primitives.add(
     new PointPrimitiveCollection(),
   )
@@ -528,11 +547,11 @@ function renderPopulation(
   const activityColor = (activity: string) => {
     switch (activity) {
       case 'Foraging':
-        return Color.fromCssColorString('#f8961e')
+        return Color.fromCssColorString('#ff9f1c')
       case 'Eating':
-        return Color.fromCssColorString('#90be6d')
+        return Color.fromCssColorString('#9be564')
       case 'Traveling':
-        return Color.fromCssColorString('#4cc9f0')
+        return Color.fromCssColorString('#4ddcff')
       case 'Idle':
       default:
         return Color.fromCssColorString('#ffd166')
@@ -548,7 +567,25 @@ function renderPopulation(
 
     const color =
       activityColor(person.activity)
-        .withAlpha(0.35 + health * 0.65)
+        .withAlpha(0.72 + health * 0.28)
+
+    const coreSize =
+      person.activity === 'Traveling'
+        ? 14
+        : 11 + energy * 3
+
+    populationPoints.add({
+      id: `${person.personId}-halo`,
+      position: Cartesian3.fromDegrees(
+        person.longitudeDegrees,
+        person.latitudeDegrees,
+        95,
+      ),
+      pixelSize: coreSize + 8,
+      color: color.withAlpha(0.18),
+      outlineColor: color.withAlpha(0),
+      outlineWidth: 0,
+    })
 
     populationPoints.add({
       id: person.personId,
@@ -557,14 +594,150 @@ function renderPopulation(
         person.latitudeDegrees,
         100,
       ),
-      pixelSize: 5 + energy * 3,
+      pixelSize: coreSize,
       color,
+      outlineColor: Color.fromCssColorString('#071018'),
+      outlineWidth: 2.5,
+    })
+  }
+
+  return visiblePopulation.length
+}
+
+function renderAnimals(
+  animals: Array<{
+    animalId: string
+    planetId: string
+    species: string
+    latitudeDegrees: number
+    longitudeDegrees: number
+    energyReserve: number
+    health: number
+    activity: string
+  }>,
+  planetId: string,
+) {
+  animalPoints.removeAll()
+
+  const visibleAnimals =
+    animals.filter(
+      animal => animal.planetId === planetId,
+    )
+
+  for (const animal of visibleAnimals) {
+    const isWolf = animal.species === 'Wolf'
+
+    animalPoints.add({
+      id: `animal-${animal.animalId}`,
+      position: Cartesian3.fromDegrees(
+        animal.longitudeDegrees,
+        animal.latitudeDegrees,
+        120,
+      ),
+      pixelSize:
+        animal.activity === 'Attacking'
+          ? 24
+          : animal.activity === 'Traveling'
+            ? 21
+            : 19,
+      color:
+        isWolf
+          ? Color.fromCssColorString('#d9e1e8')
+          : Color.fromCssColorString('#c4b5fd'),
+      outlineColor:
+        Color.fromCssColorString('#10151b'),
+      outlineWidth: 3,
+    })
+
+    animalPoints.add({
+      id: `animal-${animal.animalId}-eye`,
+      position: Cartesian3.fromDegrees(
+        animal.longitudeDegrees,
+        animal.latitudeDegrees,
+        125,
+      ),
+      pixelSize: 6,
+      color: Color.fromCssColorString('#ff3344'),
       outlineColor: Color.BLACK,
       outlineWidth: 1,
     })
   }
 
-  return visiblePopulation.length
+  return visibleAnimals.length
+}
+
+function showBloodSpatter(
+  latitudeDegrees: number,
+  longitudeDegrees: number,
+) {
+  const offsets = [
+    [0, 0, 22],
+    [0.025, 0.012, 10],
+    [-0.021, 0.017, 8],
+    [0.014, -0.028, 9],
+    [-0.032, -0.011, 7],
+    [0.041, -0.018, 6],
+    [-0.013, 0.039, 6],
+  ] as const
+
+  const burstIds: string[] = []
+  const burstId =
+    `blood-${Date.now()}-${Math.random()}`
+
+  offsets.forEach(
+    ([latitudeOffset, longitudeOffset, size], index) => {
+      const id = `${burstId}-${index}`
+      burstIds.push(id)
+
+      bloodEffectPoints.add({
+        id,
+        position: Cartesian3.fromDegrees(
+          longitudeDegrees + longitudeOffset,
+          latitudeDegrees + latitudeOffset,
+          145 + index * 2,
+        ),
+        pixelSize: size,
+        color:
+          Color.fromCssColorString('#c1121f')
+            .withAlpha(index === 0 ? 0.95 : 0.8),
+        outlineColor:
+          Color.fromCssColorString('#4a0008')
+            .withAlpha(0.9),
+        outlineWidth: index === 0 ? 3 : 1.5,
+      })
+    },
+  )
+
+  window.setTimeout(
+    () => {
+      for (const id of burstIds) {
+        const point =
+          bloodEffectPoints.get(
+            bloodEffectPoints.length - 1,
+          )
+
+        if (point && point.id === id) {
+          bloodEffectPoints.remove(point)
+          continue
+        }
+
+        for (
+          let index = bloodEffectPoints.length - 1;
+          index >= 0;
+          index--
+        ) {
+          const candidate =
+            bloodEffectPoints.get(index)
+
+          if (candidate.id === id) {
+            bloodEffectPoints.remove(candidate)
+            break
+          }
+        }
+      }
+    },
+    1100,
+  )
 }
 
 const queryParameters =
@@ -577,8 +750,78 @@ if (sessionId) {
 
   const simulationStepSeconds = 86_400
   const simulationTickMilliseconds = 500
+  const timelinePollIntervalTicks = 10
 
   let simulationTickInProgress = false
+  let simulationTickCount = 0
+
+  const observedTimelineEvents = new Set<string>()
+
+  const cumulativeMetrics = {
+    births: 0,
+    demographicDeaths: 0,
+    starvationDeaths: 0,
+    demographicMigrations: 0,
+    scarcityMigrations: 0,
+    wolfAttacks: 0,
+    predationDeaths: 0,
+  }
+
+  const refreshTimelineMetrics = async () => {
+    const timeline =
+      await api.getTimeline(sessionId)
+
+    for (const event of timeline.events) {
+      if (observedTimelineEvents.has(event.eventId)) {
+        continue
+      }
+
+      observedTimelineEvents.add(event.eventId)
+
+      if (event.cause === 'population-dynamics') {
+        cumulativeMetrics.births +=
+          event.metrics.births ?? 0
+
+        cumulativeMetrics.demographicDeaths +=
+          event.metrics.deaths ?? 0
+
+        cumulativeMetrics.demographicMigrations +=
+          event.metrics.migrations ?? 0
+      }
+
+      if (event.cause === 'foraging') {
+        cumulativeMetrics.starvationDeaths +=
+          event.metrics.starvationDeaths ?? 0
+
+        cumulativeMetrics.scarcityMigrations +=
+          event.metrics.scarcityMigrations ?? 0
+      }
+
+      if (event.cause === 'predation') {
+        cumulativeMetrics.wolfAttacks +=
+          event.metrics.wolfAttacks ?? 0
+
+        cumulativeMetrics.predationDeaths +=
+          event.metrics.predationDeaths ?? 0
+
+        const attackLatitude =
+          event.metrics.attackLatitude
+        const attackLongitude =
+          event.metrics.attackLongitude
+
+        if (
+          Number.isFinite(attackLatitude) &&
+          Number.isFinite(attackLongitude) &&
+          (event.metrics.successfulKills ?? 0) > 0
+        ) {
+          showBloodSpatter(
+            attackLatitude,
+            attackLongitude,
+          )
+        }
+      }
+    }
+  }
 
   const refreshSimulation = async (
     advance: boolean,
@@ -601,25 +844,234 @@ if (sessionId) {
       const world =
         await api.getWorld(sessionId)
 
+      if (
+        simulationTickCount % timelinePollIntervalTicks === 0
+      ) {
+        await refreshTimelineMetrics()
+      }
+
+      simulationTickCount++
+
       const planet = world.planets[0]
 
       if (planet) {
+        const population =
+          world.population.filter(
+            person => person.planetId === planet.planetId,
+          )
+
         const populationCount =
           renderPopulation(
             world.population,
             planet.planetId,
           )
 
+        const animalCount =
+          renderAnimals(
+            world.animals,
+            planet.planetId,
+          )
+
+        const activityCounts =
+          population.reduce(
+            (counts, person) => {
+              counts[person.activity] =
+                (counts[person.activity] ?? 0) + 1
+
+              return counts
+            },
+            {} as Record<string, number>,
+          )
+
+        const averageEnergy =
+          population.length === 0
+            ? 0
+            : population.reduce(
+                (sum, person) =>
+                  sum + person.energyReserve,
+                0,
+              ) / population.length
+
+        const averageHealth =
+          population.length === 0
+            ? 0
+            : population.reduce(
+                (sum, person) =>
+                  sum + person.health,
+                0,
+              ) / population.length
+
         const simulatedDays =
           session.currentTimeSeconds / 86_400
 
-        sessionStatus.textContent =
-          `${planet.name} · ` +
-          `${planet.environment.meanSurfaceTemperatureKelvin.toFixed(2)} K · ` +
-          `Population ${populationCount.toLocaleString()} · ` +
-          `Day ${simulatedDays.toFixed(0)}`
+        sessionStatus.innerHTML = `
+          <div class="simulation-telemetry-header">
+            <div>
+              <div class="simulation-telemetry-kicker">
+                ${planet.name}
+              </div>
+              <div class="simulation-telemetry-population">
+                ${populationCount.toLocaleString()}
+              </div>
+              <div class="simulation-telemetry-caption">
+                Population
+              </div>
+            </div>
+
+            <div class="simulation-telemetry-day">
+              <div class="simulation-telemetry-kicker">
+                Simulation
+              </div>
+              <div class="simulation-telemetry-day-value">
+                Day ${simulatedDays.toFixed(0)}
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Activity
+            </div>
+
+            <div class="simulation-telemetry-grid activity-grid">
+              <div class="simulation-metric">
+                <span class="activity-dot activity-idle"></span>
+                <span class="simulation-metric-label">Idle</span>
+                <strong>${activityCounts.Idle ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="activity-dot activity-foraging"></span>
+                <span class="simulation-metric-label">Foraging</span>
+                <strong>${activityCounts.Foraging ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="activity-dot activity-eating"></span>
+                <span class="simulation-metric-label">Eating</span>
+                <strong>${activityCounts.Eating ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="activity-dot activity-traveling"></span>
+                <span class="simulation-metric-label">Traveling</span>
+                <strong>${activityCounts.Traveling ?? 0}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Condition
+            </div>
+
+            <div class="simulation-condition-grid">
+              <div class="simulation-condition">
+                <span>Energy</span>
+                <strong>${averageEnergy.toFixed(2)}</strong>
+                <div class="simulation-meter">
+                  <div
+                    class="simulation-meter-fill"
+                    style="width: ${Math.max(
+                      0,
+                      Math.min(100, averageEnergy * 100),
+                    )}%"
+                  ></div>
+                </div>
+              </div>
+
+              <div class="simulation-condition">
+                <span>Health</span>
+                <strong>${averageHealth.toFixed(2)}</strong>
+                <div class="simulation-meter">
+                  <div
+                    class="simulation-meter-fill"
+                    style="width: ${Math.max(
+                      0,
+                      Math.min(100, averageHealth * 100),
+                    )}%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Population change
+            </div>
+
+            <div class="simulation-telemetry-grid">
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">Births</span>
+                <strong>+${cumulativeMetrics.births}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Natural deaths
+                </span>
+                <strong>−${cumulativeMetrics.demographicDeaths}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Starvation deaths
+                </span>
+                <strong>−${cumulativeMetrics.starvationDeaths}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Predation
+            </div>
+
+            <div class="simulation-telemetry-grid">
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">Wolves</span>
+                <strong>${animalCount}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">Wolf attacks</span>
+                <strong>${cumulativeMetrics.wolfAttacks.toFixed(0)}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">Predation deaths</span>
+                <strong>−${cumulativeMetrics.predationDeaths.toFixed(0)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-section">
+            <div class="simulation-telemetry-section-title">
+              Movement
+            </div>
+
+            <div class="simulation-telemetry-grid">
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Random moves
+                </span>
+                <strong>${cumulativeMetrics.demographicMigrations}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Food migrations
+                </span>
+                <strong>${cumulativeMetrics.scarcityMigrations}</strong>
+              </div>
+            </div>
+          </div>
+        `
       } else {
         populationPoints.removeAll()
+        animalPoints.removeAll()
+        bloodEffectPoints.removeAll()
 
         sessionStatus.textContent =
           `Session ${session.sessionId} · no planets`

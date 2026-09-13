@@ -5,7 +5,8 @@ public sealed record WorldResponse(
     long CurrentTimeSeconds,
     PlanetResponse[] Planets,
     PopulationPersonResponse[] Population,
-    FoodResourceResponse[] FoodResources);
+    FoodResourceResponse[] FoodResources,
+    AnimalResponse[] Animals);
 
 public sealed record PopulationPersonResponse(
     Guid PersonId,
@@ -27,6 +28,16 @@ public sealed record FoodResourceResponse(
     double AvailableEnergy,
     double CapacityEnergy,
     double RecoveryEnergyPerDay);
+
+public sealed record AnimalResponse(
+    Guid AnimalId,
+    Guid PlanetId,
+    string Species,
+    double LatitudeDegrees,
+    double LongitudeDegrees,
+    double EnergyReserve,
+    double Health,
+    string Activity);
 
 public sealed record PlanetResponse(
     Guid PlanetId,

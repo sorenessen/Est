@@ -1,3 +1,4 @@
+using Est.Simulation.Animals;
 using Est.Simulation.Causality;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
@@ -66,6 +67,20 @@ public sealed class SimulationSession
                             new ForagingSystem(
                                 model.PlanetId));
 
+        var predatorSystems =
+            timeline.CurrentWorld.Animals
+                .Where(
+                    animal =>
+                        animal.Species ==
+                        AnimalSpecies.Wolf)
+                .Select(animal => animal.PlanetId)
+                .Distinct()
+                .Select(
+                    planetId =>
+                        (ICausalSystem)
+                            new WolfPredatorSystem(
+                                planetId));
+
         var populationSystems =
             definition.PopulationModels
                 .Select(
@@ -78,6 +93,7 @@ public sealed class SimulationSession
         _causalSystems =
             energyBalanceSystems
                 .Concat(foragingSystems)
+                .Concat(predatorSystems)
                 .Concat(populationSystems)
                 .ToArray();
     }

@@ -9,7 +9,8 @@ public sealed record PlanetCreationSpecification(
     double MeanRadiusMeters,
     PlanetEnvironmentCreationSpecification Environment,
     SyntheticPopulationCreationSpecification? SyntheticPopulation = null,
-    SyntheticFoodCreationSpecification? SyntheticFood = null);
+    SyntheticFoodCreationSpecification? SyntheticFood = null,
+    SyntheticAnimalCreationSpecification? SyntheticAnimals = null);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,
@@ -28,6 +29,13 @@ public sealed record SyntheticFoodCreationSpecification(
     double SpreadDegrees,
     double EnergyPerPatch,
     double RecoveryEnergyPerDay = 0);
+
+public sealed record SyntheticAnimalCreationSpecification(
+    int WolfCount,
+    int Seed,
+    double CenterLatitudeDegrees,
+    double CenterLongitudeDegrees,
+    double SpreadDegrees);
 
 public sealed record PlanetEnvironmentCreationSpecification(
     double MeanSurfaceTemperatureKelvin,
