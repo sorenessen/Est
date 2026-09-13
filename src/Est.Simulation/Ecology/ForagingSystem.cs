@@ -82,7 +82,9 @@ public sealed class ForagingSystem : ICausalSystem
         var feedingEvents = 0;
         var starvationDeaths = 0;
         var exhaustedResources = 0;
+        var foodSeekingTravel = 0;
         var scarcityMigrations = 0;
+        var noViableFoodFound = 0;
         var energyConsumed = 0d;
         var energyRecovered = 0d;
 
@@ -186,7 +188,11 @@ public sealed class ForagingSystem : ICausalSystem
                                 FoodSeekingRadiusDegrees,
                                 minimumDestinationEnergy);
 
-                        if (destination is null)
+                        if (destination is not null)
+                        {
+                            foodSeekingTravel++;
+                        }
+                        else
                         {
                             destination =
                                 FindNearestAvailableResource(
@@ -198,6 +204,10 @@ public sealed class ForagingSystem : ICausalSystem
                             if (destination is not null)
                             {
                                 scarcityMigrations++;
+                            }
+                            else
+                            {
+                                noViableFoodFound++;
                             }
                         }
 
@@ -271,8 +281,12 @@ public sealed class ForagingSystem : ICausalSystem
                 ["energyRecovered"] = energyRecovered,
                 ["exhaustedResources"] =
                     exhaustedResources,
+                ["foodSeekingTravel"] =
+                    foodSeekingTravel,
                 ["scarcityMigrations"] =
                     scarcityMigrations,
+                ["noViableFoodFound"] =
+                    noViableFoodFound,
                 ["starvationDeaths"] =
                     starvationDeaths,
                 ["survivors"] = population.Count

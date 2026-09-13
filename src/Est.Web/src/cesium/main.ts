@@ -766,7 +766,9 @@ if (sessionId) {
     demographicDeaths: 0,
     starvationDeaths: 0,
     demographicMigrations: 0,
+    foodSeekingTravel: 0,
     scarcityMigrations: 0,
+    noViableFoodFound: 0,
     wolfAttacks: 0,
     failedAttacks: 0,
     predationDeaths: 0,
@@ -798,8 +800,14 @@ if (sessionId) {
         cumulativeMetrics.starvationDeaths +=
           event.metrics.starvationDeaths ?? 0
 
+        cumulativeMetrics.foodSeekingTravel +=
+          event.metrics.foodSeekingTravel ?? 0
+
         cumulativeMetrics.scarcityMigrations +=
           event.metrics.scarcityMigrations ?? 0
+
+        cumulativeMetrics.noViableFoodFound +=
+          event.metrics.noViableFoodFound ?? 0
       }
 
       if (event.cause === 'predation') {
@@ -1083,9 +1091,23 @@ if (sessionId) {
 
               <div class="simulation-metric">
                 <span class="simulation-metric-label">
-                  Food migrations
+                  Food seeking
+                </span>
+                <strong>${cumulativeMetrics.foodSeekingTravel}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  Scarcity migrations
                 </span>
                 <strong>${cumulativeMetrics.scarcityMigrations}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">
+                  No viable food
+                </span>
+                <strong>${cumulativeMetrics.noViableFoodFound}</strong>
               </div>
             </div>
           </div>
