@@ -82,6 +82,7 @@ public sealed class ForagingSystem : ICausalSystem
         var starvationDeaths = 0;
         var exhaustedResources = 0;
         var energyConsumed = 0d;
+        var energyRecovered = 0d;
 
         var remainingSeconds = elapsedSeconds;
 
@@ -94,6 +95,20 @@ public sealed class ForagingSystem : ICausalSystem
 
             var elapsedDays =
                 stepSeconds / 86_400d;
+
+            foreach (var resource in food.Values.ToArray())
+            {
+                var recovered =
+                    resource.Recover(
+                        elapsedDays);
+
+                energyRecovered +=
+                    recovered.AvailableEnergy -
+                    resource.AvailableEnergy;
+
+                food[resource.Id] =
+                    recovered;
+            }
 
             var survivors =
                 new List<PersonState>(
@@ -231,6 +246,7 @@ public sealed class ForagingSystem : ICausalSystem
                 ["foragingAttempts"] = foragingAttempts,
                 ["feedingEvents"] = feedingEvents,
                 ["energyConsumed"] = energyConsumed,
+                ["energyRecovered"] = energyRecovered,
                 ["exhaustedResources"] =
                     exhaustedResources,
                 ["starvationDeaths"] =

@@ -157,7 +157,9 @@ app.MapPost(
                                             planet.SyntheticFood
                                                 .SpreadDegrees,
                                             planet.SyntheticFood
-                                                .EnergyPerPatch)))
+                                                .EnergyPerPatch,
+                                            planet.SyntheticFood
+                                                .RecoveryEnergyPerDay)))
                         .ToArray());
 
             var world =
@@ -665,7 +667,9 @@ static WorldResponse ToWorldResponse(
                         resource.PlanetId.Value,
                         resource.LatitudeDegrees,
                         resource.LongitudeDegrees,
-                        resource.AvailableEnergy))
+                        resource.AvailableEnergy,
+                        resource.CapacityEnergy,
+                        resource.RecoveryEnergyPerDay))
             .ToArray());
 }
 

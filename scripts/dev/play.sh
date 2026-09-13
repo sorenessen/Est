@@ -44,7 +44,8 @@ payload='{
         "centerLatitudeDegrees": 0,
         "centerLongitudeDegrees": 25,
         "spreadDegrees": 3,
-        "energyPerPatch": 100
+        "energyPerPatch": 100,
+        "recoveryEnergyPerDay": 2
       }
     }
   ]

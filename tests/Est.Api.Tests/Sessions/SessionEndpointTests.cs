@@ -1215,7 +1215,8 @@ public sealed class SessionEndpointTests
                             0,
                             25,
                             3,
-                            100))
+                            100,
+                            RecoveryEnergyPerDay: 2))
             ]);
 
         var createResponse =
@@ -1277,6 +1278,14 @@ public sealed class SessionEndpointTests
                 Assert.Equal(
                     100,
                     resource.AvailableEnergy);
+
+                Assert.Equal(
+                    100,
+                    resource.CapacityEnergy);
+
+                Assert.Equal(
+                    2,
+                    resource.RecoveryEnergyPerDay);
             });
     }
 

@@ -26,7 +26,8 @@ public sealed record SyntheticFoodCreationSpecification(
     double CenterLatitudeDegrees,
     double CenterLongitudeDegrees,
     double SpreadDegrees,
-    double EnergyPerPatch);
+    double EnergyPerPatch,
+    double RecoveryEnergyPerDay = 0);
 
 public sealed record PlanetEnvironmentCreationSpecification(
     double MeanSurfaceTemperatureKelvin,

@@ -24,7 +24,9 @@ public sealed record FoodResourceResponse(
     Guid PlanetId,
     double LatitudeDegrees,
     double LongitudeDegrees,
-    double AvailableEnergy);
+    double AvailableEnergy,
+    double CapacityEnergy,
+    double RecoveryEnergyPerDay);
 
 public sealed record PlanetResponse(
     Guid PlanetId,

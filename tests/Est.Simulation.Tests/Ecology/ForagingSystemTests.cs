@@ -424,6 +424,124 @@ public sealed class ForagingSystemTests
     }
 
     [Fact]
+    public void Step_DepletedFoodRecoversAtConfiguredRate()
+    {
+        var planet = CreatePlanet();
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                0,
+                availableEnergy: 10,
+                capacityEnergy: 100,
+                recoveryEnergyPerDay: 5);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                2 * 86_400L,
+                new ForagingSystem(
+                    planet.Id));
+
+        var changedFood =
+            Assert.Single(
+                result.World.FoodResources);
+
+        Assert.Equal(
+            20,
+            changedFood.AvailableEnergy,
+            10);
+
+        Assert.Equal(
+            10,
+            result.Change.Metrics[
+                "energyRecovered"],
+            10);
+    }
+
+    [Fact]
+    public void Step_RecoveryOccursBeforeForagingWithinInternalStep()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreateHungryPerson(
+                planet.Id,
+                0,
+                0,
+                0.25);
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                0,
+                0,
+                availableEnergy: 0,
+                capacityEnergy: 10,
+                recoveryEnergyPerDay: 0.2);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [food]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new ForagingSystem(
+                    planet.Id));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        var changedFood =
+            Assert.Single(
+                result.World.FoodResources);
+
+        Assert.Equal(
+            0.45 - (1d / 30d),
+            changedPerson.Needs.EnergyReserve,
+            10);
+
+        Assert.Equal(
+            PersonActivity.Eating,
+            changedPerson.Activity);
+
+        Assert.Equal(
+            0,
+            changedFood.AvailableEnergy,
+            10);
+
+        Assert.Equal(
+            0.2,
+            result.Change.Metrics[
+                "energyRecovered"],
+            10);
+
+        Assert.Equal(
+            0.2,
+            result.Change.Metrics[
+                "energyConsumed"],
+            10);
+    }
+
+    [Fact]
     public void Step_LongAdvanceWithFoodIntegratesSurvivalDaily()
     {
         var planet = CreatePlanet();

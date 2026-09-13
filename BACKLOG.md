@@ -227,7 +227,7 @@ civilization simulation.
 - [x] Advance the authoritative simulation continuously in the development globe view.
 - [x] Add purposeful food-seeking travel rather than teleporting distant food consumption.
 - [ ] Replace the current proof-oriented ecology constants with explicit model policy when the next requirements justify it.
-- [ ] Add meaningful resource renewal, depletion pressure, or both.
+- [x] Add meaningful resource renewal and depletion pressure.
 - [ ] Evaluate a minimal prey/hunting loop.
 - [ ] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.

@@ -9,10 +9,12 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
+    private const int FoodSchemaVersion = 4;
+    private const int RenewableFoodSchemaVersion = 5;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -66,6 +68,7 @@ public static class WorldSnapshotSerializer
         if (snapshot.SchemaVersion != LegacySchemaVersion &&
             snapshot.SchemaVersion != PopulationSchemaVersion &&
             snapshot.SchemaVersion != SurvivalSchemaVersion &&
+            snapshot.SchemaVersion != FoodSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -108,7 +111,7 @@ public static class WorldSnapshotSerializer
         FoodResourceState[] foodResources;
 
         if (snapshot.SchemaVersion <
-            CurrentSchemaVersion)
+            FoodSchemaVersion)
         {
             foodResources = [];
         }
@@ -121,7 +124,11 @@ public static class WorldSnapshotSerializer
             }
 
             foodResources = snapshot.FoodResources
-                .Select(FromSnapshot)
+                .Select(
+                    resource =>
+                        FromSnapshot(
+                            resource,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -145,20 +152,59 @@ public static class WorldSnapshotSerializer
             LongitudeDegrees =
                 resource.LongitudeDegrees,
             AvailableEnergy =
-                resource.AvailableEnergy
+                resource.AvailableEnergy,
+            CapacityEnergy =
+                resource.CapacityEnergy,
+            RecoveryEnergyPerDay =
+                resource.RecoveryEnergyPerDay
         };
     }
 
     private static FoodResourceState FromSnapshot(
-        FoodResourceSnapshot snapshot)
+        FoodResourceSnapshot snapshot,
+        int schemaVersion)
     {
+        double capacityEnergy;
+        double recoveryEnergyPerDay;
+
+        if (schemaVersion >=
+            RenewableFoodSchemaVersion)
+        {
+            if (!snapshot.CapacityEnergy.HasValue)
+            {
+                throw new JsonException(
+                    "Food resource capacity energy is required.");
+            }
+
+            if (!snapshot.RecoveryEnergyPerDay.HasValue)
+            {
+                throw new JsonException(
+                    "Food resource recovery energy per day is required.");
+            }
+
+            capacityEnergy =
+                snapshot.CapacityEnergy.Value;
+
+            recoveryEnergyPerDay =
+                snapshot.RecoveryEnergyPerDay.Value;
+        }
+        else
+        {
+            capacityEnergy =
+                snapshot.AvailableEnergy;
+
+            recoveryEnergyPerDay = 0;
+        }
+
         return new FoodResourceState(
             new FoodResourceId(
                 snapshot.FoodResourceId),
             new PlanetId(snapshot.PlanetId),
             snapshot.LatitudeDegrees,
             snapshot.LongitudeDegrees,
-            snapshot.AvailableEnergy);
+            snapshot.AvailableEnergy,
+            capacityEnergy,
+            recoveryEnergyPerDay);
     }
 
     private static PersonSnapshot ToSnapshot(PersonState person)
@@ -321,6 +367,8 @@ public static class WorldSnapshotSerializer
         public required double LatitudeDegrees { get; set; }
         public required double LongitudeDegrees { get; set; }
         public required double AvailableEnergy { get; set; }
+        public double? CapacityEnergy { get; set; }
+        public double? RecoveryEnergyPerDay { get; set; }
     }
 
     private sealed class PersonSnapshot

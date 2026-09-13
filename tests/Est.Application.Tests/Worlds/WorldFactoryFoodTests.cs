@@ -25,6 +25,7 @@ public sealed class WorldFactoryFoodTests
         const double centerLongitude = 25;
         const double spreadDegrees = 3;
         const double energyPerPatch = 20;
+        const double recoveryEnergyPerDay = 0.5;
 
         var world =
             WorldFactory.Create(
@@ -37,7 +38,8 @@ public sealed class WorldFactoryFoodTests
                             centerLatitude,
                             centerLongitude,
                             spreadDegrees,
-                            energyPerPatch))
+                            energyPerPatch,
+                            recoveryEnergyPerDay))
                 ]));
 
         Assert.Equal(
@@ -68,6 +70,14 @@ public sealed class WorldFactoryFoodTests
                 Assert.Equal(
                     energyPerPatch,
                     resource.AvailableEnergy);
+
+                Assert.Equal(
+                    energyPerPatch,
+                    resource.CapacityEnergy);
+
+                Assert.Equal(
+                    recoveryEnergyPerDay,
+                    resource.RecoveryEnergyPerDay);
             });
     }
 

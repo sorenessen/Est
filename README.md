@@ -90,8 +90,10 @@ simulation state.
 
 People have persistent identity, birth time and derived age, location, basic
 survival needs, and a current activity. The current ecology prototype supports
-energy depletion, starvation, consumable food resources, foraging, eating, and
-purposeful travel toward discoverable food.
+energy depletion, starvation, renewable food resources with finite capacity,
+foraging, eating, and purposeful travel toward discoverable food. Food is
+depleted by consumption and recovers at a configured rate, allowing local
+demand to create real scarcity pressure.
 
 The browser globe advances the same authoritative simulation through Est.Api
 and visualizes the resulting population state. Movement and survival behavior

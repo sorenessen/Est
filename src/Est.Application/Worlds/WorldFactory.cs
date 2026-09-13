@@ -123,7 +123,11 @@ public static class WorldFactory
                     planet.Id,
                     latitude,
                     longitude,
-                    specification.EnergyPerPatch);
+                    specification.EnergyPerPatch,
+                    capacityEnergy:
+                        specification.EnergyPerPatch,
+                    recoveryEnergyPerDay:
+                        specification.RecoveryEnergyPerDay);
         }
 
         return resources;
@@ -241,6 +245,15 @@ public static class WorldFactory
         {
             throw new ArgumentOutOfRangeException(
                 nameof(specification.EnergyPerPatch));
+        }
+
+        if (!double.IsFinite(
+                specification.RecoveryEnergyPerDay) ||
+            specification.RecoveryEnergyPerDay < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    specification.RecoveryEnergyPerDay));
         }
     }
 

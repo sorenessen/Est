@@ -45,7 +45,8 @@ public sealed record SyntheticFoodCreationRequest(
     [property: JsonRequired]
     double SpreadDegrees,
     [property: JsonRequired]
-    double EnergyPerPatch);
+    double EnergyPerPatch,
+    double RecoveryEnergyPerDay = 0);
 
 public sealed record PlanetaryEnergyBalanceModelRequest(
     [property: JsonRequired]

@@ -169,7 +169,9 @@ public class WorldSnapshotSerializerTests
                 planet.Id,
                 12.5,
                 -45.25,
-                37.75);
+                availableEnergy: 37.75,
+                capacityEnergy: 50,
+                recoveryEnergyPerDay: 2);
 
         var world =
             new WorldState(
@@ -209,6 +211,81 @@ public class WorldSnapshotSerializerTests
             WorldSnapshotSerializer.Deserialize(json);
 
         Assert.Empty(restored.FoodResources);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFourFoodDefaultsToFiniteNonRenewingState()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var food =
+            new FoodResourceState(
+                FoodResourceId.New(),
+                planet.Id,
+                12.5,
+                -45.25,
+                availableEnergy: 37.75,
+                capacityEnergy: 50,
+                recoveryEnergyPerDay: 2);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                [food]);
+
+        var node =
+            System.Text.Json.Nodes.JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 4;
+
+        foreach (var entry in
+                 node["foodResources"]!.AsArray())
+        {
+            var resource =
+                entry!.AsObject();
+
+            resource.Remove(
+                "capacityEnergy");
+
+            resource.Remove(
+                "recoveryEnergyPerDay");
+        }
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredFood =
+            Assert.Single(
+                restored.FoodResources);
+
+        Assert.Equal(
+            37.75,
+            restoredFood.AvailableEnergy);
+
+        Assert.Equal(
+            37.75,
+            restoredFood.CapacityEnergy);
+
+        Assert.Equal(
+            0,
+            restoredFood.RecoveryEnergyPerDay);
     }
 
     [Fact]
