@@ -134,6 +134,79 @@ public sealed class WolfPredatorSystemTests
     }
 
     [Fact]
+    public void Step_HumanWithinThreatRadiusFleesBeforeWolfPursues()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.8);
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [person],
+                [],
+                [wolf]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                86_400,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        var changedPerson =
+            Assert.Single(
+                result.World.Population);
+
+        Assert.Equal(
+            PersonActivity.Fleeing,
+            changedPerson.Activity);
+
+        Assert.Equal(
+            1.05,
+            changedPerson.LongitudeDegrees,
+            10);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            AnimalActivity.Traveling,
+            changedWolf.Activity);
+
+        Assert.Equal(
+            0.75,
+            changedWolf.LongitudeDegrees,
+            10);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["fleeSteps"]);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["chaseSteps"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "predationDeaths"]);
+    }
+
+    [Fact]
     public void Step_WolfTravelRemainsBoundedForPartialDay()
     {
         var planet = CreatePlanet();

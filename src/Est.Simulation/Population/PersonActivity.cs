@@ -5,5 +5,6 @@ public enum PersonActivity
     Idle,
     Foraging,
     Eating,
-    Traveling
+    Traveling,
+    Fleeing
 }

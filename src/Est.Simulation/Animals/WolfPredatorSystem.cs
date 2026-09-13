@@ -9,6 +9,8 @@ namespace Est.Simulation.Animals;
 public sealed class WolfPredatorSystem : ICausalSystem
 {
     private const double TravelDegreesPerDay = 0.75;
+    private const double HumanFleeDegreesPerDay = 0.25;
+    private const double ThreatDetectionRadiusDegrees = 1;
     private const double AttackRadiusDegrees = 0.12;
     private const double EnergyUsePerDay = 0.08;
     private const double EnergyPerKill = 0.65;
@@ -62,6 +64,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var successfulKills = 0;
         var predationDeaths = 0;
         var chaseSteps = 0;
+        var fleeSteps = 0;
 
         double? lastAttackLatitude = null;
         double? lastAttackLongitude = null;
@@ -122,6 +125,40 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         target.LatitudeDegrees,
                         target.LongitudeDegrees);
 
+                if (distance >
+                        AttackRadiusDegrees &&
+                    distance <=
+                        ThreatDetectionRadiusDegrees)
+                {
+                    var fleeingTarget =
+                        MovePersonAway(
+                            target,
+                            wolf,
+                            elapsedDays);
+
+                    var targetIndex =
+                        population.FindIndex(
+                            person =>
+                                person.Id ==
+                                target.Id);
+
+                    if (targetIndex >= 0)
+                    {
+                        population[targetIndex] =
+                            fleeingTarget;
+
+                        target = fleeingTarget;
+                        fleeSteps++;
+
+                        distance =
+                            DistanceDegrees(
+                                wolf.LatitudeDegrees,
+                                wolf.LongitudeDegrees,
+                                target.LatitudeDegrees,
+                                target.LongitudeDegrees);
+                    }
+                }
+
                 if (distance > AttackRadiusDegrees)
                 {
                     var moved =
@@ -175,6 +212,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 ["successfulKills"] = successfulKills,
                 ["predationDeaths"] = predationDeaths,
                 ["chaseSteps"] = chaseSteps,
+                ["fleeSteps"] = fleeSteps,
                 ["wolves"] =
                     animals.Count(
                         animal =>
@@ -231,6 +269,60 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         return nearest;
+    }
+
+    private static PersonState MovePersonAway(
+        PersonState person,
+        AnimalState wolf,
+        double elapsedDays)
+    {
+        var latitudeDelta =
+            person.LatitudeDegrees -
+            wolf.LatitudeDegrees;
+
+        var longitudeDelta =
+            SignedLongitudeDelta(
+                person.LongitudeDegrees,
+                wolf.LongitudeDegrees);
+
+        var distance =
+            Math.Sqrt(
+                latitudeDelta * latitudeDelta +
+                longitudeDelta * longitudeDelta);
+
+        if (distance <= 0)
+        {
+            latitudeDelta = 1;
+            longitudeDelta = 0;
+            distance = 1;
+        }
+
+        var fleeDistance =
+            HumanFleeDegreesPerDay *
+            elapsedDays;
+
+        var fraction =
+            fleeDistance / distance;
+
+        var latitude =
+            Math.Clamp(
+                person.LatitudeDegrees +
+                latitudeDelta * fraction,
+                -89.999,
+                89.999);
+
+        var longitude =
+            WrapLongitude(
+                person.LongitudeDegrees +
+                longitudeDelta * fraction);
+
+        return person
+            .MoveTo(
+                latitude,
+                longitude)
+            .WithSurvivalState(
+                person.Needs,
+                PersonActivity.Fleeing);
     }
 
     private static AnimalState MoveToward(
