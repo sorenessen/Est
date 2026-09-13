@@ -188,11 +188,13 @@ TypeScript web application with Babylon.js or another browser-native renderer se
 - [x] Fetch authoritative world state from API
 - [x] Display core planetary values
 - [ ] Pause
-- [ ] 1x
-- [ ] 10x
-- [ ] 100x
-- [ ] 1000x
-- [ ] Visually reflect first causal-system changes
+- [ ] User-selectable 1x
+- [ ] User-selectable 10x
+- [ ] User-selectable 100x
+- [ ] User-selectable 1000x
+- [x] Advance authoritative simulation continuously in the globe development view
+- [x] Visually reflect authoritative population state and movement
+- [ ] Add production-quality simulation time controls rather than relying on the current development heartbeat
 
 ### Local development launcher
 
@@ -205,6 +207,37 @@ TypeScript web application with Babylon.js or another browser-native renderer se
 - [x] Validate cold-start Play from Sparrow and subsequent service reuse.
 - [ ] Consider portable terminal integration if Est development expands beyond macOS.
 - [ ] Revisit durable session selection/resumption when the product requires it.
+
+### Living population vertical slice
+
+The First Light scope now includes a deliberately small individual-population
+prototype because it provides visible causal simulation behavior on the globe.
+This does not imply a commitment to present-day census scale or full
+civilization simulation.
+
+- [x] Define authoritative individual `PersonState` population.
+- [x] Persist population through world snapshots and timeline archives.
+- [x] Seed a deterministic synthetic founder distribution on Earth.
+- [x] Expose authoritative population through Est.Api.
+- [x] Render the authoritative population on the globe.
+- [x] Add basic energy, health, starvation, and activity state.
+- [x] Add durable planetary food resources.
+- [x] Integrate survival/ecology at bounded internal cadence without globally substepping session history.
+- [x] Expose survival state through Est.Api.
+- [x] Advance the authoritative simulation continuously in the development globe view.
+- [x] Add purposeful food-seeking travel rather than teleporting distant food consumption.
+- [ ] Replace the current proof-oriented ecology constants with explicit model policy when the next requirements justify it.
+- [ ] Add meaningful resource renewal, depletion pressure, or both.
+- [ ] Evaluate a minimal prey/hunting loop.
+- [ ] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
+- [ ] Add presentation LOD for population clusters versus individual people.
+- [ ] Select a durable animated person presentation only after simulation behavior establishes its requirements.
+
+Current ownership rule:
+
+`Environment -> resources -> needs -> decisions -> actions -> consequences`
+
+Simulation owns the chain. The renderer visualizes its results.
 
 ## Phase 8 - First Intervention
 
