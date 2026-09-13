@@ -552,6 +552,8 @@ function renderPopulation(
         return Color.fromCssColorString('#9be564')
       case 'Traveling':
         return Color.fromCssColorString('#4ddcff')
+      case 'Fleeing':
+        return Color.fromCssColorString('#ff4fd8')
       case 'Idle':
       default:
         return Color.fromCssColorString('#ffd166')
@@ -570,9 +572,11 @@ function renderPopulation(
         .withAlpha(0.72 + health * 0.28)
 
     const coreSize =
-      person.activity === 'Traveling'
-        ? 14
-        : 11 + energy * 3
+      person.activity === 'Fleeing'
+        ? 16
+        : person.activity === 'Traveling'
+          ? 14
+          : 11 + energy * 3
 
     populationPoints.add({
       id: `${person.personId}-halo`,
@@ -764,6 +768,7 @@ if (sessionId) {
     demographicMigrations: 0,
     scarcityMigrations: 0,
     wolfAttacks: 0,
+    failedAttacks: 0,
     predationDeaths: 0,
   }
 
@@ -800,6 +805,9 @@ if (sessionId) {
       if (event.cause === 'predation') {
         cumulativeMetrics.wolfAttacks +=
           event.metrics.wolfAttacks ?? 0
+
+        cumulativeMetrics.failedAttacks +=
+          event.metrics.failedAttacks ?? 0
 
         cumulativeMetrics.predationDeaths +=
           event.metrics.predationDeaths ?? 0
@@ -957,6 +965,15 @@ if (sessionId) {
                 <span class="simulation-metric-label">Traveling</span>
                 <strong>${activityCounts.Traveling ?? 0}</strong>
               </div>
+
+              <div class="simulation-metric">
+                <span
+                  class="activity-dot"
+                  style="background:#ff4fd8;box-shadow:0 0 8px #ff4fd8"
+                ></span>
+                <span class="simulation-metric-label">Fleeing</span>
+                <strong>${activityCounts.Fleeing ?? 0}</strong>
+              </div>
             </div>
           </div>
 
@@ -1037,6 +1054,11 @@ if (sessionId) {
               <div class="simulation-metric">
                 <span class="simulation-metric-label">Wolf attacks</span>
                 <strong>${cumulativeMetrics.wolfAttacks.toFixed(0)}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span class="simulation-metric-label">Failed attacks</span>
+                <strong>${cumulativeMetrics.failedAttacks.toFixed(0)}</strong>
               </div>
 
               <div class="simulation-metric">
