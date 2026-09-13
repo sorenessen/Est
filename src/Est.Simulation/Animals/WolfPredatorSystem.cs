@@ -13,6 +13,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private const double ThreatDetectionRadiusDegrees = 1;
     private const double AttackRadiusDegrees = 0.12;
     private const double AttackSuccessProbability = 0.55;
+    private const double HuntEnergyThreshold = 0.55;
     private const double EnergyUsePerDay = 0.08;
     private const double EnergyPerKill = 0.65;
     private const long MaximumIntegrationStepSeconds = 86_400;
@@ -102,6 +103,18 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         0,
                         wolf.EnergyReserve -
                         EnergyUsePerDay * elapsedDays);
+
+                if (energy > HuntEnergyThreshold)
+                {
+                    animals[index] =
+                        wolf.WithState(
+                            wolf.LatitudeDegrees,
+                            wolf.LongitudeDegrees,
+                            energy,
+                            wolf.Health,
+                            AnimalActivity.Idle);
+                    continue;
+                }
 
                 var target =
                     FindNearestPerson(
