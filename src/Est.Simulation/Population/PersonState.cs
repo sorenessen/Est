@@ -11,7 +11,9 @@ public sealed record PersonState
         long birthTimeSeconds,
         double latitudeDegrees,
         double longitudeDegrees,
-        PersonId? parentId = null)
+        PersonId? parentId = null,
+        PersonNeedsState? needs = null,
+        PersonActivity activity = PersonActivity.Idle)
     {
         if (id.Value == Guid.Empty)
         {
@@ -52,6 +54,8 @@ public sealed record PersonState
         LatitudeDegrees = latitudeDegrees;
         LongitudeDegrees = longitudeDegrees;
         ParentId = parentId;
+        Needs = needs ?? new PersonNeedsState();
+        Activity = activity;
     }
 
     public PersonId Id { get; private init; }
@@ -68,6 +72,10 @@ public sealed record PersonState
 
     public PersonId? ParentId { get; private init; }
 
+    public PersonNeedsState Needs { get; private init; }
+
+    public PersonActivity Activity { get; private init; }
+
     public double AgeYears(long currentTimeSeconds)
     {
         const double secondsPerYear = 31_536_000d;
@@ -76,6 +84,24 @@ public sealed record PersonState
             0,
             (currentTimeSeconds - BirthTimeSeconds)
             / secondsPerYear);
+    }
+
+    public PersonState WithSurvivalState(
+        PersonNeedsState needs,
+        PersonActivity activity)
+    {
+        ArgumentNullException.ThrowIfNull(needs);
+
+        return new PersonState(
+            Id,
+            PlanetId,
+            Sex,
+            BirthTimeSeconds,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            ParentId,
+            needs,
+            activity);
     }
 
     public PersonState MoveTo(
@@ -89,6 +115,8 @@ public sealed record PersonState
             BirthTimeSeconds,
             latitudeDegrees,
             longitudeDegrees,
-            ParentId);
+            ParentId,
+            Needs,
+            Activity);
     }
 }

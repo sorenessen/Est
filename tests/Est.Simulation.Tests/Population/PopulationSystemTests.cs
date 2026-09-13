@@ -11,8 +11,10 @@ public sealed class PopulationSystemTests
     private const long OneYearSeconds = 31_536_000;
 
     [Fact]
-    public void Step_PreservesSourceWorldAndProducesPopulationChange()
+    public void Step_PreservesSourceWorldAndAdvancesSurvivalState()
     {
+        const long oneDaySeconds = 86_400;
+
         var planet = CreateEarth();
         var founders = CreateFounders(
             planet.Id);
@@ -27,38 +29,41 @@ public sealed class PopulationSystemTests
             planet.Id,
             new PopulationModelParameters(
                 seed: 42,
-                annualBirthRatePerEligibleFemale: 4,
-                annualAdultMigrationRate: 1,
+                annualBirthRatePerEligibleFemale: 0,
+                annualAdultMigrationRate: 0,
                 annualBaseMortalityRate: 0,
                 annualElderMortalityRate: 0));
 
         var result =
             SimulationStepRunner.Step(
                 world,
-                OneYearSeconds,
+                oneDaySeconds,
                 system);
 
         Assert.Equal(
             founders.Length,
             world.Population.Length);
 
-        Assert.True(
-            result.World.Population.Length >
-            world.Population.Length);
+        Assert.Equal(
+            founders.Length,
+            result.World.Population.Length);
 
         Assert.Equal(
-            OneYearSeconds,
+            1,
+            world.Population[0]
+                .Needs.EnergyReserve);
+
+        Assert.True(
+            result.World.Population[0]
+                .Needs.EnergyReserve < 1);
+
+        Assert.Equal(
+            oneDaySeconds,
             result.World.CurrentTime.TotalSeconds);
 
         Assert.Equal(
             "population-dynamics",
             result.Change.Cause);
-
-        Assert.True(
-            result.Change.Metrics["births"] > 0);
-
-        Assert.True(
-            result.Change.Metrics["migrations"] > 0);
     }
 
     [Fact]
@@ -151,6 +156,78 @@ public sealed class PopulationSystemTests
         Assert.Equal(
             1,
             result.Change.Metrics["deaths"]);
+    }
+
+    [Fact]
+    public void Step_WithoutFoodEventuallyCausesStarvation()
+    {
+        var planet = CreateEarth();
+
+        var world = new WorldState(
+            WorldId.New(),
+            SimulationTime.Zero,
+            [planet],
+            CreateFounders(planet.Id));
+
+        var system = new PopulationSystem(
+            planet.Id,
+            new PopulationModelParameters(
+                seed: 5,
+                annualBirthRatePerEligibleFemale: 0,
+                annualAdultMigrationRate: 0,
+                annualBaseMortalityRate: 0,
+                annualElderMortalityRate: 0));
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                60 * 86_400,
+                system);
+
+        Assert.Empty(result.World.Population);
+
+        Assert.Equal(
+            4,
+            result.Change.Metrics[
+                "starvationDeaths"]);
+    }
+
+    [Fact]
+    public void Step_HungryPeopleBeginForaging()
+    {
+        var planet = CreateEarth();
+
+        var world = new WorldState(
+            WorldId.New(),
+            SimulationTime.Zero,
+            [planet],
+            CreateFounders(planet.Id));
+
+        var system = new PopulationSystem(
+            planet.Id,
+            new PopulationModelParameters(
+                seed: 6,
+                annualBirthRatePerEligibleFemale: 0,
+                annualAdultMigrationRate: 0,
+                annualBaseMortalityRate: 0,
+                annualElderMortalityRate: 0));
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                15 * 86_400,
+                system);
+
+        Assert.All(
+            result.World.Population,
+            person =>
+                Assert.Equal(
+                    PersonActivity.Foraging,
+                    person.Activity));
+
+        Assert.Equal(
+            4,
+            result.Change.Metrics["foraging"]);
     }
 
     [Fact]

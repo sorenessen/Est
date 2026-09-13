@@ -65,11 +65,42 @@ public sealed class PopulationSystem : ICausalSystem
             existing.Length);
 
         var deaths = 0;
+        var starvationDeaths = 0;
         var migrations = 0;
+        var foraging = 0;
+
+        var elapsedDays =
+            elapsedSeconds / 86_400d;
 
         foreach (var person in existing)
         {
-            var age = person.AgeYears(
+            var needs =
+                person.Needs.AdvanceWithoutFood(
+                    elapsedDays);
+
+            if (needs.Health <= 0)
+            {
+                deaths++;
+                starvationDeaths++;
+                continue;
+            }
+
+            var activity =
+                needs.EnergyReserve < 0.6
+                    ? PersonActivity.Foraging
+                    : PersonActivity.Idle;
+
+            var survivingPerson =
+                person.WithSurvivalState(
+                    needs,
+                    activity);
+
+            if (activity == PersonActivity.Foraging)
+            {
+                foraging++;
+            }
+
+            var age = survivingPerson.AgeYears(
                 world.CurrentTime.TotalSeconds);
 
             var mortalityRate =
@@ -86,7 +117,7 @@ public sealed class PopulationSystem : ICausalSystem
                 continue;
             }
 
-            var moved = person;
+            var moved = survivingPerson;
 
             if (age >=
                     _parameters.ReproductiveAgeMinimumYears &&
@@ -95,7 +126,9 @@ public sealed class PopulationSystem : ICausalSystem
                     years,
                     random))
             {
-                moved = Migrate(person, random);
+                moved = Migrate(
+                    survivingPerson,
+                    random);
                 migrations++;
             }
 
@@ -172,6 +205,9 @@ public sealed class PopulationSystem : ICausalSystem
                 ["previousPopulation"] = existing.Length,
                 ["births"] = births.Count,
                 ["deaths"] = deaths,
+                ["starvationDeaths"] =
+                    starvationDeaths,
+                ["foraging"] = foraging,
                 ["migrations"] = migrations,
                 ["newPopulation"] = nextPopulation.Length
             });

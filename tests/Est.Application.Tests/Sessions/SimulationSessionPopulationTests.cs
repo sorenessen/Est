@@ -14,6 +14,7 @@ public sealed class SimulationSessionPopulationTests
     [Fact]
     public void Advance_RunsConfiguredPopulationSystem()
     {
+        const long oneDaySeconds = 86_400;
         var planet =
             new PlanetState(
                 PlanetId.New(),
@@ -64,7 +65,7 @@ public sealed class SimulationSessionPopulationTests
                         planet.Id,
                         new PopulationModelParameters(
                             seed: 42,
-                            annualBirthRatePerEligibleFemale: 100,
+                            annualBirthRatePerEligibleFemale: 0,
                             annualAdultMigrationRate: 0,
                             annualBaseMortalityRate: 0,
                             annualElderMortalityRate: 0))
@@ -75,14 +76,20 @@ public sealed class SimulationSessionPopulationTests
                 world,
                 definition);
 
-        session.Advance(OneYearSeconds);
-
-        Assert.True(
-            session.CurrentWorld.Population.Length >
-            founders.Length);
+        session.Advance(oneDaySeconds);
 
         Assert.Equal(
-            OneYearSeconds,
+            founders.Length,
+            session.CurrentWorld.Population.Length);
+
+        Assert.All(
+            session.CurrentWorld.Population,
+            person =>
+                Assert.True(
+                    person.Needs.EnergyReserve < 1));
+
+        Assert.Equal(
+            oneDaySeconds,
             session.CurrentWorld
                 .CurrentTime.TotalSeconds);
 

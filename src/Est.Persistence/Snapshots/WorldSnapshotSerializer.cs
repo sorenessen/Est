@@ -8,8 +8,9 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     private const int LegacySchemaVersion = 1;
+    private const int PopulationSchemaVersion = 2;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -58,6 +59,7 @@ public static class WorldSnapshotSerializer
                 "Snapshot JSON did not contain a world.");
 
         if (snapshot.SchemaVersion != LegacySchemaVersion &&
+            snapshot.SchemaVersion != PopulationSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -89,7 +91,11 @@ public static class WorldSnapshotSerializer
             }
 
             population = snapshot.Population
-                .Select(FromSnapshot)
+                .Select(
+                    person =>
+                        FromSnapshot(
+                            person,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -110,12 +116,53 @@ public static class WorldSnapshotSerializer
             BirthTimeSeconds = person.BirthTimeSeconds,
             LatitudeDegrees = person.LatitudeDegrees,
             LongitudeDegrees = person.LongitudeDegrees,
-            ParentId = person.ParentId?.Value
+            ParentId = person.ParentId?.Value,
+            EnergyReserve = person.Needs.EnergyReserve,
+            Health = person.Needs.Health,
+            Activity = person.Activity
         };
     }
 
-    private static PersonState FromSnapshot(PersonSnapshot snapshot)
+    private static PersonState FromSnapshot(
+        PersonSnapshot snapshot,
+        int schemaVersion)
     {
+        PersonNeedsState needs;
+        PersonActivity activity;
+
+        if (schemaVersion >= CurrentSchemaVersion)
+        {
+            if (!snapshot.EnergyReserve.HasValue)
+            {
+                throw new JsonException(
+                    "Person energy reserve is required.");
+            }
+
+            if (!snapshot.Health.HasValue)
+            {
+                throw new JsonException(
+                    "Person health is required.");
+            }
+
+            if (!snapshot.Activity.HasValue)
+            {
+                throw new JsonException(
+                    "Person activity is required.");
+            }
+
+            needs =
+                new PersonNeedsState(
+                    snapshot.EnergyReserve.Value,
+                    snapshot.Health.Value);
+
+            activity = snapshot.Activity.Value;
+        }
+        else
+        {
+            needs = new PersonNeedsState();
+            activity = PersonActivity.Idle;
+        }
+
         return new PersonState(
             new PersonId(snapshot.PersonId),
             new PlanetId(snapshot.PlanetId),
@@ -125,7 +172,9 @@ public static class WorldSnapshotSerializer
             snapshot.LongitudeDegrees,
             snapshot.ParentId.HasValue
                 ? new PersonId(snapshot.ParentId.Value)
-                : null);
+                : null,
+            needs,
+            activity);
     }
 
     private static PlanetSnapshot ToSnapshot(PlanetState planet)
@@ -218,6 +267,9 @@ public static class WorldSnapshotSerializer
         public required double LatitudeDegrees { get; set; }
         public required double LongitudeDegrees { get; set; }
         public Guid? ParentId { get; set; }
+        public double? EnergyReserve { get; set; }
+        public double? Health { get; set; }
+        public PersonActivity? Activity { get; set; }
     }
 
     private sealed class PlanetSnapshot

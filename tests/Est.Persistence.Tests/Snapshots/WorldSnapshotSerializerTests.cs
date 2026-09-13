@@ -115,7 +115,13 @@ public class WorldSnapshotSerializerTests
                         PersonSex.Female,
                         -800_000_000,
                         12.5,
-                        -45.25),
+                        -45.25,
+                        needs:
+                            new PersonNeedsState(
+                                energyReserve: 0.42,
+                                health: 0.73),
+                        activity:
+                            PersonActivity.Foraging),
                     new PersonState(
                         childId,
                         planet.Id,
@@ -166,6 +172,119 @@ public class WorldSnapshotSerializerTests
             restored.CurrentTime.TotalSeconds);
 
         Assert.Empty(restored.Population);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwoPopulationGetsHealthyIdleDefaults()
+    {
+        var worldId = WorldId.New().Value;
+        var planetId = PlanetId.New().Value;
+        var personId = PersonId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 2,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [
+                {
+                  "planetId": "{{planetId}}",
+                  "name": "Earth",
+                  "massKilograms": 5.9722e24,
+                  "meanRadiusMeters": 6371000,
+                  "environment": {
+                    "meanSurfaceTemperatureKelvin": 288.15,
+                    "surfaceWaterFraction": 0.71,
+                    "iceCoverageFraction": 0.03,
+                    "atmosphere": {
+                      "surfacePressurePascals": 0,
+                      "compositionByMoleFraction": {}
+                    }
+                  }
+                }
+              ],
+              "population": [
+                {
+                  "personId": "{{personId}}",
+                  "planetId": "{{planetId}}",
+                  "sex": 0,
+                  "birthTimeSeconds": -1000,
+                  "latitudeDegrees": 10,
+                  "longitudeDegrees": 20,
+                  "parentId": null
+                }
+              ]
+            }
+            """;
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(json);
+
+        var person =
+            Assert.Single(restored.Population);
+
+        Assert.Equal(
+            1,
+            person.Needs.EnergyReserve);
+
+        Assert.Equal(
+            1,
+            person.Needs.Health);
+
+        Assert.Equal(
+            PersonActivity.Idle,
+            person.Activity);
+    }
+
+    [Fact]
+    public void Deserialize_VersionThreeRequiresSurvivalState()
+    {
+        var worldId = WorldId.New().Value;
+        var planetId = PlanetId.New().Value;
+        var personId = PersonId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 3,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [
+                {
+                  "planetId": "{{planetId}}",
+                  "name": "Earth",
+                  "massKilograms": 5.9722e24,
+                  "meanRadiusMeters": 6371000,
+                  "environment": {
+                    "meanSurfaceTemperatureKelvin": 288.15,
+                    "surfaceWaterFraction": 0.71,
+                    "iceCoverageFraction": 0.03,
+                    "atmosphere": {
+                      "surfacePressurePascals": 0,
+                      "compositionByMoleFraction": {}
+                    }
+                  }
+                }
+              ],
+              "population": [
+                {
+                  "personId": "{{personId}}",
+                  "planetId": "{{planetId}}",
+                  "sex": 0,
+                  "birthTimeSeconds": -1000,
+                  "latitudeDegrees": 10,
+                  "longitudeDegrees": 20,
+                  "parentId": null
+                }
+              ]
+            }
+            """;
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    json));
     }
 
     [Fact]
