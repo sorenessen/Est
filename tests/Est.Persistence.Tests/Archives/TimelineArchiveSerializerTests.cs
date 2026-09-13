@@ -4,6 +4,7 @@ using Est.Persistence.Archives;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
 using Est.Simulation.Time;
@@ -169,6 +170,99 @@ public class TimelineArchiveSerializerTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesPopulationModelDefinition()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var parameters =
+            new PopulationModelParameters(
+                seed: 42,
+                annualBirthRatePerEligibleFemale: 0.2,
+                annualAdultMigrationRate: 0.04,
+                annualBaseMortalityRate: 0.005,
+                annualElderMortalityRate: 0.09,
+                reproductiveAgeMinimumYears: 17,
+                reproductiveAgeMaximumYears: 42,
+                elderAgeYears: 68,
+                localMigrationDegrees: 2.25,
+                longMigrationProbability: 0.11,
+                longMigrationDegrees: 18);
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                definition,
+                CreateProvenance());
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(json);
+
+        var model =
+            Assert.Single(
+                restored.Definition.PopulationModels);
+
+        Assert.Equal(planet.Id, model.PlanetId);
+        Assert.Equal(parameters, model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_Version2ArchiveUsesEmptyPopulationModels()
+    {
+        var timeline = CreateTimelineWithHistory();
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                CreateProvenance());
+
+        var node = JsonNode.Parse(json)
+            ?? throw new InvalidOperationException(
+                "Archive JSON did not parse.");
+
+        node["schemaVersion"] = 2;
+
+        var definition =
+            node["definition"]?.AsObject()
+            ?? throw new InvalidOperationException(
+                "Archive definition was missing.");
+
+        definition.Remove("populationModels");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Definition.PopulationModels);
+    }
+
+    [Fact]
     public void Deserialize_Version1ArchiveUsesEmptySimulationDefinition()
     {
         var json =
@@ -203,15 +297,15 @@ public class TimelineArchiveSerializerTests
 
         using var document = JsonDocument.Parse(json);
 
-        var modified =
-            json.Replace(
-                "\"schemaVersion\": 2",
-                "\"schemaVersion\": 999",
-                StringComparison.Ordinal);
+        var node = JsonNode.Parse(json)
+            ?? throw new InvalidOperationException(
+                "Archive JSON did not parse.");
+
+        node["schemaVersion"] = 999;
 
         Assert.Throws<NotSupportedException>(
             () => TimelineArchiveSerializer.Deserialize(
-                modified));
+                node.ToJsonString()));
     }
 
     [Fact]

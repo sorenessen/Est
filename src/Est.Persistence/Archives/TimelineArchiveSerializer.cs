@@ -3,6 +3,7 @@ using Est.Persistence.Snapshots;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 
@@ -10,7 +11,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
+    private const int DefinitionSchemaVersion = 2;
     private const int LegacySchemaVersion = 1;
 
     private static readonly JsonSerializerOptions SerializerOptions =
@@ -93,6 +95,7 @@ public static class TimelineArchiveSerializer
                 "Archive JSON did not contain a timeline.");
 
         if (archive.SchemaVersion != LegacySchemaVersion &&
+            archive.SchemaVersion != DefinitionSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -146,7 +149,8 @@ public static class TimelineArchiveSerializer
                 : FromDefinitionSnapshot(
                     archive.Definition
                     ?? throw new JsonException(
-                        "Archive simulation definition is required."));
+                        "Archive simulation definition is required."),
+                    archive.SchemaVersion);
 
         definition.ValidateFor(currentWorld);
 
@@ -293,12 +297,56 @@ public static class TimelineArchiveSerializer
                                                 .IceResponseTimescaleSeconds
                                     }
                             })
+                    .ToArray(),
+            PopulationModels =
+                definition.PopulationModels
+                    .Select(
+                        model =>
+                            new PopulationModelSnapshot
+                            {
+                                PlanetId = model.PlanetId.Value,
+                                Parameters =
+                                    new PopulationModelParametersSnapshot
+                                    {
+                                        Seed = model.Parameters.Seed,
+                                        AnnualBirthRatePerEligibleFemale =
+                                            model.Parameters
+                                                .AnnualBirthRatePerEligibleFemale,
+                                        AnnualAdultMigrationRate =
+                                            model.Parameters
+                                                .AnnualAdultMigrationRate,
+                                        AnnualBaseMortalityRate =
+                                            model.Parameters
+                                                .AnnualBaseMortalityRate,
+                                        AnnualElderMortalityRate =
+                                            model.Parameters
+                                                .AnnualElderMortalityRate,
+                                        ReproductiveAgeMinimumYears =
+                                            model.Parameters
+                                                .ReproductiveAgeMinimumYears,
+                                        ReproductiveAgeMaximumYears =
+                                            model.Parameters
+                                                .ReproductiveAgeMaximumYears,
+                                        ElderAgeYears =
+                                            model.Parameters.ElderAgeYears,
+                                        LocalMigrationDegrees =
+                                            model.Parameters
+                                                .LocalMigrationDegrees,
+                                        LongMigrationProbability =
+                                            model.Parameters
+                                                .LongMigrationProbability,
+                                        LongMigrationDegrees =
+                                            model.Parameters
+                                                .LongMigrationDegrees
+                                    }
+                            })
                     .ToArray()
         };
     }
 
     private static SimulationDefinition FromDefinitionSnapshot(
-        DefinitionSnapshot snapshot)
+        DefinitionSnapshot snapshot,
+        int schemaVersion)
     {
         if (snapshot.PlanetaryEnergyBalanceModels is null)
         {
@@ -306,7 +354,7 @@ public static class TimelineArchiveSerializer
                 "Planetary energy-balance model collection is required.");
         }
 
-        var models =
+        var energyModels =
             snapshot.PlanetaryEnergyBalanceModels
                 .Select(
                     model =>
@@ -337,7 +385,61 @@ public static class TimelineArchiveSerializer
                     })
                 .ToArray();
 
-        return new SimulationDefinition(models);
+        PopulationModelDefinition[] populationModels;
+
+        if (schemaVersion == DefinitionSchemaVersion)
+        {
+            populationModels = [];
+        }
+        else
+        {
+            if (snapshot.PopulationModels is null)
+            {
+                throw new JsonException(
+                    "Population model collection is required.");
+            }
+
+            populationModels =
+                snapshot.PopulationModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Population model parameters are required.");
+                            }
+
+                            return new PopulationModelDefinition(
+                                new PlanetId(model.PlanetId),
+                                new PopulationModelParameters(
+                                    model.Parameters.Seed,
+                                    model.Parameters
+                                        .AnnualBirthRatePerEligibleFemale,
+                                    model.Parameters
+                                        .AnnualAdultMigrationRate,
+                                    model.Parameters
+                                        .AnnualBaseMortalityRate,
+                                    model.Parameters
+                                        .AnnualElderMortalityRate,
+                                    model.Parameters
+                                        .ReproductiveAgeMinimumYears,
+                                    model.Parameters
+                                        .ReproductiveAgeMaximumYears,
+                                    model.Parameters.ElderAgeYears,
+                                    model.Parameters
+                                        .LocalMigrationDegrees,
+                                    model.Parameters
+                                        .LongMigrationProbability,
+                                    model.Parameters
+                                        .LongMigrationDegrees));
+                        })
+                    .ToArray();
+        }
+
+        return new SimulationDefinition(
+            energyModels,
+            populationModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -397,6 +499,42 @@ public static class TimelineArchiveSerializer
     {
         public required PlanetaryEnergyBalanceModelSnapshot[]
             PlanetaryEnergyBalanceModels { get; set; }
+
+        public PopulationModelSnapshot[]? PopulationModels { get; set; }
+    }
+
+    private sealed class PopulationModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required PopulationModelParametersSnapshot
+            Parameters { get; set; }
+    }
+
+    private sealed class PopulationModelParametersSnapshot
+    {
+        public required int Seed { get; set; }
+
+        public required double
+            AnnualBirthRatePerEligibleFemale { get; set; }
+
+        public required double AnnualAdultMigrationRate { get; set; }
+
+        public required double AnnualBaseMortalityRate { get; set; }
+
+        public required double AnnualElderMortalityRate { get; set; }
+
+        public required double ReproductiveAgeMinimumYears { get; set; }
+
+        public required double ReproductiveAgeMaximumYears { get; set; }
+
+        public required double ElderAgeYears { get; set; }
+
+        public required double LocalMigrationDegrees { get; set; }
+
+        public required double LongMigrationProbability { get; set; }
+
+        public required double LongMigrationDegrees { get; set; }
     }
 
     private sealed class PlanetaryEnergyBalanceModelSnapshot
