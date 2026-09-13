@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -8,9 +9,10 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
+    private const int SurvivalSchemaVersion = 3;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -34,6 +36,9 @@ public static class WorldSnapshotSerializer
                 .Select(ToSnapshot)
                 .ToArray(),
             Population = world.Population
+                .Select(ToSnapshot)
+                .ToArray(),
+            FoodResources = world.FoodResources
                 .Select(ToSnapshot)
                 .ToArray()
         };
@@ -60,6 +65,7 @@ public static class WorldSnapshotSerializer
 
         if (snapshot.SchemaVersion != LegacySchemaVersion &&
             snapshot.SchemaVersion != PopulationSchemaVersion &&
+            snapshot.SchemaVersion != SurvivalSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -99,11 +105,60 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        FoodResourceState[] foodResources;
+
+        if (snapshot.SchemaVersion <
+            CurrentSchemaVersion)
+        {
+            foodResources = [];
+        }
+        else
+        {
+            if (snapshot.FoodResources is null)
+            {
+                throw new JsonException(
+                    "Snapshot food resources collection is required.");
+            }
+
+            foodResources = snapshot.FoodResources
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
             planets,
-            population);
+            population,
+            foodResources);
+    }
+
+    private static FoodResourceSnapshot ToSnapshot(
+        FoodResourceState resource)
+    {
+        return new FoodResourceSnapshot
+        {
+            FoodResourceId = resource.Id.Value,
+            PlanetId = resource.PlanetId.Value,
+            LatitudeDegrees =
+                resource.LatitudeDegrees,
+            LongitudeDegrees =
+                resource.LongitudeDegrees,
+            AvailableEnergy =
+                resource.AvailableEnergy
+        };
+    }
+
+    private static FoodResourceState FromSnapshot(
+        FoodResourceSnapshot snapshot)
+    {
+        return new FoodResourceState(
+            new FoodResourceId(
+                snapshot.FoodResourceId),
+            new PlanetId(snapshot.PlanetId),
+            snapshot.LatitudeDegrees,
+            snapshot.LongitudeDegrees,
+            snapshot.AvailableEnergy);
     }
 
     private static PersonSnapshot ToSnapshot(PersonState person)
@@ -130,7 +185,7 @@ public static class WorldSnapshotSerializer
         PersonNeedsState needs;
         PersonActivity activity;
 
-        if (schemaVersion >= CurrentSchemaVersion)
+        if (schemaVersion >= SurvivalSchemaVersion)
         {
             if (!snapshot.EnergyReserve.HasValue)
             {
@@ -256,6 +311,16 @@ public static class WorldSnapshotSerializer
         public required long CurrentTimeSeconds { get; set; }
         public required PlanetSnapshot[] Planets { get; set; }
         public PersonSnapshot[]? Population { get; set; }
+        public FoodResourceSnapshot[]? FoodResources { get; set; }
+    }
+
+    private sealed class FoodResourceSnapshot
+    {
+        public required Guid FoodResourceId { get; set; }
+        public required Guid PlanetId { get; set; }
+        public required double LatitudeDegrees { get; set; }
+        public required double LongitudeDegrees { get; set; }
+        public required double AvailableEnergy { get; set; }
     }
 
     private sealed class PersonSnapshot

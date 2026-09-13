@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -25,6 +26,21 @@ public sealed record WorldState
         SimulationTime currentTime,
         IEnumerable<PlanetState> planets,
         IEnumerable<PersonState> population)
+        : this(
+            id,
+            currentTime,
+            planets,
+            population,
+            [])
+    {
+    }
+
+    public WorldState(
+        WorldId id,
+        SimulationTime currentTime,
+        IEnumerable<PlanetState> planets,
+        IEnumerable<PersonState> population,
+        IEnumerable<FoodResourceState> foodResources)
     {
         if (id.Value == Guid.Empty)
         {
@@ -35,9 +51,12 @@ public sealed record WorldState
 
         ArgumentNullException.ThrowIfNull(planets);
         ArgumentNullException.ThrowIfNull(population);
+        ArgumentNullException.ThrowIfNull(foodResources);
 
         var planetArray = planets.ToImmutableArray();
         var populationArray = population.ToImmutableArray();
+        var foodResourceArray =
+            foodResources.ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -62,6 +81,22 @@ public sealed record WorldState
                 nameof(population));
         }
 
+        if (foodResourceArray.Any(resource => resource is null))
+        {
+            throw new ArgumentException(
+                "World food resources cannot contain null entries.",
+                nameof(foodResources));
+        }
+
+        if (foodResourceArray
+            .GroupBy(resource => resource.Id)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain duplicate food resource identities.",
+                nameof(foodResources));
+        }
+
         if (populationArray
             .GroupBy(person => person.Id)
             .Any(group => group.Count() > 1))
@@ -84,10 +119,20 @@ public sealed record WorldState
                 nameof(population));
         }
 
+        if (foodResourceArray.Any(
+                resource =>
+                    !planetIds.Contains(resource.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every food resource must belong to a planet in the world.",
+                nameof(foodResources));
+        }
+
         Id = id;
         CurrentTime = currentTime;
         Planets = planetArray;
         Population = populationArray;
+        FoodResources = foodResourceArray;
     }
 
     public WorldId Id { get; private init; }
@@ -97,6 +142,12 @@ public sealed record WorldState
     public ImmutableArray<PlanetState> Planets { get; private init; }
 
     public ImmutableArray<PersonState> Population { get; private init; }
+
+    public ImmutableArray<FoodResourceState> FoodResources
+    {
+        get;
+        private init;
+    }
 
     public WorldState AdvanceBy(long seconds)
     {
@@ -112,7 +163,8 @@ public sealed record WorldState
             Id,
             CurrentTime,
             Planets,
-            Population);
+            Population,
+            FoodResources);
     }
 
     public WorldState Fork()
@@ -121,7 +173,8 @@ public sealed record WorldState
             WorldId.New(),
             CurrentTime,
             Planets,
-            Population);
+            Population,
+            FoodResources);
     }
 
     public WorldState ReplacePopulation(
@@ -133,7 +186,21 @@ public sealed record WorldState
             Id,
             CurrentTime,
             Planets,
-            population);
+            population,
+            FoodResources);
+    }
+
+    public WorldState ReplaceFoodResources(
+        IEnumerable<FoodResourceState> foodResources)
+    {
+        ArgumentNullException.ThrowIfNull(foodResources);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            foodResources);
     }
 
     public WorldState AddPlanet(PlanetState planet)

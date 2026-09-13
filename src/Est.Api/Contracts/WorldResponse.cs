@@ -4,7 +4,8 @@ public sealed record WorldResponse(
     Guid WorldId,
     long CurrentTimeSeconds,
     PlanetResponse[] Planets,
-    PopulationPersonResponse[] Population);
+    PopulationPersonResponse[] Population,
+    FoodResourceResponse[] FoodResources);
 
 public sealed record PopulationPersonResponse(
     Guid PersonId,
@@ -14,6 +15,13 @@ public sealed record PopulationPersonResponse(
     double LatitudeDegrees,
     double LongitudeDegrees,
     Guid? ParentId);
+
+public sealed record FoodResourceResponse(
+    Guid FoodResourceId,
+    Guid PlanetId,
+    double LatitudeDegrees,
+    double LongitudeDegrees,
+    double AvailableEnergy);
 
 public sealed record PlanetResponse(
     Guid PlanetId,

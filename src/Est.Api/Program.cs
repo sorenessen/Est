@@ -142,7 +142,22 @@ app.MapPost(
                                             planet.SyntheticPopulation
                                                 .MinimumAgeYears,
                                             planet.SyntheticPopulation
-                                                .MaximumAgeYears)))
+                                                .MaximumAgeYears),
+                                    planet.SyntheticFood is null
+                                        ? null
+                                        : new SyntheticFoodCreationSpecification(
+                                            planet.SyntheticFood
+                                                .PatchCount,
+                                            planet.SyntheticFood
+                                                .Seed,
+                                            planet.SyntheticFood
+                                                .CenterLatitudeDegrees,
+                                            planet.SyntheticFood
+                                                .CenterLongitudeDegrees,
+                                            planet.SyntheticFood
+                                                .SpreadDegrees,
+                                            planet.SyntheticFood
+                                                .EnergyPerPatch)))
                         .ToArray());
 
             var world =
@@ -638,6 +653,16 @@ static WorldResponse ToWorldResponse(
                         person.LatitudeDegrees,
                         person.LongitudeDegrees,
                         person.ParentId?.Value))
+            .ToArray(),
+        world.FoodResources
+            .Select(
+                resource =>
+                    new FoodResourceResponse(
+                        resource.Id.Value,
+                        resource.PlanetId.Value,
+                        resource.LatitudeDegrees,
+                        resource.LongitudeDegrees,
+                        resource.AvailableEnergy))
             .ToArray());
 }
 

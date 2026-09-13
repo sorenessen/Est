@@ -16,7 +16,8 @@ public sealed record PlanetCreationRequest(
     [property: JsonRequired]
     PlanetEnvironmentCreationRequest Environment,
     PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null,
-    SyntheticPopulationCreationRequest? SyntheticPopulation = null);
+    SyntheticPopulationCreationRequest? SyntheticPopulation = null,
+    SyntheticFoodCreationRequest? SyntheticFood = null);
 
 public sealed record SyntheticPopulationCreationRequest(
     [property: JsonRequired]
@@ -31,6 +32,20 @@ public sealed record SyntheticPopulationCreationRequest(
     double SpreadDegrees,
     double MinimumAgeYears = 18,
     double MaximumAgeYears = 35);
+
+public sealed record SyntheticFoodCreationRequest(
+    [property: JsonRequired]
+    int PatchCount,
+    [property: JsonRequired]
+    int Seed,
+    [property: JsonRequired]
+    double CenterLatitudeDegrees,
+    [property: JsonRequired]
+    double CenterLongitudeDegrees,
+    [property: JsonRequired]
+    double SpreadDegrees,
+    [property: JsonRequired]
+    double EnergyPerPatch);
 
 public sealed record PlanetaryEnergyBalanceModelRequest(
     [property: JsonRequired]

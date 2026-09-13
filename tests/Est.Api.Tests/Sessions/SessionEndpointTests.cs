@@ -1180,6 +1180,108 @@ public sealed class SessionEndpointTests
 
 
     [Fact]
+    public async Task CreateSession_WithSyntheticFood_ExposesFoodResources()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Earth",
+                    5.9722e24,
+                    6_371_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288.15,
+                        0.71,
+                        0.03,
+                        new AtmosphereCreationRequest(
+                            101_325,
+                            new Dictionary<string, double>
+                            {
+                                ["N2"] = 0.7808,
+                                ["O2"] = 0.2095,
+                                ["Ar"] = 0.0093,
+                                ["CO2"] = 0.0004
+                            })),
+                    SyntheticFood:
+                        new SyntheticFoodCreationRequest(
+                            40,
+                            84,
+                            0,
+                            25,
+                            3,
+                            100))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        var createBody =
+            await createResponse.Content
+                .ReadAsStringAsync();
+
+        Assert.True(
+            createResponse.StatusCode ==
+            HttpStatusCode.Created,
+            $"Expected Created but received " +
+            $"{createResponse.StatusCode}: {createBody}");
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        Assert.NotNull(world);
+
+        var planet =
+            Assert.Single(world.Planets);
+
+        Assert.Equal(
+            40,
+            world.FoodResources.Length);
+
+        Assert.All(
+            world.FoodResources,
+            resource =>
+            {
+                Assert.NotEqual(
+                    Guid.Empty,
+                    resource.FoodResourceId);
+
+                Assert.Equal(
+                    planet.PlanetId,
+                    resource.PlanetId);
+
+                Assert.InRange(
+                    resource.LatitudeDegrees,
+                    -3,
+                    3);
+
+                Assert.InRange(
+                    resource.LongitudeDegrees,
+                    22,
+                    28);
+
+                Assert.Equal(
+                    100,
+                    resource.AvailableEnergy);
+            });
+    }
+
+
+    [Fact]
     public async Task CreateSession_WithSyntheticPopulation_ExposesPopulationAndModel()
     {
         await using var factory =

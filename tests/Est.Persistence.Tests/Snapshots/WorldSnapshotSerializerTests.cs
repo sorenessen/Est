@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
+using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -143,6 +144,93 @@ public class WorldSnapshotSerializerTests
         Assert.Equal(
             parentId,
             restored.Population[1].ParentId);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesFoodResources()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var food =
+            new FoodResourceState(
+                new FoodResourceId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000101")),
+                planet.Id,
+                12.5,
+                -45.25,
+                37.75);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(123_456),
+                [planet],
+                [],
+                [food]);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                WorldSnapshotSerializer.Serialize(world));
+
+        Assert.Equal(
+            food,
+            Assert.Single(
+                restored.FoodResources));
+    }
+
+    [Fact]
+    public void Deserialize_VersionThreeGetsEmptyFoodResources()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 3,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [],
+              "population": []
+            }
+            """;
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(json);
+
+        Assert.Empty(restored.FoodResources);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFourRequiresFoodResources()
+    {
+        var worldId = WorldId.New().Value;
+
+        var json =
+            $$"""
+            {
+              "schemaVersion": 4,
+              "worldId": "{{worldId}}",
+              "currentTimeSeconds": 0,
+              "planets": [],
+              "population": []
+            }
+            """;
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    json));
     }
 
     [Fact]

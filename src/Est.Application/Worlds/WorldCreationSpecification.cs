@@ -8,7 +8,8 @@ public sealed record PlanetCreationSpecification(
     double MassKilograms,
     double MeanRadiusMeters,
     PlanetEnvironmentCreationSpecification Environment,
-    SyntheticPopulationCreationSpecification? SyntheticPopulation = null);
+    SyntheticPopulationCreationSpecification? SyntheticPopulation = null,
+    SyntheticFoodCreationSpecification? SyntheticFood = null);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,
@@ -18,6 +19,14 @@ public sealed record SyntheticPopulationCreationSpecification(
     double SpreadDegrees,
     double MinimumAgeYears = 18,
     double MaximumAgeYears = 35);
+
+public sealed record SyntheticFoodCreationSpecification(
+    int PatchCount,
+    int Seed,
+    double CenterLatitudeDegrees,
+    double CenterLongitudeDegrees,
+    double SpreadDegrees,
+    double EnergyPerPatch);
 
 public sealed record PlanetEnvironmentCreationSpecification(
     double MeanSurfaceTemperatureKelvin,

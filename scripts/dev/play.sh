@@ -37,6 +37,14 @@ payload='{
         "spreadDegrees": 3,
         "minimumAgeYears": 18,
         "maximumAgeYears": 35
+      },
+      "syntheticFood": {
+        "patchCount": 250,
+        "seed": 84,
+        "centerLatitudeDegrees": 0,
+        "centerLongitudeDegrees": 25,
+        "spreadDegrees": 3,
+        "energyPerPatch": 100
       }
     }
   ]
