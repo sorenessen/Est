@@ -91,6 +91,17 @@ export interface SurfaceResponse {
   cells: SurfaceCellResponse[]
 }
 
+export interface TerrainCellResponse {
+  cellId: string
+  elevationMeters: number
+}
+
+export interface TerrainResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  cells: TerrainCellResponse[]
+}
+
 export interface HydrologyCellResponse {
   cellId: string
   atmosphericWaterKilogramsPerSquareMeter: number
@@ -182,6 +193,15 @@ export class EstApi {
   ): Promise<SurfaceResponse> {
     return this.get(
       `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/surface`,
+    )
+  }
+
+  getPlanetTerrain(
+    sessionId: string,
+    planetId: string,
+  ): Promise<TerrainResponse> {
+    return this.get(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/terrain`,
     )
   }
 
