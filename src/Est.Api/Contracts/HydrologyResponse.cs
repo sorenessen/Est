@@ -6,12 +6,6 @@ public sealed record HydrologyResponse(
     double TotalWaterMassKilograms,
     HydrologyCellResponse[] Cells);
 
-public sealed record SurfaceGridResponse(
-    string Kind,
-    int IdentityVersion,
-    int LatitudeBandCount,
-    int LongitudeBandCount);
-
 public sealed record HydrologyCellResponse(
     Guid CellId,
     double AtmosphericWaterKilogramsPerSquareMeter,

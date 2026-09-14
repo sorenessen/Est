@@ -196,6 +196,52 @@ public sealed class LatLonPlanetSurfaceGrid
             location.Column);
     }
 
+    public IReadOnlyList<SurfaceCoordinate> GetBoundary(
+        SurfaceCellId cellId)
+    {
+        if (!_locations.TryGetValue(
+                cellId,
+                out var location))
+        {
+            throw new KeyNotFoundException(
+                $"Surface cell {cellId.Value} does not belong to this grid.");
+        }
+
+        var southLatitudeDegrees =
+            -90 +
+            location.Row *
+            _latitudeStepDegrees;
+
+        var northLatitudeDegrees =
+            southLatitudeDegrees +
+            _latitudeStepDegrees;
+
+        var westLongitudeDegrees =
+            -180 +
+            location.Column *
+            _longitudeStepDegrees;
+
+        var eastLongitudeDegrees =
+            westLongitudeDegrees +
+            _longitudeStepDegrees;
+
+        return
+        [
+            new SurfaceCoordinate(
+                southLatitudeDegrees,
+                westLongitudeDegrees),
+            new SurfaceCoordinate(
+                southLatitudeDegrees,
+                eastLongitudeDegrees),
+            new SurfaceCoordinate(
+                northLatitudeDegrees,
+                eastLongitudeDegrees),
+            new SurfaceCoordinate(
+                northLatitudeDegrees,
+                westLongitudeDegrees)
+        ];
+    }
+
     public SurfaceCell LocateCell(
         double latitudeDegrees,
         double longitudeDegrees)

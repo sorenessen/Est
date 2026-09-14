@@ -99,12 +99,20 @@ A surface-grid implementation will own:
 - cell creation;
 - center coordinates;
 - physical area;
+- renderable spherical boundary geometry;
 - neighbor lookup;
 - coordinate-to-cell lookup;
 - resolution metadata.
 
+Consumers must obtain cell geometry through the surface-grid abstraction.
+They must not reconstruct cell boundaries by decoding opaque identifiers,
+assuming row/column ordering, or depending on the current latitude/longitude
+implementation.
+
 This leaves open future replacement with a hierarchical equal-area or
-near-equal-area discrete global grid.
+near-equal-area discrete global grid while allowing presentation layers to
+render authoritative spatial fields without learning tessellation-specific
+geometry rules.
 
 ### Static geometry versus evolving fields
 

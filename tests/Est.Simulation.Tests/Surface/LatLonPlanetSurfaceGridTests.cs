@@ -70,6 +70,101 @@ public sealed class LatLonPlanetSurfaceGridTests
     }
 
     [Fact]
+    public void GetBoundary_ReturnsDrawableAngularCellPolygon()
+    {
+        var grid =
+            CreateGrid();
+
+        var cell =
+            grid.LocateCell(
+                12.3,
+                45.6);
+
+        var boundary =
+            grid.GetBoundary(
+                cell.Id);
+
+        Assert.Collection(
+            boundary,
+            coordinate =>
+            {
+                Assert.Equal(
+                    10,
+                    coordinate.LatitudeDegrees,
+                    precision: 10);
+
+                Assert.Equal(
+                    40,
+                    coordinate.LongitudeDegrees,
+                    precision: 10);
+            },
+            coordinate =>
+            {
+                Assert.Equal(
+                    10,
+                    coordinate.LatitudeDegrees,
+                    precision: 10);
+
+                Assert.Equal(
+                    50,
+                    coordinate.LongitudeDegrees,
+                    precision: 10);
+            },
+            coordinate =>
+            {
+                Assert.Equal(
+                    20,
+                    coordinate.LatitudeDegrees,
+                    precision: 10);
+
+                Assert.Equal(
+                    50,
+                    coordinate.LongitudeDegrees,
+                    precision: 10);
+            },
+            coordinate =>
+            {
+                Assert.Equal(
+                    20,
+                    coordinate.LatitudeDegrees,
+                    precision: 10);
+
+                Assert.Equal(
+                    40,
+                    coordinate.LongitudeDegrees,
+                    precision: 10);
+            });
+    }
+
+    [Fact]
+    public void GetBoundary_PreservesDatelineEdgeCoordinates()
+    {
+        var grid =
+            CreateGrid();
+
+        var westernCell =
+            grid.LocateCell(
+                0,
+                -179.9);
+
+        var boundary =
+            grid.GetBoundary(
+                westernCell.Id);
+
+        Assert.Contains(
+            boundary,
+            coordinate =>
+                coordinate.LongitudeDegrees ==
+                -180);
+
+        Assert.Contains(
+            boundary,
+            coordinate =>
+                coordinate.LongitudeDegrees ==
+                -170);
+    }
+
+    [Fact]
     public void LocateCell_NormalizesLongitude()
     {
         var grid =

@@ -536,6 +536,234 @@ public sealed class SessionEndpointTests
     }
 
     [Fact]
+    public async Task SurfaceEndpoint_ExposesStablePlanetGeometry()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        const double radiusMeters =
+            6_000_000;
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Surface API World",
+                    5.0e24,
+                    radiusMeters,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0,
+                        0,
+                        new AtmosphereCreationRequest(
+                            0,
+                            new Dictionary<string, double>())),
+                    GeneratedTerrain:
+                        new GeneratedTerrainCreationRequest(
+                            Seed: 126,
+                            LatitudeBandCount: 4,
+                            LongitudeBandCount: 8,
+                            PlateCount: 4,
+                            ContinentalPlateFraction: 0.45))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        Assert.NotNull(
+            world);
+
+        var planet =
+            Assert.Single(
+                world.Planets);
+
+        var surface =
+            await client.GetFromJsonAsync<SurfaceResponse>(
+                $"/sessions/{created.SessionId}/planets/{planet.PlanetId}/surface");
+
+        Assert.NotNull(
+            surface);
+
+        Assert.Equal(
+            planet.PlanetId,
+            surface.PlanetId);
+
+        Assert.Equal(
+            "LatitudeLongitude",
+            surface.Grid.Kind);
+
+        Assert.True(
+            surface.Grid.IdentityVersion >
+            0);
+
+        Assert.Equal(
+            4,
+            surface.Grid.LatitudeBandCount);
+
+        Assert.Equal(
+            8,
+            surface.Grid.LongitudeBandCount);
+
+        Assert.Equal(
+            32,
+            surface.Cells.Length);
+
+        Assert.Equal(
+            32,
+            surface.Cells
+                .Select(
+                    cell =>
+                        cell.CellId)
+                .Distinct()
+                .Count());
+
+        Assert.All(
+            surface.Cells,
+            cell =>
+            {
+                Assert.NotEqual(
+                    Guid.Empty,
+                    cell.CellId);
+
+                Assert.InRange(
+                    cell.CenterLatitudeDegrees,
+                    -90,
+                    90);
+
+                Assert.InRange(
+                    cell.CenterLongitudeDegrees,
+                    -180,
+                    180);
+
+                Assert.True(
+                    cell.AreaSquareMeters >
+                    0);
+
+                Assert.True(
+                    cell.Boundary.Length >=
+                    3);
+
+                Assert.All(
+                    cell.Boundary,
+                    coordinate =>
+                    {
+                        Assert.InRange(
+                            coordinate.LatitudeDegrees,
+                            -90,
+                            90);
+
+                        Assert.InRange(
+                            coordinate.LongitudeDegrees,
+                            -180,
+                            180);
+                    });
+            });
+
+        var expectedSurfaceArea =
+            4 *
+            Math.PI *
+            radiusMeters *
+            radiusMeters;
+
+        var actualSurfaceArea =
+            surface.Cells.Sum(
+                cell =>
+                    cell.AreaSquareMeters);
+
+        var relativeAreaError =
+            Math.Abs(
+                actualSurfaceArea -
+                expectedSurfaceArea) /
+            expectedSurfaceArea;
+
+        Assert.InRange(
+            relativeAreaError,
+            0,
+            1e-12);
+    }
+
+    [Fact]
+    public async Task SurfaceEndpoint_WithoutTerrain_ReturnsNotFound()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "No Surface World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0,
+                        0,
+                        new AtmosphereCreationRequest(
+                            0,
+                            new Dictionary<string, double>())))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        Assert.NotNull(
+            world);
+
+        var planet =
+            Assert.Single(
+                world.Planets);
+
+        var response =
+            await client.GetAsync(
+                $"/sessions/{created.SessionId}/planets/{planet.PlanetId}/surface");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
     public async Task HydrologyEndpoint_ExposesAuthoritativePlanetWaterState()
     {
         await using var factory =

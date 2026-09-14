@@ -9,6 +9,7 @@ using Est.Simulation.Definitions;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Surface;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -384,6 +385,70 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/surface",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var terrain =
+            session.CurrentWorld.Terrain
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (terrain is null)
+        {
+            return Results.NotFound();
+        }
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                terrain.GridDefinition);
+
+        return Results.Ok(
+            ToSurfaceResponse(
+                planet,
+                terrain.GridDefinition,
+                grid));
+    });
+
+app.MapGet(
     "/sessions/{id:guid}/planets/{planetId:guid}/hydrology",
     (
         Guid id,
@@ -743,6 +808,37 @@ static TimelineResponse ToTimelineResponse(
                         timelineEvent.AffectedPlanetId?.Value,
                         timelineEvent.ElapsedSeconds,
                         timelineEvent.Metrics))
+            .ToArray());
+}
+
+static SurfaceResponse ToSurfaceResponse(
+    PlanetState planet,
+    SurfaceGridDefinition gridDefinition,
+    IPlanetSurfaceGrid grid)
+{
+    return new SurfaceResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            gridDefinition.Kind.ToString(),
+            gridDefinition.IdentityVersion,
+            gridDefinition.LatitudeBandCount,
+            gridDefinition.LongitudeBandCount),
+        grid.Cells
+            .Select(
+                cell =>
+                    new SurfaceCellResponse(
+                        cell.Id.Value,
+                        cell.CenterLatitudeDegrees,
+                        cell.CenterLongitudeDegrees,
+                        cell.AreaSquareMeters,
+                        grid.GetBoundary(
+                                cell.Id)
+                            .Select(
+                                coordinate =>
+                                    new SurfaceCoordinateResponse(
+                                        coordinate.LatitudeDegrees,
+                                        coordinate.LongitudeDegrees))
+                            .ToArray()))
             .ToArray());
 }
 

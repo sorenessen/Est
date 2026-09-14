@@ -265,6 +265,9 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Seed deterministic generated terrain and hydrology for the development planet.
 - [x] Expose authoritative hydrology through Est.Api.
 - [ ] Add hydrology visualization after authoritative state is stable.
+  - [x] Expose shared surface-cell geometry needed to locate hydrology cells.
+  - [ ] Render authoritative surface-liquid state without coupling to opaque
+        cell identity or the static Earth-reference surface studies.
 - [ ] Build plant biomass on the shared surface substrate.
 - [ ] Replace synthetic food resources only after vegetation can preserve
       the existing population survival vertical slice.

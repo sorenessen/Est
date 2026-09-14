@@ -14,6 +14,9 @@ public interface IPlanetSurfaceGrid
 
     SurfaceCell GetCell(SurfaceCellId cellId);
 
+    IReadOnlyList<SurfaceCoordinate> GetBoundary(
+        SurfaceCellId cellId);
+
     SurfaceCell LocateCell(
         double latitudeDegrees,
         double longitudeDegrees);
