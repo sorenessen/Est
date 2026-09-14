@@ -230,13 +230,44 @@ civilization simulation.
 - [x] Add meaningful resource renewal and depletion pressure.
 - [x] Add scarcity-driven migration toward viable food beyond the local foraging radius.
 - [ ] Evaluate a minimal prey/hunting loop.
-- [ ] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
+- [x] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.
 - [ ] Select a durable animated person presentation only after simulation behavior establishes its requirements.
 
+### Biosphere support foundation
+
+The living-population prototype now needs a physical ecological
+foundation capable of supporting plants, invertebrates, birds, terrestrial
+animals, and eventually decomposition and nutrient cycling.
+
+Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
+
+- [ ] Define reusable planet-surface cell identity and grid contract.
+- [ ] Implement deterministic coarse spherical surface grid.
+- [ ] Verify cell area accounting, lookup, and neighbor topology.
+- [ ] Define durable per-cell hydrology state.
+- [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
+- [ ] Define explicit hydrology model policy in `SimulationDefinition`.
+- [ ] Implement conservative evaporation / precipitation / infiltration /
+      runoff transfers.
+- [ ] Add freezing and melting water transfers.
+- [ ] Add water mass-conservation telemetry and tests.
+- [ ] Seed deterministic Earth hydrology for development.
+- [ ] Expose authoritative hydrology through Est.Api.
+- [ ] Add hydrology visualization after authoritative state is stable.
+- [ ] Build plant biomass on the shared surface substrate.
+- [ ] Replace synthetic food resources only after vegetation can preserve
+      the existing population survival vertical slice.
+- [ ] Add aggregate invertebrate / bug populations.
+- [ ] Add bird population / flock representation.
+- [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
+- [ ] Add decomposition and nutrient cycling.
+- [ ] Explore evolutionary population dynamics above the mature biosphere
+      substrate.
+
 Current ownership rule:
 
-`Environment -> resources -> needs -> decisions -> actions -> consequences`
+`Environment -> hydrology -> biomass -> organisms -> needs -> decisions -> actions -> consequences`
 
 Simulation owns the chain. The renderer visualizes its results.
 
