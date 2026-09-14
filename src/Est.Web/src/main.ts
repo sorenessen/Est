@@ -31,6 +31,10 @@ import {
 } from './surface/terrain-height-field'
 
 import {
+  createTerrainShaderMaterial,
+} from './surface/terrain-material'
+
+import {
   findPlanetPatchStitchEdges,
   patchBounds,
   patchKey,
@@ -57,7 +61,7 @@ app.innerHTML = `
 
   <div class="planet-foundation-status">
     <strong>Est Planet Renderer</strong>
-    <span>R3 · authoritative terrain sampling</span>
+    <span>R4 · procedural terrain materials</span>
     <span id="terrainStatus">preparing terrain…</span>
     <span id="lodStatus">selecting patches…</span>
     <span>drag to orbit · wheel to zoom</span>
@@ -217,6 +221,11 @@ let terrainRadialOffset:
 let terrainNormalAtDirection:
   CubeSphereSurfaceNormal | undefined
 
+let terrainSurfaceMaterial:
+  ReturnType<
+    typeof createTerrainShaderMaterial
+  > | undefined
+
 if (sessionId) {
   const api =
     new EstApi('/api')
@@ -292,6 +301,16 @@ if (sessionId) {
 
   const meanRadiusMeters =
     planet.meanRadiusMeters
+
+  terrainSurfaceMaterial =
+    createTerrainShaderMaterial(
+      scene,
+      {
+        meanRadiusMeters,
+        minimumElevationMeters,
+        maximumElevationMeters,
+      },
+    )
 
   const minimumRenderRadius =
     1 +
@@ -404,9 +423,12 @@ const diagnosticMaterials =
 
 function createPatchMaterial(
   patch: PlanetPatch,
-): StandardMaterial {
+) {
   if (!showFaceDiagnostics) {
-    return sharedSurface
+    return (
+      terrainSurfaceMaterial ??
+      sharedSurface
+    )
   }
 
   const parity =
