@@ -6,6 +6,7 @@ using Est.Application.Sessions;
 using Est.Application.Worlds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -172,7 +173,25 @@ app.MapPost(
                                             planet.SyntheticAnimals
                                                 .CenterLongitudeDegrees,
                                             planet.SyntheticAnimals
-                                                .SpreadDegrees)))
+                                                .SpreadDegrees),
+                                    planet.GeneratedTerrain is null
+                                        ? null
+                                        : new GeneratedTerrainCreationSpecification(
+                                            planet.GeneratedTerrain
+                                                .Seed,
+                                            planet.GeneratedTerrain
+                                                .LatitudeBandCount,
+                                            planet.GeneratedTerrain
+                                                .LongitudeBandCount,
+                                            planet.GeneratedTerrain
+                                                .PlateCount,
+                                            planet.GeneratedTerrain
+                                                .ContinentalPlateFraction),
+                                    planet.GeneratedHydrology is null
+                                        ? null
+                                        : new GeneratedHydrologyCreationSpecification(
+                                            planet.GeneratedHydrology
+                                                .SurfaceLiquidWaterInventoryKilograms)))
                         .ToArray());
 
             var world =
@@ -223,10 +242,46 @@ app.MapPost(
                     .Cast<PopulationModelDefinition>()
                     .ToArray();
 
+            var hydrologyModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.HydrologyModel is null
+                                ? null
+                                : new HydrologyModelDefinition(
+                                    world.Planets[index].Id,
+                                    new HydrologyModelParameters(
+                                        planet.HydrologyModel
+                                            .MaximumIntegrationStepSeconds,
+                                        planet.HydrologyModel
+                                            .MaximumEvaporationRateKilogramsPerSquareMeterPerDay,
+                                        planet.HydrologyModel
+                                            .AtmosphericPrecipitationThresholdKilogramsPerSquareMeter,
+                                        planet.HydrologyModel
+                                            .MaximumPrecipitationRateKilogramsPerSquareMeterPerDay,
+                                        planet.HydrologyModel
+                                            .SoilWaterCapacityKilogramsPerSquareMeter,
+                                        planet.HydrologyModel
+                                            .MaximumInfiltrationRateKilogramsPerSquareMeterPerDay,
+                                        planet.HydrologyModel
+                                            .MaximumRunoffRateKilogramsPerSquareMeterPerDay,
+                                        planet.HydrologyModel
+                                            .FreezingTemperatureKelvin,
+                                        planet.HydrologyModel
+                                            .MeltingTemperatureKelvin,
+                                        planet.HydrologyModel
+                                            .MaximumFreezingRateKilogramsPerSquareMeterPerDay,
+                                        planet.HydrologyModel
+                                            .MaximumMeltingRateKilogramsPerSquareMeterPerDay)))
+                    .Where(model => model is not null)
+                    .Cast<HydrologyModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
-                    populationModels);
+                    populationModels,
+                    hydrologyModels);
 
             var sessionId =
                 manager.Create(

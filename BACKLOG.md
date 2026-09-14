@@ -262,7 +262,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
       runoff transfers.
 - [x] Add freezing and melting water transfers.
 - [x] Add water mass-conservation telemetry and tests.
-- [ ] Seed deterministic generated terrain and hydrology for the development planet.
+- [x] Seed deterministic generated terrain and hydrology for the development planet.
 - [ ] Expose authoritative hydrology through Est.Api.
 - [ ] Add hydrology visualization after authoritative state is stable.
 - [ ] Build plant biomass on the shared surface substrate.

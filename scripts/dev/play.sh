@@ -53,7 +53,18 @@ payload='{
         "centerLatitudeDegrees": 0,
         "centerLongitudeDegrees": 25,
         "spreadDegrees": 1
-      }
+      },
+      "generatedTerrain": {
+        "seed": 20260914,
+        "latitudeBandCount": 72,
+        "longitudeBandCount": 144,
+        "plateCount": 24,
+        "continentalPlateFraction": 0.45
+      },
+      "generatedHydrology": {
+        "surfaceLiquidWaterInventoryKilograms": 1.4e21
+      },
+      "hydrologyModel": {}
     }
   ]
 }'

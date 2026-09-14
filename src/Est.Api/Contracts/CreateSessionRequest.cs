@@ -18,7 +18,90 @@ public sealed record PlanetCreationRequest(
     PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null,
     SyntheticPopulationCreationRequest? SyntheticPopulation = null,
     SyntheticFoodCreationRequest? SyntheticFood = null,
-    SyntheticAnimalCreationRequest? SyntheticAnimals = null);
+    SyntheticAnimalCreationRequest? SyntheticAnimals = null,
+    GeneratedTerrainCreationRequest? GeneratedTerrain = null,
+    GeneratedHydrologyCreationRequest? GeneratedHydrology = null,
+    HydrologyModelRequest? HydrologyModel = null);
+
+public sealed record GeneratedTerrainCreationRequest(
+    [property: JsonRequired]
+    int Seed,
+    int LatitudeBandCount = 72,
+    int LongitudeBandCount = 144,
+    int PlateCount = 24,
+    double ContinentalPlateFraction = 0.45);
+
+public sealed record GeneratedHydrologyCreationRequest(
+    [property: JsonRequired]
+    double SurfaceLiquidWaterInventoryKilograms);
+
+public sealed record HydrologyModelRequest
+{
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double
+        MaximumEvaporationRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 4;
+
+    public double
+        AtmosphericPrecipitationThresholdKilogramsPerSquareMeter
+    {
+        get;
+        init;
+    } = 20;
+
+    public double
+        MaximumPrecipitationRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 12;
+
+    public double
+        SoilWaterCapacityKilogramsPerSquareMeter
+    {
+        get;
+        init;
+    } = 150;
+
+    public double
+        MaximumInfiltrationRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 20;
+
+    public double
+        MaximumRunoffRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 25;
+
+    public double FreezingTemperatureKelvin { get; init; } =
+        273.15;
+
+    public double MeltingTemperatureKelvin { get; init; } =
+        273.15;
+
+    public double
+        MaximumFreezingRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 20;
+
+    public double
+        MaximumMeltingRateKilogramsPerSquareMeterPerDay
+    {
+        get;
+        init;
+    } = 20;
+}
 
 public sealed record SyntheticPopulationCreationRequest(
     [property: JsonRequired]

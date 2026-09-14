@@ -436,6 +436,106 @@ public sealed class SessionEndpointTests
     }
 
     [Fact]
+    public async Task CreateSession_WithGeneratedHydrology_AdvancesWaterCycle()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Hydrology World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0.60,
+                        0.05,
+                        new AtmosphereCreationRequest(
+                            100_000,
+                            new Dictionary<string, double>
+                            {
+                                ["N2"] = 1
+                            })),
+                    GeneratedTerrain:
+                        new GeneratedTerrainCreationRequest(
+                            Seed: 42,
+                            LatitudeBandCount: 4,
+                            LongitudeBandCount: 8,
+                            PlateCount: 4,
+                            ContinentalPlateFraction: 0.45),
+                    GeneratedHydrology:
+                        new GeneratedHydrologyCreationRequest(
+                            1.0e19),
+                    HydrologyModel:
+                        new HydrologyModelRequest())
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var advanceResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/advance",
+                new AdvanceTimeRequest(
+                    86_400));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            advanceResponse.StatusCode);
+
+        var timeline =
+            await client.GetFromJsonAsync<TimelineResponse>(
+                $"/sessions/{created.SessionId}/timeline");
+
+        Assert.NotNull(
+            timeline);
+
+        var hydrologyEvent =
+            Assert.Single(
+                timeline.Events,
+                timelineEvent =>
+                    timelineEvent.Cause ==
+                    "planetary-hydrology");
+
+        Assert.Equal(
+            86_400,
+            hydrologyEvent.ElapsedSeconds);
+
+        Assert.True(
+            hydrologyEvent.Metrics.ContainsKey(
+                "initialWaterMassKilograms"));
+
+        Assert.True(
+            hydrologyEvent.Metrics.ContainsKey(
+                "finalWaterMassKilograms"));
+
+        Assert.InRange(
+            Math.Abs(
+                hydrologyEvent.Metrics[
+                    "relativeWaterMassConservationError"]),
+            0,
+            1e-12);
+    }
+
+    [Fact]
     public async Task CreateSession_WithInvalidPlanet_ReturnsBadRequest()
     {
         await using var factory =
