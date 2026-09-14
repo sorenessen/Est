@@ -709,6 +709,65 @@ function neighborsAlongEdge(
   ]
 }
 
+export function findPlanetPatchStitchEdges(
+  patches: readonly PlanetPatch[],
+  maximumLevel: number,
+): Map<
+  string,
+  Record<
+    PlanetPatchEdge,
+    boolean
+  >
+> {
+  const coverage =
+    buildPatchCoverage(
+      patches,
+      maximumLevel,
+    )
+
+  const result =
+    new Map<
+      string,
+      Record<
+        PlanetPatchEdge,
+        boolean
+      >
+    >()
+
+  for (const patch of patches) {
+    const edges: Record<
+      PlanetPatchEdge,
+      boolean
+    > = {
+      left: false,
+      right: false,
+      bottom: false,
+      top: false,
+    }
+
+    for (const edge of PATCH_EDGES) {
+      edges[edge] =
+        neighborsAlongEdge(
+          patch,
+          edge,
+          coverage,
+          maximumLevel,
+        ).some(
+          (neighbor) =>
+            neighbor.level <
+            patch.level,
+        )
+    }
+
+    result.set(
+      patchKey(patch),
+      edges,
+    )
+  }
+
+  return result
+}
+
 export function findPlanetPatchNeighbors(
   patches: readonly PlanetPatch[],
   maximumLevel: number,

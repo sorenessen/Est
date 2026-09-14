@@ -20,6 +20,7 @@ import {
 } from './planet/cube-sphere'
 
 import {
+  findPlanetPatchStitchEdges,
   patchBounds,
   patchKey,
   selectBalancedPlanetPatches,
@@ -198,6 +199,9 @@ const lodOptions = {
 const patchMeshes =
   new Map<string, Mesh>()
 
+const patchMeshStitches =
+  new Map<string, string>()
+
 const diagnosticMaterials =
   new Map<
     string,
@@ -274,6 +278,10 @@ function createPatchMaterial(
 
 function createPatchMesh(
   patch: PlanetPatch,
+  stitchEdges: Record<
+    'left' | 'right' | 'bottom' | 'top',
+    boolean
+  >,
 ): Mesh {
   const bounds =
     patchBounds(patch)
@@ -286,6 +294,7 @@ function createPatchMesh(
       bounds.uMax,
       bounds.vMin,
       bounds.vMax,
+      stitchEdges,
     )
 
   const mesh =
@@ -356,6 +365,12 @@ function synchronizePlanetPatches(): void {
   const selectedKeys =
     new Set(keys)
 
+  const stitchEdgesByPatch =
+    findPlanetPatchStitchEdges(
+      selected,
+      lodOptions.maximumLevel,
+    )
+
   for (
     const [
       key,
@@ -370,21 +385,48 @@ function synchronizePlanetPatches(): void {
 
     mesh.dispose()
     patchMeshes.delete(key)
+    patchMeshStitches.delete(key)
   }
 
   for (const patch of selected) {
     const key =
       patchKey(patch)
 
+    const stitchEdges =
+      stitchEdgesByPatch.get(key) ?? {
+        left: false,
+        right: false,
+        bottom: false,
+        top: false,
+      }
+
+    const stitchSignature =
+      `${+stitchEdges.left}${+stitchEdges.right}${+stitchEdges.bottom}${+stitchEdges.top}`
+
+    const existingMesh =
+      patchMeshes.get(key)
+
     if (
-      patchMeshes.has(key)
+      existingMesh &&
+      patchMeshStitches.get(key) ===
+        stitchSignature
     ) {
       continue
     }
 
+    existingMesh?.dispose()
+
     patchMeshes.set(
       key,
-      createPatchMesh(patch),
+      createPatchMesh(
+        patch,
+        stitchEdges,
+      ),
+    )
+
+    patchMeshStitches.set(
+      key,
+      stitchSignature,
     )
   }
 

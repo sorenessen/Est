@@ -135,6 +135,237 @@ function appendOutwardTriangle(
   indices.push(a, c, b)
 }
 
+export interface CubeSpherePatchStitchEdges {
+  readonly left?: boolean
+  readonly right?: boolean
+  readonly bottom?: boolean
+  readonly top?: boolean
+}
+
+function patchVertexIndex(
+  row: number,
+  column: number,
+  stride: number,
+): number {
+  return row * stride + column
+}
+
+function appendPatchTriangle(
+  indices: number[],
+  positions: readonly number[],
+  a: number,
+  b: number,
+  c: number,
+): void {
+  appendOutwardTriangle(
+    indices,
+    positions,
+    a,
+    b,
+    c,
+  )
+}
+
+function appendRegularPatchCell(
+  indices: number[],
+  positions: readonly number[],
+  row: number,
+  column: number,
+  stride: number,
+): void {
+  const lowerLeft =
+    patchVertexIndex(
+      row,
+      column,
+      stride,
+    )
+
+  const lowerRight =
+    patchVertexIndex(
+      row,
+      column + 1,
+      stride,
+    )
+
+  const upperLeft =
+    patchVertexIndex(
+      row + 1,
+      column,
+      stride,
+    )
+
+  const upperRight =
+    patchVertexIndex(
+      row + 1,
+      column + 1,
+      stride,
+    )
+
+  appendPatchTriangle(
+    indices,
+    positions,
+    lowerLeft,
+    lowerRight,
+    upperRight,
+  )
+
+  appendPatchTriangle(
+    indices,
+    positions,
+    lowerLeft,
+    upperRight,
+    upperLeft,
+  )
+}
+
+function appendHorizontalStitchPair(
+  indices: number[],
+  positions: readonly number[],
+  boundaryRow: number,
+  innerRow: number,
+  column: number,
+  stride: number,
+  omitStartTriangle: boolean,
+  omitEndTriangle: boolean,
+): void {
+  const boundaryStart =
+    patchVertexIndex(
+      boundaryRow,
+      column,
+      stride,
+    )
+
+  const boundaryEnd =
+    patchVertexIndex(
+      boundaryRow,
+      column + 2,
+      stride,
+    )
+
+  const innerStart =
+    patchVertexIndex(
+      innerRow,
+      column,
+      stride,
+    )
+
+  const innerMiddle =
+    patchVertexIndex(
+      innerRow,
+      column + 1,
+      stride,
+    )
+
+  const innerEnd =
+    patchVertexIndex(
+      innerRow,
+      column + 2,
+      stride,
+    )
+
+  if (!omitStartTriangle) {
+    appendPatchTriangle(
+      indices,
+      positions,
+      boundaryStart,
+      innerMiddle,
+      innerStart,
+    )
+  }
+
+  appendPatchTriangle(
+    indices,
+    positions,
+    boundaryStart,
+    boundaryEnd,
+    innerMiddle,
+  )
+
+  if (!omitEndTriangle) {
+    appendPatchTriangle(
+      indices,
+      positions,
+      boundaryEnd,
+      innerEnd,
+      innerMiddle,
+    )
+  }
+}
+
+function appendVerticalStitchPair(
+  indices: number[],
+  positions: readonly number[],
+  boundaryColumn: number,
+  innerColumn: number,
+  row: number,
+  stride: number,
+  omitStartTriangle: boolean,
+  omitEndTriangle: boolean,
+): void {
+  const boundaryStart =
+    patchVertexIndex(
+      row,
+      boundaryColumn,
+      stride,
+    )
+
+  const boundaryEnd =
+    patchVertexIndex(
+      row + 2,
+      boundaryColumn,
+      stride,
+    )
+
+  const innerStart =
+    patchVertexIndex(
+      row,
+      innerColumn,
+      stride,
+    )
+
+  const innerMiddle =
+    patchVertexIndex(
+      row + 1,
+      innerColumn,
+      stride,
+    )
+
+  const innerEnd =
+    patchVertexIndex(
+      row + 2,
+      innerColumn,
+      stride,
+    )
+
+  if (!omitStartTriangle) {
+    appendPatchTriangle(
+      indices,
+      positions,
+      boundaryStart,
+      innerMiddle,
+      innerStart,
+    )
+  }
+
+  appendPatchTriangle(
+    indices,
+    positions,
+    boundaryStart,
+    boundaryEnd,
+    innerMiddle,
+  )
+
+  if (!omitEndTriangle) {
+    appendPatchTriangle(
+      indices,
+      positions,
+      boundaryEnd,
+      innerEnd,
+      innerMiddle,
+    )
+  }
+}
+
 export function createCubeSpherePatchGeometry(
   face: CubeFace,
   segments: number,
@@ -142,6 +373,7 @@ export function createCubeSpherePatchGeometry(
   uMax: number,
   vMin: number,
   vMax: number,
+  stitchEdges: CubeSpherePatchStitchEdges = {},
 ): CubeSphereFaceGeometry {
   if (
     !Number.isInteger(segments) ||
@@ -149,6 +381,18 @@ export function createCubeSpherePatchGeometry(
   ) {
     throw new Error(
       'Cube-sphere segments must be a positive integer.',
+    )
+  }
+
+  const hasStitchedEdge =
+    stitchEdges.left === true ||
+    stitchEdges.right === true ||
+    stitchEdges.bottom === true ||
+    stitchEdges.top === true
+
+  if (hasStitchedEdge && segments % 2 !== 0) {
+    throw new Error(
+      'Cube-sphere stitched patch edges require an even segment count.',
     )
   }
 
@@ -204,42 +448,132 @@ export function createCubeSpherePatchGeometry(
     }
   }
 
+  const firstRegularRow =
+    stitchEdges.bottom
+      ? 1
+      : 0
+
+  const lastRegularRow =
+    segments -
+    (
+      stitchEdges.top
+        ? 1
+        : 0
+    )
+
+  const firstRegularColumn =
+    stitchEdges.left
+      ? 1
+      : 0
+
+  const lastRegularColumn =
+    segments -
+    (
+      stitchEdges.right
+        ? 1
+        : 0
+    )
+
   for (
-    let row = 0;
-    row < segments;
+    let row = firstRegularRow;
+    row < lastRegularRow;
     row += 1
   ) {
     for (
-      let column = 0;
-      column < segments;
+      let column = firstRegularColumn;
+      column < lastRegularColumn;
       column += 1
     ) {
-      const lowerLeft =
-        row * stride + column
-
-      const lowerRight =
-        lowerLeft + 1
-
-      const upperLeft =
-        lowerLeft + stride
-
-      const upperRight =
-        upperLeft + 1
-
-      appendOutwardTriangle(
+      appendRegularPatchCell(
         indices,
         positions,
-        lowerLeft,
-        lowerRight,
-        upperRight,
+        row,
+        column,
+        stride,
       )
+    }
+  }
 
-      appendOutwardTriangle(
+  if (stitchEdges.bottom) {
+    for (
+      let column = 0;
+      column < segments;
+      column += 2
+    ) {
+      appendHorizontalStitchPair(
         indices,
         positions,
-        lowerLeft,
-        upperRight,
-        upperLeft,
+        0,
+        1,
+        column,
+        stride,
+        stitchEdges.left === true &&
+          column === 0,
+        stitchEdges.right === true &&
+          column + 2 === segments,
+      )
+    }
+  }
+
+  if (stitchEdges.top) {
+    for (
+      let column = 0;
+      column < segments;
+      column += 2
+    ) {
+      appendHorizontalStitchPair(
+        indices,
+        positions,
+        segments,
+        segments - 1,
+        column,
+        stride,
+        stitchEdges.left === true &&
+          column === 0,
+        stitchEdges.right === true &&
+          column + 2 === segments,
+      )
+    }
+  }
+
+  if (stitchEdges.left) {
+    for (
+      let row = 0;
+      row < segments;
+      row += 2
+    ) {
+      appendVerticalStitchPair(
+        indices,
+        positions,
+        0,
+        1,
+        row,
+        stride,
+        stitchEdges.bottom === true &&
+          row === 0,
+        stitchEdges.top === true &&
+          row + 2 === segments,
+      )
+    }
+  }
+
+  if (stitchEdges.right) {
+    for (
+      let row = 0;
+      row < segments;
+      row += 2
+    ) {
+      appendVerticalStitchPair(
+        indices,
+        positions,
+        segments,
+        segments - 1,
+        row,
+        stride,
+        stitchEdges.bottom === true &&
+          row === 0,
+        stitchEdges.top === true &&
+          row + 2 === segments,
       )
     }
   }

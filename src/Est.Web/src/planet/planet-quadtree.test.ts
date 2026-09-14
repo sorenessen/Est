@@ -7,7 +7,9 @@ import {
 import {
   balancePlanetPatches,
   findPlanetPatchNeighbors,
+  findPlanetPatchStitchEdges,
   patchBounds,
+  patchKey,
   patchesAtLevel,
   selectBalancedPlanetPatches,
   selectPlanetPatches,
@@ -558,4 +560,117 @@ describe('planet quadtree balancing', () => {
       ).toBeLessThanOrEqual(1)
     }
   })
+  it('marks the fine side of a same-face coarse-to-fine boundary for stitching', () => {
+    const coarse: PlanetPatch = {
+      face: 'positiveZ',
+      level: 1,
+      x: 0,
+      y: 0,
+    }
+
+    const fineLower: PlanetPatch = {
+      face: 'positiveZ',
+      level: 2,
+      x: 2,
+      y: 0,
+    }
+
+    const fineUpper: PlanetPatch = {
+      face: 'positiveZ',
+      level: 2,
+      x: 2,
+      y: 1,
+    }
+
+    const stitches =
+      findPlanetPatchStitchEdges(
+        [
+          coarse,
+          fineLower,
+          fineUpper,
+        ],
+        2,
+      )
+
+    expect(
+      stitches.get(
+        patchKey(fineLower),
+      ),
+    ).toEqual({
+      left: true,
+      right: false,
+      bottom: false,
+      top: false,
+    })
+
+    expect(
+      stitches.get(
+        patchKey(fineUpper),
+      ),
+    ).toEqual({
+      left: true,
+      right: false,
+      bottom: false,
+      top: false,
+    })
+
+    expect(
+      stitches.get(
+        patchKey(coarse),
+      ),
+    ).toEqual({
+      left: false,
+      right: false,
+      bottom: false,
+      top: false,
+    })
+  })
+
+  it('marks the fine side across a cube-face boundary for stitching', () => {
+    const coarse: PlanetPatch = {
+      face: 'positiveX',
+      level: 1,
+      x: 0,
+      y: 0,
+    }
+
+    const fine: PlanetPatch = {
+      face: 'positiveZ',
+      level: 2,
+      x: 3,
+      y: 0,
+    }
+
+    const stitches =
+      findPlanetPatchStitchEdges(
+        [
+          coarse,
+          fine,
+        ],
+        2,
+      )
+
+    expect(
+      stitches.get(
+        patchKey(fine),
+      ),
+    ).toEqual({
+      left: false,
+      right: true,
+      bottom: false,
+      top: false,
+    })
+
+    expect(
+      stitches.get(
+        patchKey(coarse),
+      ),
+    ).toEqual({
+      left: false,
+      right: false,
+      bottom: false,
+      top: false,
+    })
+  })
+
 })
