@@ -384,6 +384,64 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/hydrology",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var hydrology =
+            session.CurrentWorld.Hydrology
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (hydrology is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(
+            ToHydrologyResponse(
+                planet,
+                hydrology));
+    });
+
+app.MapGet(
     "/sessions/{id:guid}/timeline",
     (
         Guid id,
@@ -685,6 +743,34 @@ static TimelineResponse ToTimelineResponse(
                         timelineEvent.AffectedPlanetId?.Value,
                         timelineEvent.ElapsedSeconds,
                         timelineEvent.Metrics))
+            .ToArray());
+}
+
+static HydrologyResponse ToHydrologyResponse(
+    PlanetState planet,
+    PlanetHydrologyState hydrology)
+{
+    hydrology.ValidateFor(
+        planet);
+
+    return new HydrologyResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            hydrology.GridDefinition.Kind.ToString(),
+            hydrology.GridDefinition.IdentityVersion,
+            hydrology.GridDefinition.LatitudeBandCount,
+            hydrology.GridDefinition.LongitudeBandCount),
+        hydrology.TotalWaterMassKilograms(
+            planet),
+        hydrology.Cells
+            .Select(
+                cell =>
+                    new HydrologyCellResponse(
+                        cell.CellId.Value,
+                        cell.AtmosphericWaterKilogramsPerSquareMeter,
+                        cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+                        cell.SoilWaterKilogramsPerSquareMeter,
+                        cell.SnowIceWaterEquivalentKilogramsPerSquareMeter))
             .ToArray());
 }
 
