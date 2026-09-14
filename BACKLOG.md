@@ -240,12 +240,12 @@ Do not connect authoritative terrain yet.
 
 #### R3 - Authoritative terrain sampling
 
-- [ ] Connect the renderer to Est-owned terrain sampling.
-- [ ] Sample authoritative macro terrain into render vertices.
-- [ ] Verify major terrain structure corresponds to authoritative Est state.
-- [ ] Preserve deterministic output from the same world and terrain seed.
-- [ ] Ensure authoritative surface-cell boundaries are not visible.
-- [ ] Keep any intermediate procedural visual detail explicitly
+- [x] Connect the renderer to Est-owned terrain sampling.
+- [x] Sample authoritative macro terrain into render vertices.
+- [x] Verify major terrain structure corresponds to authoritative Est state.
+- [x] Preserve deterministic output from the same world and terrain seed.
+- [x] Ensure authoritative surface-cell boundaries are not visible.
+- [x] Keep any intermediate procedural visual detail explicitly
       presentation-only.
 
 #### R4 - Materials, lighting, ocean, and atmosphere
