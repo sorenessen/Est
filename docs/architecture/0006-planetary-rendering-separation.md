@@ -17,196 +17,197 @@ vegetation, regional climate, and other spatial simulation fields. Its initial
 latitude/longitude tessellation was deliberately chosen as a simple,
 replaceable implementation behind an opaque surface-grid abstraction.
 
-Recent runtime work exposed a critical distinction that was not yet made
-explicit enough:
+Recent runtime work exposed a distinction that must now become explicit:
 
-The spatial resolution and topology used to simulate a planet must not be
-treated as the geometry used to draw that planet.
+Simulation spatial resolution and render spatial resolution are separate
+systems.
 
-The current development planet uses a coarse authoritative surface grid.
-That grid is useful for causal simulation, conservation, neighborhood
-relationships, durable terrain values, hydrology, ecology, and aggregation.
+The authoritative surface grid is useful for causal simulation, conservation,
+neighborhood relationships, durable terrain values, hydrology, ecology, and
+aggregation.
 
-It is not an acceptable finished visual surface.
+It is not the visual planet.
 
-Several Cesium-based experiments demonstrated the failure mode.
+Several Cesium experiments exposed the consequences of treating it as though it
+were.
 
-First, rendering standing water directly as one polygon per authoritative
-surface cell exposed the simulation tessellation visually. Coastlines became
-blocky and stair-stepped because the renderer was drawing the data structure
-rather than a continuous world represented by that data.
+Direct standing-water rendering used one polygon per authoritative surface
+cell. This made the simulation tessellation visible as blocky and stair-stepped
+coastlines.
 
-Second, the known-good Cesium `CustomHeightmapTerrainProvider` could reproduce
-authoritative elevation geometry, but its terrain-lighting path did not provide
-the surface-normal control required for Est's intended visual treatment.
+The stable Cesium `CustomHeightmapTerrainProvider` could reproduce the
+authoritative terrain field as globe geometry, but the rendering path did not
+provide the terrain-normal and shading control Est requires.
 
-A custom quantized-mesh experiment attempted to recover that control. Its unit
-tests and production build passed, but browser validation failed with visible
-tile-sector artifacts, seams, disappearing regions, and camera-dependent
-geometry instability. The experiment was rolled back.
+A custom quantized-mesh provider was then tested to recover explicit vertex
+normals. Its unit tests and production build passed, but browser validation
+failed with tile-sector artifacts, seams, disappearing or changing geometry,
+and camera-dependent instability. The experiment was rolled back.
 
-A second experiment generated Est-controlled raster surface imagery with
-terrain coloring and hillshade. Its tests and production build also passed, but
-runtime validation again failed the visual gate. The planet still read as
-large painted cells, useful terrain relief was absent, and the approach did not
-solve the underlying representation problem. That experiment was also rolled
-back.
+A second experiment generated Est-controlled raster terrain imagery with
+elevation coloring and deterministic hillshade. Its tests and production build
+also passed. Browser validation nevertheless failed the visual gate: terrain
+still read as large painted areas, relief was inadequate, and the approach did
+not solve the underlying representation problem. It was rolled back.
 
-These failures are useful architectural evidence.
+These experiments demonstrate that successful tests and builds are not enough
+to validate a planetary renderer.
 
-They show that Est should stop adapting its simulated planetary fields into a
-GIS renderer's terrain and imagery abstractions and instead use the same broad
-class of rendering architecture already established by planet-scale games and
-real-time procedural-world systems.
+More importantly, they demonstrate that Est should not continue adapting its
+simulation topology into GIS-oriented terrain, imagery, or per-cell polygon
+representations.
 
 ## Decision
 
-Est will explicitly separate simulation spatial representation from render
-spatial representation.
+Est will explicitly separate authoritative simulation geography from visual
+planet geometry.
 
-The authoritative simulation surface grid remains a domain and simulation
-structure.
+The authoritative simulation surface grid remains a domain structure.
 
-The visual planet will use a separate, multi-resolution rendering structure
-whose topology, density, and level of detail are chosen for rendering quality
-and performance rather than simulation storage.
+The production visual planet will use a separate multi-resolution rendering
+structure whose topology, density, and level of detail are chosen for visual
+quality and runtime performance.
 
-The core relationship is:
+The architectural flow is:
 
     authoritative simulation fields
-      -> renderer-neutral sampling / presentation inputs
-      -> multi-resolution visual planet
+      -> Est-owned continuous sampling / presentation inputs
+      -> multi-resolution render surface
       -> GPU geometry, materials, lighting, and effects
 
-The renderer must never infer simulation truth from visual detail.
+The renderer may contain far more vertices and pixels than the authoritative
+simulation contains cells.
+
+That is expected.
+
+Simulation resolution answers:
+
+    At what spatial resolution must authoritative world state be modeled?
+
+Render resolution answers:
+
+    At what spatial resolution must the current view be drawn?
+
+They are independent questions.
 
 ### Authoritative simulation surface
 
-The shared Est surface grid continues to own stable macro-scale spatial state
-for systems that need it.
-
-Examples include:
+The Est planet-surface grid continues to provide stable spatial identity and
+topology for simulation fields such as:
 
 - durable terrain elevation;
 - hydrology stores and fluxes;
-- regional climate fields;
-- vegetation and biomass;
-- ecological densities and cohorts;
-- aggregation and neighborhood relationships.
+- regional climate;
+- soil and vegetation;
+- ecological density and cohorts;
+- spatial aggregation and neighborhood relationships.
 
 The current latitude/longitude tessellation remains an implementation behind
-the existing surface-grid abstraction.
+the existing replaceable surface-grid abstraction.
 
-It is not promoted to the visual mesh.
+It is not promoted to visual geometry.
 
-A future equal-area, hierarchical, geodesic, or other discrete global grid may
-replace it without requiring the renderer to use the same topology.
+A future equal-area, hierarchical, geodesic, or other planetary grid may
+replace it without requiring the render surface to use the same topology.
 
-### Render surface
+### Production render surface
 
 The production planetary renderer will use a cube-sphere divided into
 hierarchical quadtree patches.
 
-Each cube face can recursively subdivide according to view-dependent level of
-detail.
+Each of the six cube faces can recursively subdivide according to view-dependent
+level of detail.
 
-Visual terrain patches will use a reusable regular mesh topology. Patch
-vertices will be displaced from a spherical base using terrain sampled from
-Est-owned presentation inputs.
+Terrain patches will use reusable regular mesh topology. Their vertices will be
+projected from cube space onto the planetary sphere and displaced using
+Est-owned terrain sampling.
 
-The renderer may use substantially more vertices and pixels than the
-authoritative simulation has cells.
+The render hierarchy belongs to presentation.
 
-That is expected.
+Its patch identities are not `SurfaceCellId` values.
 
-Render resolution answers:
+Its subdivisions are not authoritative world state.
 
-    How much geometry and visual information are needed for this view?
+Its level of detail may change continuously as the camera moves without
+changing simulation state.
 
-Simulation resolution answers:
+### Terrain sampling
 
-    At what spatial resolution must authoritative state be modeled?
+Authoritative terrain remains simulation truth at the resolution represented by
+Est.
 
-Those are separate questions.
+Presentation may derive a continuous terrain field from that state through
+deterministic interpolation.
 
-### Terrain sampling and visual detail
+The renderer may later combine authoritative macro terrain with additional
+presentation inputs such as:
 
-Authoritative terrain remains simulation truth at the resolution represented
-by Est.
+- deterministic procedural visual detail;
+- higher-resolution Earth elevation products;
+- geology or erosion presentation products;
+- local spatial geometry;
+- biome and material information.
 
-The rendering layer may derive a continuous terrain field from that state
-through deterministic interpolation and may add deterministic
-presentation-only detail where appropriate.
+Presentation-only detail must not silently become authoritative terrain state.
 
-Presentation detail must not silently become authoritative terrain state.
+### Terrain rendering
 
-The renderer may eventually combine:
+Terrain normals, materials, lighting, and displacement required for the visual
+planet will be controlled by Est's production renderer.
 
-- authoritative macro elevation;
-- deterministic procedural intermediate detail;
-- high-resolution Earth data where provenance permits;
-- erosion or geology presentation products;
-- local geometric features;
-- material and biome presentation inputs.
-
-The ownership boundary remains explicit.
-
-### GPU terrain presentation
-
-The visual renderer will own normal calculation, lighting, material evaluation,
-and mesh displacement required to draw the prepared visual surface.
-
-Terrain shading should therefore derive from the actual displaced render
-geometry or its mathematically equivalent surface representation.
+Lighting should derive from the actual rendered surface or a mathematically
+equivalent representation.
 
 Est will not depend on a third-party globe renderer's fixed terrain-lighting
-model for production visual quality.
+pipeline for production visual quality.
 
 ### Water
 
 Standing water will not be rendered as one polygon per simulation cell.
 
-Large oceans should be represented as continuous visual surfaces whose
-intersection with terrain naturally produces the visible coastline.
+Large oceans should be continuous visual surfaces.
 
-The authoritative hydrology model determines physical water state and the
-appropriate water-surface conditions.
+The authoritative simulation determines physical water state and water-surface
+conditions.
 
 Presentation determines how those conditions are drawn.
 
-Lakes, rivers, wetlands, snow, ice, groundwater expression, waves, and other
-water representations may require separate visual techniques as their
-simulation requirements mature.
+Visible coastlines should arise from the intersection of terrain with the
+appropriate water surface rather than from the boundaries of hydrology storage
+cells.
 
-The simulation-cell tessellation must not become visible merely because water
-is stored or solved per cell.
+Lakes, rivers, wetlands, snow, ice, waves, and other water representations may
+require additional visual techniques as their simulation requirements mature.
 
-### Production renderer direction
+The simulation tessellation must not become visible merely because water is
+stored or solved per cell.
+
+### Renderer direction
 
 Cesium is retired as Est's production planetary-renderer direction.
 
-Existing Cesium evaluation work remains useful historical evidence and may
-remain temporarily available for comparison or reference, but new production
-planet-renderer development should not extend the Cesium terrain, imagery, or
-cell-polygon architecture.
+The existing Cesium work remains useful evaluation evidence and may remain
+temporarily available for comparison, diagnostics, or historical reference.
 
-The first implementation target for the rebuilt browser renderer is Babylon.js
-using its modern WebGPU-capable rendering stack.
+New production renderer development should not extend the Cesium terrain,
+imagery, quantized-mesh, or simulation-cell polygon paths.
 
-Babylon is an implementation choice, not a simulation dependency.
+The first implementation target for the replacement browser renderer is
+Babylon.js.
 
-Renderer-neutral sampling, world-state ownership, and presentation contracts
-must remain separable enough that Babylon can later be replaced if concrete
-requirements justify doing so.
+Babylon is a presentation implementation choice, not a simulation dependency.
+
+Renderer-neutral sampling, presentation policy, and simulation ownership must
+remain separable so that Babylon itself remains replaceable if future evidence
+justifies another renderer.
 
 ### Browser direction
 
 The browser-hosted product direction remains valid.
 
-Replacing Cesium does not imply abandoning the web client.
+Replacing Cesium does not imply abandoning the browser client.
 
-The rebuilt renderer should remain compatible with Est's long-term model in
-which authoritative world state is independent of the device displaying it.
+Authoritative world state remains independent of the machine rendering it.
 
 ### Multi-scale presentation
 
@@ -214,161 +215,151 @@ ADR 0003 remains accepted.
 
 This decision strengthens it.
 
-A cube-sphere quadtree solves planetary terrain representation and
-view-dependent terrain density. It does not imply that one terrain mesh must
-represent every feature at every scale.
+A cube-sphere quadtree provides the planetary terrain foundation. It does not
+require one representation to serve every feature at every scale.
 
-Regional imagery, procedural materials, buildings, roads, vegetation,
-characters, settlements, and other representations may still appear,
-disappear, aggregate, or transition according to scale and significance.
+Regional imagery, materials, buildings, roads, vegetation, settlements,
+characters, and other representations may still appear, disappear, aggregate,
+stream, or transition according to viewing scale and significance.
 
-The planet renderer is a foundation for those representations, not a
-replacement for multi-scale presentation policy.
+## Implementation Sequence
 
-## Initial Implementation Sequence
+### R1: Babylon planetary foundation
 
-### Phase R1: renderer foundation
+1. Add a Babylon renderer entry point separate from the Cesium evaluation.
+2. Define six renderer-owned cube faces.
+3. Define deterministic cube-to-sphere mapping.
+4. Render a stable sphere from six independently addressable faces.
+5. Validate orbit, zoom, resize, and ordinary camera movement.
+6. Confirm there are no visible cube-face gaps or orientation errors.
 
-1. Establish a Babylon-based Est renderer entry point separate from the Cesium
-   evaluation.
-2. Define renderer-owned cube-face and quadtree patch identities.
-3. Define cube-to-sphere mapping independent of authoritative simulation-cell
-   geometry.
-4. Render one stable spherical planet from six cube faces.
-5. Prove orbit, zoom, resize, and camera behavior.
+Do not integrate terrain simulation yet.
 
-No terrain simulation integration is required for the first proof.
-
-### Phase R2: quadtree terrain geometry
+### R2: quadtree terrain patches
 
 1. Introduce reusable regular terrain patches.
-2. Subdivide and merge patches based on view-dependent error or equivalent LOD
-   criteria.
-3. Prevent cracks between neighboring LOD levels.
-4. Add horizon and frustum culling.
-5. Keep terrain patch generation independent of simulation-grid topology.
+2. Subdivide and merge patches according to view-dependent LOD.
+3. Preserve continuity between neighboring LOD levels.
+4. Add frustum and horizon culling.
+5. Keep patch topology independent of the authoritative simulation grid.
 
-The runtime gate is smooth planetary orbit and zoom without visible cube-face
-or patch seams.
+Runtime gate:
 
-### Phase R3: authoritative terrain sampling
+- smooth planetary orbit and zoom;
+- stable patch geometry;
+- no disappearing sectors;
+- no visible cracks or cube-face seams.
 
-1. Connect the renderer to Est's continuous terrain-sampling boundary.
-2. Sample authoritative macro terrain without rendering authoritative cells.
-3. Verify that continents and major terrain structures correspond to simulation
-   state.
-4. Add deterministic visual detail only through an explicit presentation
-   layer.
-5. Preserve reproducibility from world and terrain seeds.
+### R3: authoritative terrain sampling
 
-The runtime gate is recognizable continuous terrain without visible simulation
-cells.
+1. Connect the renderer to Est's terrain-sampling boundary.
+2. Sample authoritative macro terrain into render vertices.
+3. Verify continental and major relief correspondence.
+4. Preserve deterministic output.
+5. Add presentation-only intermediate detail only behind an explicit ownership
+   boundary.
 
-### Phase R4: materials, lighting, atmosphere, and ocean
+Runtime gate:
 
-1. Compute lighting from the rendered planetary surface.
-2. Introduce Est-owned terrain materials.
-3. Add a continuous ocean representation driven by authoritative hydrologic
-   conditions.
-4. Verify that shorelines emerge from terrain and water-surface intersection
-   rather than cell boundaries.
-5. Add atmosphere only after terrain and water are stable.
+The planet must display continuous recognizable terrain without exposing
+authoritative surface cells.
 
-The runtime gate is a convincing planet from orbital through regional view
-without GIS-style cell artifacts.
+### R4: materials, lighting, ocean, atmosphere
 
-### Phase R5: living-world presentation
+1. Compute normals from rendered terrain.
+2. Add Est-controlled terrain materials.
+3. Add physically coherent directional lighting.
+4. Add a continuous ocean representation driven by hydrologic state.
+5. Verify terrain/water intersection produces continuous shorelines.
+6. Add atmosphere only after terrain and water are stable.
 
-1. Reconnect population, animals, resources, and other simulation state.
-2. Select view-appropriate representations rather than drawing every
-   authoritative object identically at every distance.
-3. Preserve the existing ownership rule:
+Runtime gate:
+
+The globe must read as one coherent planet rather than GIS tiles, classified
+cells, or simulation polygons.
+
+### R5: reconnect living-world presentation
+
+1. Reconnect population, animals, resources, and other authoritative state.
+2. Use view-appropriate representations rather than drawing every object the
+   same way at every distance.
+3. Preserve:
 
        simulation truth -> API -> presentation
 
-4. Do not create presentation-only behavior and infer simulation truth from it.
+4. Do not invent authoritative behavior in the renderer.
 
-### Phase R6: Cesium retirement
+### R6: Cesium retirement cleanup
 
-Once the rebuilt renderer satisfies the required runtime gates:
+After the replacement renderer satisfies its runtime gates:
 
 1. remove Cesium from the production application path;
-2. retain only explicitly useful evaluation artifacts;
+2. retain only evaluation artifacts still worth preserving;
 3. remove obsolete Cesium-specific adapters and dependencies;
 4. update development scripts and documentation;
 5. archive or delete failed experiments that no longer provide useful evidence.
 
-## Acceptance Gates
+## Runtime Acceptance Gates
 
-The new planetary rendering foundation is not accepted merely because it
-builds or passes unit tests.
+Renderer milestones require runtime visual validation.
 
-It must satisfy runtime visual and interaction gates.
+A successful build or unit-test suite is necessary but not sufficient.
 
-At minimum:
+At minimum the rebuilt planetary foundation must demonstrate:
 
-- no visible authoritative simulation-cell grid in terrain or coastline;
-- no cube-face seams during ordinary orbit and zoom;
-- no quadtree cracks or disappearing terrain patches;
+- no visible authoritative simulation-cell grid in terrain;
+- no cell-shaped ocean coastline;
+- no cube-face seams during ordinary viewing;
+- no quadtree cracks;
+- no disappearing or camera-dependent terrain sectors;
 - stable geometry while the camera moves;
 - consistent terrain normals and lighting;
 - continuous ocean presentation;
-- shoreline geometry determined by terrain and water surface rather than
-  polygonized simulation cells;
+- shoreline determined by terrain/water intersection;
 - deterministic correspondence with authoritative macro terrain;
-- smooth transition from global to regional viewing scales;
+- smooth global-to-regional viewing;
 - usable browser performance on the primary Apple Silicon development machine;
 - authoritative simulation remains runnable and testable without graphics.
 
-Browser validation is mandatory for renderer milestones.
-
-A green unit-test suite or production build does not override a failed visual
-runtime gate.
+A failed runtime visual gate overrides a green build.
 
 ## Consequences
 
 ### Positive
 
-- Simulation resolution no longer dictates visual resolution.
-- Coarse causal fields can coexist with high-detail rendering.
-- The authoritative surface grid remains useful without becoming visible
-  geometry.
-- Terrain lighting and materials become controllable by Est's renderer.
-- Ocean presentation can become continuous.
-- Visual LOD can scale independently from simulation LOD.
-- Earth Observatory and Living Worlds can share a planetary rendering
-  foundation while supplying different presentation inputs.
-- Est preserves the ability to replace both the simulation grid and renderer
-  independently.
+- Simulation resolution no longer dictates rendering resolution.
+- Coarse causal fields can coexist with high-detail presentation.
+- The simulation tessellation no longer needs to become visible geometry.
+- Terrain lighting and materials become directly controllable.
+- Ocean presentation can be continuous.
+- Visual LOD can evolve independently from simulation LOD.
+- Earth Observatory and Living Worlds can share the same planetary rendering
+  foundation while providing different data.
+- The simulation grid and renderer remain independently replaceable.
 
 ### Costs
 
-- Est must own more real-time planetary rendering machinery.
+- Est now owns more real-time planetary rendering machinery.
 - Cube-sphere mapping, quadtree LOD, patch continuity, culling, precision, and
-  streaming become explicit engineering responsibilities.
-- Procedural visual detail requires clear provenance and ownership boundaries
-  so presentation is not confused with authoritative state.
-- A renderer migration temporarily leaves Cesium evaluation code beside the
-  rebuilt renderer.
-- Browser runtime quality must be validated continuously rather than inferred
-  from tests alone.
+  eventually streaming become explicit engineering responsibilities.
+- Presentation-only procedural detail requires disciplined ownership so it is
+  not confused with simulation truth.
+- Cesium evaluation code temporarily coexists with the replacement renderer.
+- Visual quality must be validated continuously in the browser.
 
-These costs are preferable to continued dependence on a rendering architecture
-that exposes the wrong spatial representation and constrains Est's intended
-visual world.
+These costs are preferable to continuing to force simulation geography through
+a rendering architecture that exposes the wrong representation.
 
 ## Superseded Assumptions
 
-This ADR supersedes the following assumptions:
+This ADR supersedes the assumptions that:
 
 - authoritative surface cells may directly serve as finished visual terrain;
-- hydrology-cell polygons are an acceptable production representation of
-  oceans or coastlines;
-- one terrain representation must serve simulation and rendering equally;
-- Cesium terrain or imagery abstractions are the intended production
+- hydrology-cell polygons are acceptable production oceans or coastlines;
+- simulation and rendering should share one spatial resolution;
+- Cesium terrain and imagery abstractions are the intended production
   foundation;
-- renderer success can be established solely through unit tests or successful
-  builds.
+- renderer success can be established solely through automated tests or builds.
 
 It does not supersede:
 
@@ -376,15 +367,19 @@ It does not supersede:
 - ADR 0005 shared planet-surface fields and hydrology ownership;
 - authoritative `WorldState`;
 - simulation / API / presentation ownership boundaries;
-- browser-hosted product direction;
-- the requirement that renderer technology remain replaceable.
+- the browser-hosted direction;
+- renderer replaceability.
 
 ## Immediate Next Step
 
 Stop modifying the Cesium production path.
 
-Begin Phase R1 with a clean Babylon renderer foundation and prove a stable
-cube-sphere planet before reconnecting authoritative terrain.
+Begin R1 with a separate Babylon renderer.
 
-Do not add hydrology, atmosphere, population, procedural detail, or local
-features until the base cube-sphere runtime gate is green.
+The first proof is intentionally small:
+
+Render one mathematically correct six-face cube-sphere, orbit it, zoom it, and
+prove that its geometry is stable.
+
+Do not add terrain displacement, hydrology, atmosphere, population, procedural
+detail, or local geometry until that foundation is runtime-green.

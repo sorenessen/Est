@@ -905,3 +905,182 @@ concept from view-relative world measurements rather than directly equating
 presentation scale with cartographic camera altitude. They do not yet establish
 the number or placement of production samples, an aggregation statistic, final
 scale thresholds, or the policy behavior for partially surface-facing views.
+
+## September 14, 2026: Production planetary renderer conclusion
+
+The Cesium surface-evaluation line is now closed as a production-renderer
+investigation.
+
+The accumulated evaluation work remains useful evidence, but Cesium is no
+longer the intended production planetary renderer.
+
+### What remained valid
+
+Several earlier conclusions survived the renderer reset:
+
+- authoritative simulation state must remain independent of presentation;
+- semantic truth and visual appearance are separate concerns;
+- different viewing scales may use different representations;
+- local geometry is appropriate when raster imagery no longer contains enough
+  structural information;
+- renderer-specific measurements may feed renderer-neutral presentation policy;
+- authoritative terrain and hydrology belong to simulation rather than the
+  renderer.
+
+The current Est surface-grid abstraction also remains valid as a simulation
+substrate.
+
+The failure was not that terrain or hydrology existed on a coarse grid.
+
+The failure was exposing that simulation topology too directly through the
+visual planet.
+
+### Authoritative terrain result
+
+The current deterministic terrain field and the
+`CustomHeightmapTerrainProvider` integration established that Est's
+authoritative terrain values can drive continuous globe geometry.
+
+The terrain data itself was not shown to be the source of the major visual
+failures.
+
+Runtime inspection also showed that terrain lighting and appearance were being
+strongly constrained by Cesium's rendering path. The heightmap provider did not
+supply the explicit surface-normal path required for the desired terrain
+lighting control.
+
+This made further Cesium-specific terrain adaptation increasingly expensive
+relative to the value it provided.
+
+### Hydrology presentation result
+
+The standing-water visualization used one polygon per authoritative surface
+cell.
+
+That representation correctly reflected simulation state but made the
+simulation tessellation visible.
+
+The resulting coastline was blocky and stair-stepped because the renderer was
+drawing storage cells rather than a continuous water surface intersecting
+continuous terrain.
+
+This is now considered a presentation-architecture failure, not a requirement
+to increase hydrology simulation resolution solely for appearance.
+
+Future ocean rendering must decouple visual water geometry from hydrology cell
+geometry.
+
+### Quantized-mesh experiment
+
+A custom Cesium quantized-mesh terrain provider was tested in order to gain
+explicit terrain normals.
+
+The experiment passed its focused unit tests and production build.
+
+Browser runtime validation nevertheless failed decisively.
+
+Observed failures included:
+
+- visible terrain tile or sector boundaries;
+- meridian or quadtree seams;
+- large regions changing or disappearing with camera movement;
+- radial or curved artifacts;
+- unstable visual geometry despite green automated validation.
+
+The custom provider was rolled back.
+
+The experiment demonstrated that implementing Cesium's quantized-mesh machinery
+inside the browser is not an appropriate production path for Est.
+
+If quantized mesh is ever required for a bounded external use, it should use a
+mature encoder and standard provider pipeline rather than reimplementing the
+format inside Est's production renderer.
+
+### Generated surface-imagery experiment
+
+A second experiment retained the known-good heightmap terrain geometry but
+replaced Cesium terrain coloring with an Est-controlled raster imagery provider.
+
+The provider generated elevation-based terrain colors and deterministic
+hillshade into imagery tiles.
+
+Focused tests passed.
+
+The production web build passed.
+
+A polar sampling bug was found and corrected.
+
+Browser runtime validation still failed the visual gate.
+
+The result continued to read as large painted regions rather than convincing
+terrain, useful relief was insufficient, and the approach did not solve the
+fundamental representation problem.
+
+That experiment was rolled back as well.
+
+### Architectural conclusion
+
+Two independent rendering workarounds failed for different reasons while the
+underlying simulation remained coherent.
+
+The relevant architectural mistake is now explicit:
+
+`simulation spatial resolution != render spatial resolution`
+
+The authoritative Est surface grid is a simulation structure.
+
+It must not also be the finished terrain mesh, coastline geometry, imagery
+pixel grid, or visual level-of-detail structure.
+
+The replacement production renderer will use a game-style multi-resolution
+planet surface.
+
+The initial design is:
+
+`authoritative fields -> continuous sampling -> cube-sphere quadtree -> GPU terrain presentation`
+
+The visual terrain will have its own hierarchy and density.
+
+The authoritative terrain field will be sampled into that hierarchy rather
+than having its cells drawn directly.
+
+Large standing-water bodies will be presented as continuous surfaces so visible
+shorelines arise from terrain/water intersection rather than hydrology-cell
+boundaries.
+
+### Renderer direction
+
+Cesium is retired as the production planetary-renderer direction.
+
+Existing Cesium evaluation assets and code may remain temporarily where they
+provide useful comparison evidence, but new production planet-rendering work
+should not extend:
+
+- Cesium heightmap presentation;
+- custom Cesium quantized mesh;
+- generated Cesium terrain imagery;
+- per-cell water polygons;
+- other workarounds whose purpose is to force Est's simulation grid directly
+  into Cesium's visual surface.
+
+The first implementation target for the replacement browser renderer is
+Babylon.js.
+
+The first rendering milestone is deliberately smaller than the work that
+preceded it:
+
+1. create a Babylon renderer entry point;
+2. construct a six-face cube-sphere;
+3. verify orientation and continuity;
+4. support stable orbit and zoom;
+5. add renderer-owned quadtree LOD;
+6. only then connect authoritative terrain sampling.
+
+Terrain materials, ocean, atmosphere, populations, local geometry, and other
+features follow only after the base planetary geometry is runtime-green.
+
+The detailed decision and acceptance gates are recorded in
+`docs/architecture/0006-planetary-rendering-separation.md`.
+
+The Cesium surface-evaluation work should now be treated as completed
+architectural research rather than an unfinished production implementation.
