@@ -22,7 +22,7 @@ import {
 import {
   patchBounds,
   patchKey,
-  selectPlanetPatches,
+  selectBalancedPlanetPatches,
   type PlanetPatch,
 } from './planet/planet-quadtree'
 
@@ -45,7 +45,7 @@ app.innerHTML = `
 
   <div class="planet-foundation-status">
     <strong>Est Planet Renderer</strong>
-    <span>R2 · camera-driven quadtree LOD</span>
+    <span>R2 · balanced camera-driven quadtree LOD</span>
     <span id="lodStatus">selecting patches…</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
@@ -328,7 +328,7 @@ let previousSelection = ''
 
 function synchronizePlanetPatches(): void {
   const selected =
-    selectPlanetPatches(
+    selectBalancedPlanetPatches(
       {
         x: camera.position.x,
         y: camera.position.y,

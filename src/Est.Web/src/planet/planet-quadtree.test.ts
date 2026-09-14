@@ -5,9 +5,13 @@ import {
 } from 'vitest'
 
 import {
+  balancePlanetPatches,
+  findPlanetPatchNeighbors,
   patchBounds,
   patchesAtLevel,
+  selectBalancedPlanetPatches,
   selectPlanetPatches,
+  sphereDirectionToCubeFaceCoordinates,
   subdividePatch,
   type PlanetPatch,
 } from './planet-quadtree'
@@ -333,5 +337,225 @@ describe('planet LOD selection', () => {
     expect(
       levels.size,
     ).toBeGreaterThan(1)
+  })
+})
+
+describe('planet quadtree balancing', () => {
+  it('inverts all six cube-face center directions', () => {
+    const centers = [
+      {
+        point: {
+          x: 1,
+          y: 0,
+          z: 0,
+        },
+        face: 'positiveX',
+      },
+      {
+        point: {
+          x: -1,
+          y: 0,
+          z: 0,
+        },
+        face: 'negativeX',
+      },
+      {
+        point: {
+          x: 0,
+          y: 1,
+          z: 0,
+        },
+        face: 'positiveY',
+      },
+      {
+        point: {
+          x: 0,
+          y: -1,
+          z: 0,
+        },
+        face: 'negativeY',
+      },
+      {
+        point: {
+          x: 0,
+          y: 0,
+          z: 1,
+        },
+        face: 'positiveZ',
+      },
+      {
+        point: {
+          x: 0,
+          y: 0,
+          z: -1,
+        },
+        face: 'negativeZ',
+      },
+    ] as const
+
+    for (const sample of centers) {
+      const location =
+        sphereDirectionToCubeFaceCoordinates(
+          sample.point,
+        )
+
+      expect(
+        location.face,
+      ).toBe(sample.face)
+
+      expect(
+        location.u,
+      ).toBeCloseTo(0, 12)
+
+      expect(
+        location.v,
+      ).toBeCloseTo(0, 12)
+    }
+  })
+
+  it('balances an intentionally extreme mixed-level face', () => {
+    const coarse =
+      patchesAtLevel(
+        'positiveZ',
+        1,
+      ).filter(
+        (patch) =>
+          !(
+            patch.x === 0 &&
+            patch.y === 0
+          ),
+      )
+
+    const deep =
+      patchesAtLevel(
+        'positiveZ',
+        4,
+      ).filter(
+        (patch) =>
+          patch.x < 8 &&
+          patch.y < 8,
+      )
+
+    const balanced =
+      balancePlanetPatches(
+        [
+          ...coarse,
+          ...deep,
+        ],
+        4,
+      )
+
+    const neighbors =
+      findPlanetPatchNeighbors(
+        balanced,
+        4,
+      )
+
+    for (const pair of neighbors) {
+      expect(
+        Math.abs(
+          pair.first.level -
+            pair.second.level,
+        ),
+      ).toBeLessThanOrEqual(1)
+    }
+
+    const normalizedArea =
+      balanced.reduce(
+        (
+          total,
+          patch,
+        ) =>
+          total +
+          4 /
+            4 **
+              patch.level,
+        0,
+      )
+
+    expect(
+      normalizedArea,
+    ).toBeCloseTo(4, 12)
+  })
+
+  it('keeps camera-selected neighboring patches within one level', () => {
+    const options = {
+      minimumLevel: 1,
+      maximumLevel: 5,
+      splitThreshold: 0.28,
+    } as const
+
+    const selected =
+      selectBalancedPlanetPatches(
+        {
+          x: 1.31,
+          y: 0.47,
+          z: 1.18,
+        },
+        options,
+      )
+
+    const neighbors =
+      findPlanetPatchNeighbors(
+        selected,
+        options.maximumLevel,
+      )
+
+    expect(
+      neighbors.length,
+    ).toBeGreaterThan(0)
+
+    for (const pair of neighbors) {
+      expect(
+        Math.abs(
+          pair.first.level -
+            pair.second.level,
+        ),
+      ).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('balances neighbors across cube-face boundaries too', () => {
+    const options = {
+      minimumLevel: 1,
+      maximumLevel: 5,
+      splitThreshold: 0.24,
+    } as const
+
+    const selected =
+      selectBalancedPlanetPatches(
+        {
+          x: 1.18,
+          y: 0.11,
+          z: 1.18,
+        },
+        options,
+      )
+
+    const crossFaceNeighbors =
+      findPlanetPatchNeighbors(
+        selected,
+        options.maximumLevel,
+      ).filter(
+        (pair) =>
+          pair.first.face !==
+          pair.second.face,
+      )
+
+    expect(
+      crossFaceNeighbors.length,
+    ).toBeGreaterThan(0)
+
+    for (
+      const pair of
+        crossFaceNeighbors
+    ) {
+      expect(
+        Math.abs(
+          pair.first.level -
+            pair.second.level,
+        ),
+      ).toBeLessThanOrEqual(1)
+    }
   })
 })
