@@ -245,6 +245,11 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Define reusable planet-surface cell identity and grid contract.
 - [x] Implement deterministic coarse spherical surface grid.
 - [x] Verify cell area accounting, lookup, and neighbor topology.
+- [ ] Define durable per-cell terrain state.
+- [ ] Generate deterministic tectonic-informed planet-scale topography from a seed.
+- [ ] Derive land/ocean classification from elevation and reference level.
+- [ ] Derive slope and downhill-neighbor topology for drainage.
+- [ ] Preserve terrain through world copy, fork, snapshot, and archive.
 - [ ] Define durable per-cell hydrology state.
 - [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [ ] Define explicit hydrology model policy in `SimulationDefinition`.
@@ -252,7 +257,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
       runoff transfers.
 - [ ] Add freezing and melting water transfers.
 - [ ] Add water mass-conservation telemetry and tests.
-- [ ] Seed deterministic Earth hydrology for development.
+- [ ] Seed deterministic generated terrain and hydrology for the development planet.
 - [ ] Expose authoritative hydrology through Est.Api.
 - [ ] Add hydrology visualization after authoritative state is stable.
 - [ ] Build plant biomass on the shared surface substrate.
@@ -267,7 +272,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 
 Current ownership rule:
 
-`Environment -> hydrology -> biomass -> organisms -> needs -> decisions -> actions -> consequences`
+`Environment -> terrain -> hydrology -> biomass -> organisms -> needs -> decisions -> actions -> consequences`
 
 Simulation owns the chain. The renderer visualizes its results.
 

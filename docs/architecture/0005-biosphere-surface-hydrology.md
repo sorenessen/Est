@@ -258,6 +258,7 @@ The intended causal stack is:
 
     stellar energy
       -> planetary / regional climate
+      -> terrain and topography
       -> hydrology
       -> soil and nutrient state
       -> plant biomass
@@ -307,7 +308,66 @@ state.
    neighbors.
 5. Keep grid implementation replaceable.
 
-### Phase B: hydrology state
+### Phase B: terrain and topography
+
+1. Define durable per-cell terrain state.
+2. Represent elevation relative to a planetary reference level.
+3. Distinguish land and ocean from elevation rather than hand-authored
+   ecological categories.
+4. Derive local slope and downhill neighbor relationships from surface
+   topology.
+5. Add immutable world ownership and replacement operation.
+6. Add snapshot persistence.
+7. Add world copy / fork tests.
+8. Establish deterministic procedural terrain generation suitable for
+   arbitrary spherical planets.
+
+Terrain exists before detailed hydrology because runoff, drainage,
+rivers, lakes, wetlands, erosion, soil formation, and habitat structure
+all depend on topography.
+
+The first terrain generator does not need to simulate full plate
+tectonics, but terrain state must leave room for later geological
+generation and evolution.
+
+### Initial terrain-generation strategy
+
+Authoritative planet-scale terrain will not use generic fractal noise as
+its primary continental structure.
+
+The first generator will be tectonic-informed and deterministic:
+
+1. seed a configurable number of plate origins across the spherical
+   surface;
+2. grow plate domains through surface-cell topology;
+3. assign each plate a crust tendency and tangent motion vector;
+4. classify neighboring plate boundaries from relative motion;
+5. create broad elevation structure from continental versus oceanic
+   crust;
+6. raise convergent continental boundaries into mountain belts;
+7. create trenches, rifts, and lower basins where boundary interaction
+   supports them;
+8. propagate boundary influence across nearby cells rather than changing
+   only the boundary itself;
+9. add subordinate seeded roughness for local terrain variation without
+   allowing noise to define the continents.
+
+This is a geological plausibility model, not a claim to reproduce full
+mantle convection or real plate tectonics.
+
+The important causal distinction is that large-scale landforms emerge
+from plate structure and boundary interaction. Fine-scale roughness is
+secondary.
+
+The generator must expose enough intermediate state that later work can
+replace the approximation with evolving geological processes without
+changing the durable terrain contract.
+
+Terrain generation will operate over the planet-surface graph. Drainage
+and later river routing will therefore consume the same topology rather
+than depending on a renderer-specific raster.
+
+### Phase C: hydrology state
 
 1. Define per-cell hydrology state.
 2. Add immutable world ownership and replacement operation.
@@ -315,26 +375,27 @@ state.
 4. Add world copy / fork tests.
 5. Expose conservation-safe constructors and transitions.
 
-### Phase C: hydrology causal system
+### Phase D: hydrology causal system
 
 1. Define explicit model parameters.
 2. Establish bounded integration.
 3. Implement conservative transfers among water stores.
-4. Add conservation telemetry.
-5. Add dry, wet, freezing, melting, and long-step tests.
+4. Route runoff using authoritative terrain topology.
+5. Add conservation telemetry.
+6. Add dry, wet, freezing, melting, and long-step tests.
 
-### Phase D: application and presentation integration
+### Phase E: application and presentation integration
 
-1. Seed deterministic hydrology for development Earth.
+1. Seed deterministic generated terrain and hydrology for development
+   planets.
 2. Add hydrology model definition to session execution.
-3. Expose hydrology telemetry through the API.
-4. Add globe visualization for precipitation / soil moisture /
-   surface-water state only after the state is authoritative.
+3. Expose terrain and hydrology telemetry through the API.
+4. Add globe visualization only after the state is authoritative.
 
-### Phase E: vegetation
+### Phase F: vegetation
 
-Build plant biomass on the shared surface cells and make water
-availability a causal input to productivity.
+Build plant biomass on the shared surface cells and make terrain,
+water availability, and climate causal inputs to productivity.
 
 Synthetic food resources remain temporary scaffolding until vegetation
 can replace their ecological role without breaking the living-population
