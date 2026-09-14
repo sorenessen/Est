@@ -86,6 +86,11 @@ changing hydrology, vegetation, or fauna state contracts.
 
 Surface cells will have opaque stable identity.
 
+Because cell identity is opaque, durable world state must also preserve
+the surface-grid definition needed to reconstruct the same cells after a
+snapshot or timeline archive is loaded. Cell identifiers alone are not a
+sufficient description of planetary geography.
+
 Domain systems must not infer cell geometry by decoding the identifier
 themselves.
 

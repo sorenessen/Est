@@ -245,7 +245,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Define reusable planet-surface cell identity and grid contract.
 - [x] Implement deterministic coarse spherical surface grid.
 - [x] Verify cell area accounting, lookup, and neighbor topology.
-- [ ] Define durable per-cell terrain state.
+- [x] Define durable per-cell terrain state.
 - [ ] Generate deterministic tectonic-informed planet-scale topography from a seed.
 - [ ] Derive land/ocean classification from elevation and reference level.
 - [ ] Derive slope and downhill-neighbor topology for drainage.

@@ -15,7 +15,7 @@ namespace Est.Simulation.Surface;
 public sealed class LatLonPlanetSurfaceGrid
     : IPlanetSurfaceGrid
 {
-    private const int GridIdentityVersion = 1;
+    public const int IdentityVersion = 1;
 
     private readonly int _latitudeBandCount;
     private readonly int _longitudeBandCount;
@@ -65,6 +65,8 @@ public sealed class LatLonPlanetSurfaceGrid
 
         PlanetId = planetId;
         MeanRadiusMeters = meanRadiusMeters;
+        LatitudeBandCount = latitudeBandCount;
+        LongitudeBandCount = longitudeBandCount;
 
         _latitudeBandCount = latitudeBandCount;
         _longitudeBandCount = longitudeBandCount;
@@ -165,6 +167,10 @@ public sealed class LatLonPlanetSurfaceGrid
     public PlanetId PlanetId { get; }
 
     public double MeanRadiusMeters { get; }
+
+    public int LatitudeBandCount { get; }
+
+    public int LongitudeBandCount { get; }
 
     public int CellCount =>
         _cells.Length;
@@ -349,7 +355,7 @@ public sealed class LatLonPlanetSurfaceGrid
 
         BinaryPrimitives.WriteInt32LittleEndian(
             identityBytes[16..20],
-            GridIdentityVersion);
+            IdentityVersion);
 
         BinaryPrimitives.WriteInt32LittleEndian(
             identityBytes[20..24],

@@ -4,6 +4,7 @@ using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
+using Est.Simulation.Terrain;
 
 namespace Est.Simulation.Worlds;
 
@@ -42,7 +43,8 @@ public sealed record WorldState
         IEnumerable<PlanetState> planets,
         IEnumerable<PersonState> population,
         IEnumerable<FoodResourceState> foodResources,
-        IEnumerable<AnimalState>? animals = null)
+        IEnumerable<AnimalState>? animals = null,
+        IEnumerable<PlanetTerrainState>? terrain = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -61,6 +63,8 @@ public sealed record WorldState
             foodResources.ToImmutableArray();
         var animalArray =
             (animals ?? []).ToImmutableArray();
+        var terrainArray =
+            (terrain ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -97,6 +101,22 @@ public sealed record WorldState
             throw new ArgumentException(
                 "World animals cannot contain null entries.",
                 nameof(animals));
+        }
+
+        if (terrainArray.Any(item => item is null))
+        {
+            throw new ArgumentException(
+                "World terrain cannot contain null entries.",
+                nameof(terrain));
+        }
+
+        if (terrainArray
+            .GroupBy(item => item.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain more than one terrain state for a planet.",
+                nameof(terrain));
         }
 
         if (animalArray
@@ -157,12 +177,32 @@ public sealed record WorldState
                 nameof(foodResources));
         }
 
+        foreach (var terrainState in terrainArray)
+        {
+            var planet =
+                planetArray.SingleOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        terrainState.PlanetId);
+
+            if (planet is null)
+            {
+                throw new ArgumentException(
+                    "Every terrain state must belong to a planet in the world.",
+                    nameof(terrain));
+            }
+
+            terrainState.ValidateFor(
+                planet);
+        }
+
         Id = id;
         CurrentTime = currentTime;
         Planets = planetArray;
         Population = populationArray;
         FoodResources = foodResourceArray;
         Animals = animalArray;
+        Terrain = terrainArray;
     }
 
     public WorldId Id { get; private init; }
@@ -185,6 +225,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<PlanetTerrainState> Terrain
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -201,7 +247,8 @@ public sealed record WorldState
             Planets,
             Population,
             FoodResources,
-            Animals);
+            Animals,
+            Terrain);
     }
 
     public WorldState Fork()
@@ -212,7 +259,8 @@ public sealed record WorldState
             Planets,
             Population,
             FoodResources,
-            Animals);
+            Animals,
+            Terrain);
     }
 
     public WorldState ReplacePopulation(
@@ -226,7 +274,8 @@ public sealed record WorldState
             Planets,
             population,
             FoodResources,
-            Animals);
+            Animals,
+            Terrain);
     }
 
     public WorldState ReplaceFoodResources(
@@ -240,7 +289,8 @@ public sealed record WorldState
             Planets,
             Population,
             foodResources,
-            Animals);
+            Animals,
+            Terrain);
     }
 
     public WorldState ReplaceAnimals(
@@ -254,7 +304,23 @@ public sealed record WorldState
             Planets,
             Population,
             FoodResources,
-            animals);
+            animals,
+            Terrain);
+    }
+
+    public WorldState ReplaceTerrain(
+        IEnumerable<PlanetTerrainState> terrain)
+    {
+        ArgumentNullException.ThrowIfNull(terrain);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            FoodResources,
+            Animals,
+            terrain);
     }
 
     public WorldState AddPlanet(PlanetState planet)
