@@ -65,6 +65,47 @@ export interface WorldResponse {
   animals: AnimalResponse[]
 }
 
+export interface SurfaceGridResponse {
+  kind: string
+  identityVersion: number
+  latitudeBandCount: number
+  longitudeBandCount: number
+}
+
+export interface SurfaceCoordinateResponse {
+  latitudeDegrees: number
+  longitudeDegrees: number
+}
+
+export interface SurfaceCellResponse {
+  cellId: string
+  centerLatitudeDegrees: number
+  centerLongitudeDegrees: number
+  areaSquareMeters: number
+  boundary: SurfaceCoordinateResponse[]
+}
+
+export interface SurfaceResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  cells: SurfaceCellResponse[]
+}
+
+export interface HydrologyCellResponse {
+  cellId: string
+  atmosphericWaterKilogramsPerSquareMeter: number
+  surfaceLiquidWaterKilogramsPerSquareMeter: number
+  soilWaterKilogramsPerSquareMeter: number
+  snowIceWaterEquivalentKilogramsPerSquareMeter: number
+}
+
+export interface HydrologyResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  totalWaterMassKilograms: number
+  cells: HydrologyCellResponse[]
+}
+
 export interface TimelineEventResponse {
   eventId: string
   occurredAtSeconds: number
@@ -133,6 +174,24 @@ export class EstApi {
 
   getWorld(sessionId: string): Promise<WorldResponse> {
     return this.get(`/sessions/${encodeURIComponent(sessionId)}/world`)
+  }
+
+  getPlanetSurface(
+    sessionId: string,
+    planetId: string,
+  ): Promise<SurfaceResponse> {
+    return this.get(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/surface`,
+    )
+  }
+
+  getPlanetHydrology(
+    sessionId: string,
+    planetId: string,
+  ): Promise<HydrologyResponse> {
+    return this.get(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/hydrology`,
+    )
   }
 
   getTimeline(sessionId: string): Promise<TimelineResponse> {

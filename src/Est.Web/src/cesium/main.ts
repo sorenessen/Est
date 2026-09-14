@@ -12,20 +12,27 @@ import {
 } from './local-scene-view-measurement'
 
 import {
+  ArcType,
   Cartesian3,
   Cartographic,
   Color,
+  ColorGeometryInstanceAttribute,
   Cesium3DTileStyle,
   createGooglePhotorealistic3DTileset,
   createOsmBuildingsAsync,
   createWorldTerrainAsync,
+  GeometryInstance,
+  GroundPrimitive,
   HeightReference,
   IonGeocodeProviderType,
   ImageryLayer,
   Ion,
   JulianDate,
   Material,
+  PerInstanceColorAppearance,
   PointPrimitiveCollection,
+  PolygonGeometry,
+  PolygonHierarchy,
   Rectangle,
   sampleTerrainMostDetailed,
   SingleTileImageryProvider,
@@ -778,6 +785,51 @@ function showBloodSpatter(
   )
 }
 
+function hydrologyWaterColor(
+  surfaceLiquidWaterKilogramsPerSquareMeter: number,
+): Color {
+  if (
+    !Number.isFinite(
+      surfaceLiquidWaterKilogramsPerSquareMeter,
+    )
+    || surfaceLiquidWaterKilogramsPerSquareMeter <= 0
+  ) {
+    return Color.fromBytes(
+      18,
+      78,
+      118,
+      0,
+    )
+  }
+
+  const depthMeters =
+    surfaceLiquidWaterKilogramsPerSquareMeter /
+    1000
+
+  const depthSignal =
+    Math.min(
+      1,
+      Math.log10(
+        1 + depthMeters,
+      ) / 4,
+    )
+
+  const alpha =
+    0.30 +
+    0.50 *
+    depthSignal
+
+  return Color.fromBytes(
+    20,
+    105,
+    168,
+    Math.round(
+      alpha *
+      255,
+    ),
+  )
+}
+
 const queryParameters =
   new URLSearchParams(window.location.search)
 
@@ -789,9 +841,15 @@ if (sessionId) {
   const simulationStepSeconds = 86_400
   const simulationTickMilliseconds = 500
   const timelinePollIntervalTicks = 10
+  const hydrologyRefreshMilliseconds = 2_500
 
   let simulationTickInProgress = false
   let simulationTickCount = 0
+  let activePlanetId: string | undefined
+  let hydrologyPlanetId: string | undefined
+  let hydrologyPrimitive: GroundPrimitive | undefined
+  let hydrologyInitializationInProgress = false
+  let hydrologyRefreshInProgress = false
 
   const observedTimelineEvents = new Set<string>()
 
@@ -811,6 +869,198 @@ if (sessionId) {
     wolfAttacks: 0,
     failedAttacks: 0,
     predationDeaths: 0,
+  }
+
+  const updateHydrologyPrimitive = async () => {
+    if (
+      !hydrologyPrimitive
+      || !hydrologyPrimitive.ready
+      || !hydrologyPlanetId
+      || hydrologyRefreshInProgress
+    ) {
+      return
+    }
+
+    hydrologyRefreshInProgress = true
+
+    try {
+      const hydrology =
+        await api.getPlanetHydrology(
+          sessionId,
+          hydrologyPlanetId,
+        )
+
+      for (const cell of hydrology.cells) {
+        const attributes =
+          hydrologyPrimitive
+            .getGeometryInstanceAttributes(
+              cell.cellId,
+            )
+
+        if (!attributes?.color) {
+          continue
+        }
+
+        attributes.color =
+          ColorGeometryInstanceAttribute.toValue(
+            hydrologyWaterColor(
+              cell.surfaceLiquidWaterKilogramsPerSquareMeter,
+            ),
+            attributes.color,
+          )
+      }
+    } catch (error) {
+      console.error(
+        'Hydrology visualization could not be refreshed.',
+        error,
+      )
+    } finally {
+      hydrologyRefreshInProgress = false
+    }
+  }
+
+  const initializeHydrologyVisualization = async (
+    planetId: string,
+  ) => {
+    if (
+      hydrologyInitializationInProgress
+      || hydrologyPrimitive
+    ) {
+      return
+    }
+
+    hydrologyInitializationInProgress = true
+
+    try {
+      const [
+        surface,
+        hydrology,
+      ] =
+        await Promise.all([
+          api.getPlanetSurface(
+            sessionId,
+            planetId,
+          ),
+          api.getPlanetHydrology(
+            sessionId,
+            planetId,
+          ),
+        ])
+
+      if (
+        surface.planetId !== planetId
+        || hydrology.planetId !== planetId
+      ) {
+        throw new Error(
+          'Surface and hydrology responses do not match the active planet.',
+        )
+      }
+
+      if (
+        surface.grid.kind !== hydrology.grid.kind
+        || surface.grid.identityVersion !==
+           hydrology.grid.identityVersion
+        || surface.grid.latitudeBandCount !==
+           hydrology.grid.latitudeBandCount
+        || surface.grid.longitudeBandCount !==
+           hydrology.grid.longitudeBandCount
+      ) {
+        throw new Error(
+          'Surface and hydrology grid definitions do not match.',
+        )
+      }
+
+      const hydrologyByCellId =
+        new Map(
+          hydrology.cells.map(
+            cell => [
+              cell.cellId,
+              cell,
+            ] as const,
+          ),
+        )
+
+      const geometryInstances =
+        surface.cells.map(
+          cell => {
+            if (cell.boundary.length < 3) {
+              throw new Error(
+                `Surface cell ${cell.cellId} has no drawable boundary.`,
+              )
+            }
+
+            const hydrologyCell =
+              hydrologyByCellId.get(
+                cell.cellId,
+              )
+
+            if (!hydrologyCell) {
+              throw new Error(
+                `Surface cell ${cell.cellId} has no hydrology state.`,
+              )
+            }
+
+            const positions =
+              cell.boundary.map(
+                coordinate =>
+                  Cartesian3.fromDegrees(
+                    coordinate.longitudeDegrees,
+                    coordinate.latitudeDegrees,
+                  ),
+              )
+
+            return new GeometryInstance({
+              id: cell.cellId,
+              geometry:
+                new PolygonGeometry({
+                  polygonHierarchy:
+                    new PolygonHierarchy(
+                      positions,
+                    ),
+                  vertexFormat:
+                    PerInstanceColorAppearance
+                      .FLAT_VERTEX_FORMAT,
+                  arcType: ArcType.RHUMB,
+                }),
+              attributes: {
+                color:
+                  ColorGeometryInstanceAttribute
+                    .fromColor(
+                      hydrologyWaterColor(
+                        hydrologyCell
+                          .surfaceLiquidWaterKilogramsPerSquareMeter,
+                      ),
+                    ),
+              },
+            })
+          },
+        )
+
+      hydrologyPrimitive =
+        viewer.scene.primitives.add(
+          new GroundPrimitive({
+            geometryInstances,
+            appearance:
+              new PerInstanceColorAppearance({
+                flat: true,
+                translucent: true,
+                closed: false,
+              }),
+            allowPicking: false,
+            releaseGeometryInstances: true,
+            asynchronous: true,
+          }),
+        )
+
+      hydrologyPlanetId = planetId
+    } catch (error) {
+      console.info(
+        'Authoritative hydrology visualization is unavailable for this session.',
+        error,
+      )
+    } finally {
+      hydrologyInitializationInProgress = false
+    }
   }
 
   const refreshTimelineMetrics = async () => {
@@ -927,6 +1177,9 @@ if (sessionId) {
       const planet = world.planets[0]
 
       if (planet) {
+        activePlanetId =
+          planet.planetId
+
         const population =
           world.population.filter(
             person => person.planetId === planet.planetId,
@@ -1260,6 +1513,8 @@ if (sessionId) {
           </details>
         `
       } else {
+        activePlanetId = undefined
+
         populationPoints.removeAll()
         animalPoints.removeAll()
         bloodEffectPoints.removeAll()
@@ -1278,11 +1533,24 @@ if (sessionId) {
 
   await refreshSimulation(false)
 
+  if (activePlanetId) {
+    void initializeHydrologyVisualization(
+      activePlanetId,
+    )
+  }
+
   window.setInterval(
     () => {
       void refreshSimulation(true)
     },
     simulationTickMilliseconds,
+  )
+
+  window.setInterval(
+    () => {
+      void updateHydrologyPrimitive()
+    },
+    hydrologyRefreshMilliseconds,
   )
 }
 
