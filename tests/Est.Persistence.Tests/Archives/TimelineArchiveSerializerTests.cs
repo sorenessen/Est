@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Est.Persistence.Archives;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Causality;
@@ -143,6 +144,133 @@ public class TimelineArchiveSerializerTests
                 Assert.True(
                     terrain.Cells.SequenceEqual(
                         restoredCheckpointTerrain.Cells));
+            });
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesHydrologyInCurrentWorldAndCheckpoints()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Water World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters:
+                                index * 100 - 1_500)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                2 + index * 0.01,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                100 + index,
+                            soilWaterKilogramsPerSquareMeter:
+                                25 + index * 0.5,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                index % 3)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(100),
+                [planet],
+                [],
+                [],
+                [],
+                [terrain],
+                [hydrology]);
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var step =
+            new SimulationStepResult(
+                world.AdvanceBy(60),
+                new SimulationChange(
+                    new AdvanceTimeOperation(0),
+                    "hydrology-test-step",
+                    "Hydrology persistence test.",
+                    planet.Id,
+                    60));
+
+        timeline =
+            timeline
+                .RecordStep(step)
+                .CreateCheckpoint();
+
+        var restored =
+            RoundTrip(
+                timeline);
+
+        var restoredCurrentHydrology =
+            Assert.Single(
+                restored.Timeline
+                    .CurrentWorld
+                    .Hydrology);
+
+        Assert.Equal(
+            hydrology.PlanetId,
+            restoredCurrentHydrology.PlanetId);
+
+        Assert.Equal(
+            hydrology.GridDefinition,
+            restoredCurrentHydrology.GridDefinition);
+
+        Assert.True(
+            hydrology.Cells.SequenceEqual(
+                restoredCurrentHydrology.Cells));
+
+        Assert.All(
+            restored.Timeline.Checkpoints,
+            checkpoint =>
+            {
+                var restoredCheckpointHydrology =
+                    Assert.Single(
+                        checkpoint.World.Hydrology);
+
+                Assert.Equal(
+                    hydrology.PlanetId,
+                    restoredCheckpointHydrology.PlanetId);
+
+                Assert.Equal(
+                    hydrology.GridDefinition,
+                    restoredCheckpointHydrology.GridDefinition);
+
+                Assert.True(
+                    hydrology.Cells.SequenceEqual(
+                        restoredCheckpointHydrology.Cells));
             });
     }
 
