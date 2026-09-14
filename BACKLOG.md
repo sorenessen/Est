@@ -232,11 +232,11 @@ Do not connect authoritative terrain yet.
 - [x] Introduce reusable regular terrain patches.
 - [x] Add renderer-owned quadtree subdivision and merging.
 - [x] Add view-dependent terrain LOD.
-- [ ] Preserve continuity between neighboring LOD levels.
-- [ ] Add frustum culling.
-- [ ] Add horizon culling.
-- [ ] Runtime-verify stable geometry with no disappearing sectors.
-- [ ] Runtime-verify no visible cube-face seams or quadtree cracks.
+- [x] Preserve continuity between neighboring LOD levels.
+- [x] Add frustum culling.
+- [x] Add horizon culling.
+- [x] Runtime-verify stable geometry with no disappearing sectors.
+- [x] Runtime-verify no visible cube-face seams or quadtree cracks.
 
 #### R3 - Authoritative terrain sampling
 
