@@ -15,6 +15,16 @@ export interface Vector3Like {
   readonly z: number
 }
 
+export interface GeographicCoordinateDegrees {
+  readonly latitudeDegrees: number
+  readonly longitudeDegrees: number
+}
+
+export type CubeSphereRadialOffset =
+  (
+    direction: Vector3Like,
+  ) => number
+
 export interface CubeSphereFaceGeometry {
   readonly positions: number[]
   readonly indices: number[]
@@ -66,6 +76,38 @@ export function projectCubePointToUnitSphere(
     x: point.x / length,
     y: point.y / length,
     z: point.z / length,
+  }
+}
+
+export function sphereDirectionToGeographicDegrees(
+  direction: Vector3Like,
+): GeographicCoordinateDegrees {
+  const normalized =
+    projectCubePointToUnitSphere(
+      direction,
+    )
+
+  const radiansToDegrees =
+    180 / Math.PI
+
+  return {
+    latitudeDegrees:
+      Math.asin(
+        Math.max(
+          -1,
+          Math.min(
+            1,
+            normalized.z,
+          ),
+        ),
+      ) *
+      radiansToDegrees,
+    longitudeDegrees:
+      Math.atan2(
+        normalized.y,
+        normalized.x,
+      ) *
+      radiansToDegrees,
   }
 }
 
@@ -374,6 +416,7 @@ export function createCubeSpherePatchGeometry(
   vMin: number,
   vMax: number,
   stitchEdges: CubeSpherePatchStitchEdges = {},
+  radialOffset?: CubeSphereRadialOffset,
 ): CubeSphereFaceGeometry {
   if (
     !Number.isInteger(segments) ||
@@ -430,14 +473,34 @@ export function createCubeSpherePatchGeometry(
           cubePoint,
         )
 
+      const offset =
+        radialOffset
+          ? radialOffset(
+              spherePoint,
+            )
+          : 0
+
+      if (
+        !Number.isFinite(offset) ||
+        1 + offset <= 0
+      ) {
+        throw new Error(
+          'Cube-sphere radial offset must be finite and preserve a positive radius.',
+        )
+      }
+
+      const radius =
+        1 + offset
+
       positions.push(
-        spherePoint.x,
-        spherePoint.y,
-        spherePoint.z,
+        spherePoint.x * radius,
+        spherePoint.y * radius,
+        spherePoint.z * radius,
       )
 
-      // R1 is an exact unit sphere, so its analytic
-      // surface normal is the normalized position.
+      // R3 initially retains radial normals. Terrain-derived
+      // surface normals belong to the later material/lighting
+      // pass once authoritative displacement is runtime-green.
       // This also guarantees identical normals where
       // independently generated cube faces meet.
       normals.push(

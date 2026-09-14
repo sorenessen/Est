@@ -7,8 +7,10 @@ import {
 import {
   CUBE_FACES,
   createCubeSphereFaceGeometry,
+  createCubeSpherePatchGeometry,
   cubeFacePoint,
   projectCubePointToUnitSphere,
+  sphereDirectionToGeographicDegrees,
 } from './cube-sphere'
 
 function positionKey(
@@ -43,6 +45,183 @@ describe('cube sphere', () => {
         }
       }
     }
+  })
+
+  it('converts sphere directions to Est geographic coordinates', () => {
+    const positiveX =
+      sphereDirectionToGeographicDegrees({
+        x: 1,
+        y: 0,
+        z: 0,
+      })
+
+    expect(
+      positiveX.latitudeDegrees,
+    ).toBeCloseTo(0, 12)
+
+    expect(
+      positiveX.longitudeDegrees,
+    ).toBeCloseTo(0, 12)
+
+    const positiveY =
+      sphereDirectionToGeographicDegrees({
+        x: 0,
+        y: 1,
+        z: 0,
+      })
+
+    expect(
+      positiveY.latitudeDegrees,
+    ).toBeCloseTo(0, 12)
+
+    expect(
+      positiveY.longitudeDegrees,
+    ).toBeCloseTo(90, 12)
+
+    const northPole =
+      sphereDirectionToGeographicDegrees({
+        x: 0,
+        y: 0,
+        z: 1,
+      })
+
+    expect(
+      northPole.latitudeDegrees,
+    ).toBeCloseTo(90, 12)
+  })
+
+  it('radially displaces patch vertices without changing their directions', () => {
+    const geometry =
+      createCubeSpherePatchGeometry(
+        'positiveZ',
+        4,
+        -1,
+        1,
+        -1,
+        1,
+        {},
+        () => 0.125,
+      )
+
+    for (
+      let index = 0;
+      index < geometry.positions.length;
+      index += 3
+    ) {
+      expect(
+        Math.hypot(
+          geometry.positions[index],
+          geometry.positions[
+            index + 1
+          ],
+          geometry.positions[
+            index + 2
+          ],
+        ),
+      ).toBeCloseTo(
+        1.125,
+        12,
+      )
+    }
+  })
+
+  it('keeps displaced geometry identical across cube-face boundaries', () => {
+    const segments = 8
+    const boundaryCounts =
+      new Map<string, number>()
+
+    const radialOffset =
+      (
+        direction: {
+          readonly x: number
+          readonly y: number
+          readonly z: number
+        },
+      ) =>
+        0.02 * direction.x +
+        0.03 * direction.y +
+        0.04 * direction.z
+
+    for (const face of CUBE_FACES) {
+      const geometry =
+        createCubeSpherePatchGeometry(
+          face,
+          segments,
+          -1,
+          1,
+          -1,
+          1,
+          {},
+          radialOffset,
+        )
+
+      const stride =
+        segments + 1
+
+      for (
+        let row = 0;
+        row <= segments;
+        row += 1
+      ) {
+        for (
+          let column = 0;
+          column <= segments;
+          column += 1
+        ) {
+          if (
+            row !== 0 &&
+            row !== segments &&
+            column !== 0 &&
+            column !== segments
+          ) {
+            continue
+          }
+
+          const offset =
+            (
+              row * stride +
+              column
+            ) * 3
+
+          const key =
+            positionKey(
+              geometry.positions[offset],
+              geometry.positions[
+                offset + 1
+              ],
+              geometry.positions[
+                offset + 2
+              ],
+            )
+
+          boundaryCounts.set(
+            key,
+            (
+              boundaryCounts.get(key)
+              ?? 0
+            ) + 1,
+          )
+        }
+      }
+    }
+
+    for (
+      const count of
+        boundaryCounts.values()
+    ) {
+      expect(
+        count === 2 ||
+        count === 3,
+      ).toBe(true)
+    }
+
+    expect(
+      [
+        ...boundaryCounts.values(),
+      ].filter(
+        count => count === 3,
+      ).length,
+    ).toBe(8)
   })
 
   it('places the six face centers on the six cardinal axes', () => {
