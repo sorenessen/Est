@@ -219,6 +219,103 @@ export function patchWorldDiameter(
   return maximum
 }
 
+export interface PlanetFrustumPlane {
+  readonly normal: PlanetViewPoint
+  readonly d: number
+}
+
+export interface PlanetPatchBoundingSphere {
+  readonly center: PlanetViewPoint
+  readonly radius: number
+}
+
+export function patchBoundingSphere(
+  patch: PlanetPatch,
+): PlanetPatchBoundingSphere {
+  const center =
+    patchCenterDirection(patch)
+
+  const radius =
+    Math.max(
+      ...patchCornerDirections(
+        patch,
+      ).map(
+        (corner) =>
+          Math.hypot(
+            corner.x - center.x,
+            corner.y - center.y,
+            corner.z - center.z,
+          ),
+      ),
+    )
+
+  return {
+    center,
+    radius,
+  }
+}
+
+export function patchIntersectsFrustum(
+  patch: PlanetPatch,
+  planes: readonly PlanetFrustumPlane[],
+): boolean {
+  const sphere =
+    patchBoundingSphere(patch)
+
+  for (const plane of planes) {
+    const normalLength =
+      Math.hypot(
+        plane.normal.x,
+        plane.normal.y,
+        plane.normal.z,
+      )
+
+    if (
+      !Number.isFinite(
+        normalLength,
+      ) ||
+      normalLength === 0 ||
+      !Number.isFinite(plane.d)
+    ) {
+      throw new Error(
+        'Planet frustum plane is invalid.',
+      )
+    }
+
+    const signedDistance =
+      plane.normal.x *
+        sphere.center.x +
+      plane.normal.y *
+        sphere.center.y +
+      plane.normal.z *
+        sphere.center.z +
+      plane.d
+
+    if (
+      signedDistance <
+      -sphere.radius *
+        normalLength
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export function filterPlanetPatchesByFrustum(
+  patches: readonly PlanetPatch[],
+  planes: readonly PlanetFrustumPlane[],
+): PlanetPatch[] {
+  return patches.filter(
+    (patch) =>
+      patchIntersectsFrustum(
+        patch,
+        planes,
+      ),
+  )
+}
+
 function distance(
   a: PlanetViewPoint,
   b: PlanetViewPoint,

@@ -20,6 +20,7 @@ import {
 } from './planet/cube-sphere'
 
 import {
+  filterPlanetPatchesByFrustum,
   findPlanetPatchStitchEdges,
   patchBounds,
   patchKey,
@@ -334,6 +335,16 @@ const lodStatus =
   )
 
 let previousSelection = ''
+let previousVisibility = ''
+
+let stitchEdgesByPatch =
+  new Map<
+    string,
+    Record<
+      'left' | 'right' | 'bottom' | 'top',
+      boolean
+    >
+  >()
 
 function synchronizePlanetPatches(): void {
   const selected =
@@ -352,24 +363,48 @@ function synchronizePlanetPatches(): void {
   const selectionSignature =
     keys.join('|')
 
-  if (
-    selectionSignature ===
+  const selectionChanged =
+    selectionSignature !==
     previousSelection
+
+  if (selectionChanged) {
+    previousSelection =
+      selectionSignature
+
+    stitchEdgesByPatch =
+      findPlanetPatchStitchEdges(
+        selected,
+        lodOptions.maximumLevel,
+      )
+  }
+
+  scene.updateTransformMatrix(true)
+
+  const visible =
+    filterPlanetPatchesByFrustum(
+      selected,
+      scene.frustumPlanes,
+    )
+
+  const visibleKeys =
+    visible.map(patchKey)
+
+  const visibilitySignature =
+    visibleKeys.join('|')
+
+  if (
+    !selectionChanged &&
+    visibilitySignature ===
+      previousVisibility
   ) {
     return
   }
 
-  previousSelection =
-    selectionSignature
+  previousVisibility =
+    visibilitySignature
 
-  const selectedKeys =
-    new Set(keys)
-
-  const stitchEdgesByPatch =
-    findPlanetPatchStitchEdges(
-      selected,
-      lodOptions.maximumLevel,
-    )
+  const visibleKeySet =
+    new Set(visibleKeys)
 
   for (
     const [
@@ -378,7 +413,7 @@ function synchronizePlanetPatches(): void {
     ] of patchMeshes
   ) {
     if (
-      selectedKeys.has(key)
+      visibleKeySet.has(key)
     ) {
       continue
     }
@@ -388,7 +423,7 @@ function synchronizePlanetPatches(): void {
     patchMeshStitches.delete(key)
   }
 
-  for (const patch of selected) {
+  for (const patch of visible) {
     const key =
       patchKey(patch)
 
@@ -444,7 +479,7 @@ function synchronizePlanetPatches(): void {
       Math.max(...levels)
 
     lodStatus.textContent =
-      `${selected.length} patches · L${minimum}–L${maximum}`
+      `${visible.length}/${selected.length} visible patches · L${minimum}–L${maximum}`
   }
 }
 

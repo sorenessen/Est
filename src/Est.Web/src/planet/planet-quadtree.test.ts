@@ -6,9 +6,12 @@ import {
 
 import {
   balancePlanetPatches,
+  filterPlanetPatchesByFrustum,
   findPlanetPatchNeighbors,
   findPlanetPatchStitchEdges,
+  patchBoundingSphere,
   patchBounds,
+  patchCenterDirection,
   patchKey,
   patchesAtLevel,
   selectBalancedPlanetPatches,
@@ -20,6 +23,7 @@ import {
 
 import {
   CUBE_FACES,
+  createCubeSpherePatchGeometry,
 } from './cube-sphere'
 
 describe('planet quadtree', () => {
@@ -339,6 +343,162 @@ describe('planet LOD selection', () => {
     expect(
       levels.size,
     ).toBeGreaterThan(1)
+  })
+})
+
+describe('planet quadtree frustum culling', () => {
+  it('bounds generated patch vertices conservatively', () => {
+    for (const face of CUBE_FACES) {
+      const patch: PlanetPatch = {
+        face,
+        level: 2,
+        x: 1,
+        y: 2,
+      }
+
+      const bounds =
+        patchBounds(patch)
+
+      const geometry =
+        createCubeSpherePatchGeometry(
+          face,
+          8,
+          bounds.uMin,
+          bounds.uMax,
+          bounds.vMin,
+          bounds.vMax,
+        )
+
+      const sphere =
+        patchBoundingSphere(patch)
+
+      for (
+        let index = 0;
+        index <
+        geometry.positions.length;
+        index += 3
+      ) {
+        const distance =
+          Math.hypot(
+            geometry.positions[index] -
+              sphere.center.x,
+            geometry.positions[
+              index + 1
+            ] -
+              sphere.center.y,
+            geometry.positions[
+              index + 2
+            ] -
+              sphere.center.z,
+          )
+
+        expect(
+          distance,
+        ).toBeLessThanOrEqual(
+          sphere.radius +
+            1e-12,
+        )
+      }
+    }
+  })
+
+  it('rejects a patch wholly outside a frustum plane', () => {
+    const patch: PlanetPatch = {
+      face: 'positiveZ',
+      level: 3,
+      x: 3,
+      y: 3,
+    }
+
+    const center =
+      patchCenterDirection(patch)
+
+    const visible =
+      filterPlanetPatchesByFrustum(
+        [patch],
+        [
+          {
+            normal: {
+              x: -center.x,
+              y: -center.y,
+              z: -center.z,
+            },
+            d: 0,
+          },
+        ],
+      )
+
+    expect(visible).toEqual([])
+  })
+
+  it('keeps a patch that intersects a frustum plane', () => {
+    const patch: PlanetPatch = {
+      face: 'positiveZ',
+      level: 3,
+      x: 3,
+      y: 3,
+    }
+
+    const sphere =
+      patchBoundingSphere(patch)
+
+    const visible =
+      filterPlanetPatchesByFrustum(
+        [patch],
+        [
+          {
+            normal: {
+              x: -sphere.center.x,
+              y: -sphere.center.y,
+              z: -sphere.center.z,
+            },
+            d:
+              1 -
+              sphere.radius / 2,
+          },
+        ],
+      )
+
+    expect(visible).toEqual([
+      patch,
+    ])
+  })
+
+  it('filters opposite planetary patches by view half-space', () => {
+    const front: PlanetPatch = {
+      face: 'positiveZ',
+      level: 3,
+      x: 3,
+      y: 3,
+    }
+
+    const back: PlanetPatch = {
+      face: 'negativeZ',
+      level: 3,
+      x: 3,
+      y: 3,
+    }
+
+    const center =
+      patchCenterDirection(front)
+
+    const visible =
+      filterPlanetPatchesByFrustum(
+        [
+          front,
+          back,
+        ],
+        [
+          {
+            normal: center,
+            d: 0,
+          },
+        ],
+      )
+
+    expect(visible).toEqual([
+      front,
+    ])
   })
 })
 
