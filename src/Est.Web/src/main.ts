@@ -16,12 +16,20 @@ import {
 
 import {
   createCubeSpherePatchGeometry,
+  sphereDirectionToGeographicDegrees,
   type CubeFace,
+  type CubeSphereRadialOffset,
 } from './planet/cube-sphere'
 
 import {
-  filterPlanetPatchesByFrustum,
-  filterPlanetPatchesByHorizon,
+  EstApi,
+} from './api/est-api'
+
+import {
+  createTerrainHeightField,
+} from './surface/terrain-height-field'
+
+import {
   findPlanetPatchStitchEdges,
   patchBounds,
   patchKey,
@@ -48,7 +56,8 @@ app.innerHTML = `
 
   <div class="planet-foundation-status">
     <strong>Est Planet Renderer</strong>
-    <span>R2 · balanced camera-driven quadtree LOD</span>
+    <span>R3 · authoritative terrain sampling</span>
+    <span id="terrainStatus">preparing terrain…</span>
     <span id="lodStatus">selecting patches…</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
@@ -185,10 +194,151 @@ const diagnosticFaceColors:
     ),
   }
 
-const showFaceDiagnostics =
+const queryParameters =
   new URLSearchParams(
     window.location.search,
-  ).get('faces') === '1'
+  )
+
+const showFaceDiagnostics =
+  queryParameters.get('faces') === '1'
+
+const sessionId =
+  queryParameters.get('session')
+
+const terrainStatus =
+  document.querySelector<HTMLSpanElement>(
+    '#terrainStatus',
+  )
+
+let terrainRadialOffset:
+  CubeSphereRadialOffset | undefined
+
+if (sessionId) {
+  const api =
+    new EstApi('/api')
+
+  const world =
+    await api.getWorld(
+      sessionId,
+    )
+
+  const planet =
+    world.planets[0]
+
+  if (!planet) {
+    throw new Error(
+      'The Est session contains no planet to render.',
+    )
+  }
+
+  if (
+    !Number.isFinite(
+      planet.meanRadiusMeters,
+    ) ||
+    planet.meanRadiusMeters <= 0
+  ) {
+    throw new Error(
+      'The active planet has an invalid mean radius.',
+    )
+  }
+
+  const [
+    surface,
+    terrain,
+  ] =
+    await Promise.all([
+      api.getPlanetSurface(
+        sessionId,
+        planet.planetId,
+      ),
+      api.getPlanetTerrain(
+        sessionId,
+        planet.planetId,
+      ),
+    ])
+
+  if (
+    surface.planetId !==
+      planet.planetId ||
+    terrain.planetId !==
+      planet.planetId
+  ) {
+    throw new Error(
+      'Authoritative terrain responses do not match the active planet.',
+    )
+  }
+
+  const heightField =
+    createTerrainHeightField(
+      surface,
+      terrain,
+    )
+
+  const elevations =
+    terrain.cells.map(
+      cell =>
+        cell.elevationMeters,
+    )
+
+  const minimumElevationMeters =
+    Math.min(...elevations)
+
+  const maximumElevationMeters =
+    Math.max(...elevations)
+
+  const meanRadiusMeters =
+    planet.meanRadiusMeters
+
+  const minimumRenderRadius =
+    1 +
+    minimumElevationMeters /
+      meanRadiusMeters
+
+  const maximumRenderRadius =
+    1 +
+    maximumElevationMeters /
+      meanRadiusMeters
+
+  if (
+    !Number.isFinite(
+      minimumRenderRadius,
+    ) ||
+    minimumRenderRadius <= 0 ||
+    !Number.isFinite(
+      maximumRenderRadius,
+    ) ||
+    maximumRenderRadius <
+      minimumRenderRadius
+  ) {
+    throw new Error(
+      'Authoritative terrain produces invalid planetary radius bounds.',
+    )
+  }
+
+  terrainRadialOffset =
+    direction => {
+      const coordinate =
+        sphereDirectionToGeographicDegrees(
+          direction,
+        )
+
+      return (
+        heightField.sampleHeightMeters(
+          coordinate.latitudeDegrees,
+          coordinate.longitudeDegrees,
+        ) /
+        meanRadiusMeters
+      )
+    }
+
+  if (terrainStatus) {
+    terrainStatus.textContent =
+      `authoritative terrain · ${terrain.cells.length.toLocaleString()} cells · ${minimumElevationMeters.toFixed(0)} to ${maximumElevationMeters.toFixed(0)} m`
+  }
+} else if (terrainStatus) {
+  terrainStatus.textContent =
+    'unit sphere · no simulation session selected'
+}
 
 const segmentsPerPatch = 8
 
@@ -297,6 +447,7 @@ function createPatchMesh(
       bounds.vMin,
       bounds.vMax,
       stitchEdges,
+      terrainRadialOffset,
     )
 
   const mesh =
@@ -336,7 +487,6 @@ const lodStatus =
   )
 
 let previousSelection = ''
-let previousVisibility = ''
 
 let stitchEdgesByPatch =
   new Map<
@@ -381,36 +531,19 @@ function synchronizePlanetPatches(): void {
       )
   }
 
-  scene.updateTransformMatrix(true)
-
-  const frustumVisible =
-    filterPlanetPatchesByFrustum(
-      selected,
-      scene.frustumPlanes,
-    )
-
-  const visible =
-    filterPlanetPatchesByHorizon(
-      frustumVisible,
-      cameraPoint,
-    )
-
-  const visibleKeys =
-    visible.map(patchKey)
-
-  const visibilitySignature =
-    visibleKeys.join('|')
-
-  if (
-    !selectionChanged &&
-    visibilitySignature ===
-      previousVisibility
-  ) {
+  if (!selectionChanged) {
     return
   }
 
-  previousVisibility =
-    visibilitySignature
+  // Babylon performs native per-mesh frustum culling.
+  //
+  // Keep the complete balanced patch selection resident here rather than
+  // deleting patches through renderer-owned visibility approximations.
+  const visible =
+    selected
+
+  const visibleKeys =
+    keys
 
   const visibleKeySet =
     new Set(visibleKeys)
@@ -488,7 +621,7 @@ function synchronizePlanetPatches(): void {
       Math.max(...levels)
 
     lodStatus.textContent =
-      `${visible.length} visible · ${frustumVisible.length} frustum · ${selected.length} selected · L${minimum}–L${maximum}`
+      `${selected.length} selected · Babylon native frustum · L${minimum}–L${maximum}`
   }
 }
 

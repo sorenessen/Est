@@ -178,6 +178,86 @@ function validateCoordinate(
   }
 }
 
+type TerrainDistanceSample = {
+  point: TerrainControlPoint
+  distanceSquared: number
+}
+
+function findNearestControlPoints(
+  searchPoints:
+    readonly TerrainControlPoint[],
+  sample: {
+    readonly x: number
+    readonly y: number
+    readonly z: number
+  },
+): TerrainDistanceSample[] {
+  const nearest:
+    TerrainDistanceSample[] = []
+
+  for (const point of searchPoints) {
+    const dx =
+      sample.x - point.x
+
+    const dy =
+      sample.y - point.y
+
+    const dz =
+      sample.z - point.z
+
+    const candidate:
+      TerrainDistanceSample = {
+        point,
+        distanceSquared:
+          dx * dx +
+          dy * dy +
+          dz * dz,
+      }
+
+    if (
+      nearest.length <
+      interpolationNeighborCount
+    ) {
+      nearest.push(candidate)
+      continue
+    }
+
+    let farthestIndex = 0
+
+    for (
+      let index = 1;
+      index < nearest.length;
+      index += 1
+    ) {
+      if (
+        nearest[index]
+          .distanceSquared >
+        nearest[farthestIndex]
+          .distanceSquared
+      ) {
+        farthestIndex = index
+      }
+    }
+
+    if (
+      candidate.distanceSquared <
+      nearest[farthestIndex]
+        .distanceSquared
+    ) {
+      nearest[farthestIndex] =
+        candidate
+    }
+  }
+
+  nearest.sort(
+    (left, right) =>
+      left.distanceSquared -
+      right.distanceSquared,
+  )
+
+  return nearest
+}
+
 export function createTerrainHeightField(
   surface: SurfaceResponse,
   terrain: TerrainResponse,
@@ -318,6 +398,9 @@ export function createTerrainHeightField(
     }
   }
 
+  const sampleCache =
+    new Map<string, number>()
+
   return {
     sampleHeightMeters(
       latitudeDegrees: number,
@@ -327,6 +410,21 @@ export function createTerrainHeightField(
         latitudeDegrees,
         longitudeDegrees,
       )
+
+      const normalizedLongitude =
+        normalizeLongitudeDegrees(
+          longitudeDegrees,
+        )
+
+      const cacheKey =
+        `${latitudeDegrees}:${normalizedLongitude}`
+
+      const cached =
+        sampleCache.get(cacheKey)
+
+      if (cached !== undefined) {
+        return cached
+      }
 
       const sample =
         unitVector(
@@ -432,42 +530,10 @@ export function createTerrainHeightField(
           : allPoints
 
       const nearest =
-        searchPoints
-          .map(
-            point => {
-              const dx =
-                sample.x -
-                point.x
-
-              const dy =
-                sample.y -
-                point.y
-
-              const dz =
-                sample.z -
-                point.z
-
-              return {
-                point,
-                distanceSquared:
-                  dx * dx +
-                  dy * dy +
-                  dz * dz,
-              }
-            },
-          )
-          .sort(
-            (left, right) =>
-              left.distanceSquared -
-              right.distanceSquared,
-          )
-          .slice(
-            0,
-            Math.min(
-              interpolationNeighborCount,
-              searchPoints.length,
-            ),
-          )
+        findNearestControlPoints(
+          searchPoints,
+          sample,
+        )
 
       const exact =
         nearest[0]
@@ -477,9 +543,17 @@ export function createTerrainHeightField(
         && exact.distanceSquared <=
           exactPointDistanceSquared
       ) {
-        return exact
-          .point
-          .elevationMeters
+        const elevation =
+          exact
+            .point
+            .elevationMeters
+
+        sampleCache.set(
+          cacheKey,
+          elevation,
+        )
+
+        return elevation
       }
 
       let weightedElevation = 0
@@ -503,10 +577,16 @@ export function createTerrainHeightField(
           weight
       }
 
-      return (
+      const elevation =
         weightedElevation /
         totalWeight
+
+      sampleCache.set(
+        cacheKey,
+        elevation,
       )
+
+      return elevation
     },
   }
 }
