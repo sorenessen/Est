@@ -13,7 +13,9 @@ public sealed record PopulationModelParameters
         double elderAgeYears = 70,
         double localMigrationDegrees = 1.5,
         double longMigrationProbability = 0.08,
-        double longMigrationDegrees = 15)
+        double longMigrationDegrees = 15,
+        double conceptionProbabilityPerMatingOpportunity = 0.20,
+        double gestationDays = 280)
     {
         ValidateProbability(
             annualAdultMigrationRate,
@@ -22,6 +24,10 @@ public sealed record PopulationModelParameters
         ValidateProbability(
             longMigrationProbability,
             nameof(longMigrationProbability));
+
+        ValidateProbability(
+            conceptionProbabilityPerMatingOpportunity,
+            nameof(conceptionProbabilityPerMatingOpportunity));
 
         if (!double.IsFinite(annualBirthRatePerEligibleFemale) ||
             annualBirthRatePerEligibleFemale < 0)
@@ -80,6 +86,14 @@ public sealed record PopulationModelParameters
                 nameof(longMigrationDegrees));
         }
 
+        if (!double.IsFinite(gestationDays) ||
+            gestationDays <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(gestationDays),
+                "Gestation duration must be finite and greater than zero.");
+        }
+
         Seed = seed;
         AnnualBirthRatePerEligibleFemale =
             annualBirthRatePerEligibleFemale;
@@ -98,6 +112,9 @@ public sealed record PopulationModelParameters
         LongMigrationProbability =
             longMigrationProbability;
         LongMigrationDegrees = longMigrationDegrees;
+        ConceptionProbabilityPerMatingOpportunity =
+            conceptionProbabilityPerMatingOpportunity;
+        GestationDays = gestationDays;
     }
 
     public int Seed { get; }
@@ -121,6 +138,10 @@ public sealed record PopulationModelParameters
     public double LongMigrationProbability { get; }
 
     public double LongMigrationDegrees { get; }
+
+    public double ConceptionProbabilityPerMatingOpportunity { get; }
+
+    public double GestationDays { get; }
 
     private static void ValidateProbability(
         double value,

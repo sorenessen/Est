@@ -8,6 +8,9 @@ namespace Est.Simulation.Population;
 public sealed class ReproductionSystem : ICausalSystem
 {
     private const double SecondsPerYear = 31_536_000d;
+    private const double SecondsPerDay = 86_400d;
+    private const long ConceptionCycleSeconds =
+        28 * 86_400;
     private const double PartnerSearchRadiusDegrees = 5d;
     private const double MatingDistanceDegrees = 0.12d;
     private const double TravelDegreesPerDay = 0.25d;
@@ -87,18 +90,60 @@ public sealed class ReproductionSystem : ICausalSystem
 
         var partnerSeeking = 0;
         var matingEvents = 0;
+        var conceptions = 0;
+        var pregnantFemales = 0;
         var eligibleFemales = 0;
         var noPartnerFound = 0;
 
         foreach (var person in population)
         {
+            if (person.Pregnancy is not null)
+            {
+                pregnantFemales++;
+
+                var gestationSeconds =
+                    checked(
+                        (long)Math.Round(
+                            _parameters.GestationDays *
+                            SecondsPerDay));
+
+                var dueTimeSeconds =
+                    checked(
+                        person.Pregnancy.ConceptionTimeSeconds +
+                        gestationSeconds);
+
+                if (currentTime + elapsedSeconds >=
+                    dueTimeSeconds)
+                {
+                    var mother =
+                        ClearReproductiveActivity(
+                            person.WithoutPregnancy());
+
+                    nextPopulation.Add(mother);
+
+                    births.Add(
+                        CreateChild(
+                            mother,
+                            dueTimeSeconds,
+                            random));
+                }
+                else
+                {
+                    nextPopulation.Add(
+                        ClearReproductiveActivity(person));
+                }
+
+                continue;
+            }
+
             if (person.Sex != PersonSex.Female ||
                 !IsEligible(
                     person,
                     currentTime,
                     requireFemaleMaximumAge: true))
             {
-                nextPopulation.Add(person);
+                nextPopulation.Add(
+                    ClearReproductiveActivity(person));
                 continue;
             }
 
@@ -112,7 +157,10 @@ public sealed class ReproductionSystem : ICausalSystem
             if (partner is null)
             {
                 noPartnerFound++;
-                nextPopulation.Add(person);
+
+                nextPopulation.Add(
+                    ClearReproductiveActivity(person));
+
                 continue;
             }
 
@@ -145,21 +193,25 @@ public sealed class ReproductionSystem : ICausalSystem
                     person.Needs,
                     PersonActivity.Mating);
 
-            nextPopulation.Add(mating);
             matingEvents++;
 
-            if (Occurs(
-                    _parameters
-                        .AnnualBirthRatePerEligibleFemale,
-                    elapsedSeconds / SecondsPerYear,
-                    random))
+            if (TryConceive(
+                    person,
+                    partner,
+                    currentTime,
+                    elapsedSeconds,
+                    out var conceptionTimeSeconds))
             {
-                births.Add(
-                    CreateChild(
-                        mating,
-                        currentTime + elapsedSeconds,
-                        random));
+                mating =
+                    mating.WithPregnancy(
+                        new PregnancyState(
+                            conceptionTimeSeconds,
+                            partner.Id));
+
+                conceptions++;
             }
+
+            nextPopulation.Add(mating);
         }
 
         nextPopulation.AddRange(births);
@@ -172,7 +224,7 @@ public sealed class ReproductionSystem : ICausalSystem
         return new SimulationChange(
             operation,
             "reproduction",
-            "Partner seeking, mating, and births changed planetary population.",
+            "Partner seeking, mating, conception, gestation, and births changed planetary population.",
             _planetId,
             elapsedSeconds,
             new Dictionary<string, double>
@@ -180,9 +232,200 @@ public sealed class ReproductionSystem : ICausalSystem
                 ["eligibleFemales"] = eligibleFemales,
                 ["partnerSeeking"] = partnerSeeking,
                 ["matingEvents"] = matingEvents,
+                ["conceptions"] = conceptions,
+                ["pregnantFemales"] = pregnantFemales,
                 ["noPartnerFound"] = noPartnerFound,
                 ["births"] = births.Count
             });
+    }
+
+    private bool TryConceive(
+        PersonState mother,
+        PersonState father,
+        long currentTimeSeconds,
+        long elapsedSeconds,
+        out long conceptionTimeSeconds)
+    {
+        conceptionTimeSeconds = 0;
+
+        if (elapsedSeconds <= 0 ||
+            _parameters
+                .ConceptionProbabilityPerMatingOpportunity <= 0)
+        {
+            return false;
+        }
+
+        var endTimeSeconds =
+            checked(
+                currentTimeSeconds +
+                elapsedSeconds);
+
+        var phaseSeconds =
+            GetConceptionCyclePhaseSeconds(
+                mother.Id);
+
+        long opportunityTimeSeconds;
+
+        if (currentTimeSeconds < phaseSeconds)
+        {
+            opportunityTimeSeconds =
+                phaseSeconds;
+        }
+        else
+        {
+            var completedCycles =
+                (currentTimeSeconds -
+                 phaseSeconds) /
+                ConceptionCycleSeconds;
+
+            opportunityTimeSeconds =
+                checked(
+                    phaseSeconds +
+                    checked(
+                        (completedCycles + 1) *
+                        ConceptionCycleSeconds));
+        }
+
+        while (opportunityTimeSeconds <=
+               endTimeSeconds)
+        {
+            if (ConceptionSucceeds(
+                    opportunityTimeSeconds,
+                    mother.Id,
+                    father.Id,
+                    _parameters
+                        .ConceptionProbabilityPerMatingOpportunity))
+            {
+                conceptionTimeSeconds =
+                    opportunityTimeSeconds;
+
+                return true;
+            }
+
+            if (opportunityTimeSeconds >
+                long.MaxValue -
+                ConceptionCycleSeconds)
+            {
+                break;
+            }
+
+            opportunityTimeSeconds +=
+                ConceptionCycleSeconds;
+        }
+
+        return false;
+    }
+
+    private static long GetConceptionCyclePhaseSeconds(
+        PersonId personId)
+    {
+        const ulong offsetBasis =
+            14_695_981_039_346_656_037UL;
+
+        const ulong prime =
+            1_099_511_628_211UL;
+
+        var hash = offsetBasis;
+
+        Span<byte> bytes =
+            stackalloc byte[16];
+
+        personId.Value.TryWriteBytes(bytes);
+
+        foreach (var value in bytes)
+        {
+            hash =
+                (hash ^ value) *
+                prime;
+        }
+
+        return
+            (long)(
+                hash %
+                (ulong)ConceptionCycleSeconds);
+    }
+
+    private static bool ConceptionSucceeds(
+        long opportunityTimeSeconds,
+        PersonId motherId,
+        PersonId fatherId,
+        double probability)
+    {
+        if (probability <= 0)
+        {
+            return false;
+        }
+
+        if (probability >= 1)
+        {
+            return true;
+        }
+
+        const ulong offsetBasis =
+            14_695_981_039_346_656_037UL;
+
+        var hash = offsetBasis;
+
+        static ulong Mix(
+            ulong current,
+            byte value)
+        {
+            const ulong localPrime =
+                1_099_511_628_211UL;
+
+            return
+                (current ^ value) *
+                localPrime;
+        }
+
+        foreach (var value in
+                 BitConverter.GetBytes(
+                     opportunityTimeSeconds))
+        {
+            hash = Mix(hash, value);
+        }
+
+        Span<byte> motherBytes =
+            stackalloc byte[16];
+
+        motherId.Value.TryWriteBytes(
+            motherBytes);
+
+        foreach (var value in motherBytes)
+        {
+            hash = Mix(hash, value);
+        }
+
+        Span<byte> fatherBytes =
+            stackalloc byte[16];
+
+        fatherId.Value.TryWriteBytes(
+            fatherBytes);
+
+        foreach (var value in fatherBytes)
+        {
+            hash = Mix(hash, value);
+        }
+
+        var unitValue =
+            (hash >> 11) *
+            (1d / (1UL << 53));
+
+        return unitValue < probability;
+    }
+
+    private static PersonState ClearReproductiveActivity(
+        PersonState person)
+    {
+        if (person.Activity != PersonActivity.SeekingPartner &&
+            person.Activity != PersonActivity.Mating)
+        {
+            return person;
+        }
+
+        return person.WithSurvivalState(
+            person.Needs,
+            PersonActivity.Idle);
     }
 
     private bool IsEligible(

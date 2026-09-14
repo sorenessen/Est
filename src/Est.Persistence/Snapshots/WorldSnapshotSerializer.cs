@@ -10,13 +10,14 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
     private const int FoodSchemaVersion = 4;
     private const int RenewableFoodSchemaVersion = 5;
     private const int AnimalSchemaVersion = 6;
+    private const int PregnancySchemaVersion = 7;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -75,6 +76,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != SurvivalSchemaVersion &&
             snapshot.SchemaVersion != FoodSchemaVersion &&
             snapshot.SchemaVersion != RenewableFoodSchemaVersion &&
+            snapshot.SchemaVersion != AnimalSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -277,7 +279,11 @@ public static class WorldSnapshotSerializer
             ParentId = person.ParentId?.Value,
             EnergyReserve = person.Needs.EnergyReserve,
             Health = person.Needs.Health,
-            Activity = person.Activity
+            Activity = person.Activity,
+            PregnancyConceptionTimeSeconds =
+                person.Pregnancy?.ConceptionTimeSeconds,
+            PregnancyFatherId =
+                person.Pregnancy?.FatherId.Value
         };
     }
 
@@ -287,6 +293,7 @@ public static class WorldSnapshotSerializer
     {
         PersonNeedsState needs;
         PersonActivity activity;
+        PregnancyState? pregnancy;
 
         if (schemaVersion >= SurvivalSchemaVersion)
         {
@@ -321,6 +328,28 @@ public static class WorldSnapshotSerializer
             activity = PersonActivity.Idle;
         }
 
+        if (schemaVersion >= PregnancySchemaVersion)
+        {
+            if (snapshot.PregnancyConceptionTimeSeconds.HasValue !=
+                snapshot.PregnancyFatherId.HasValue)
+            {
+                throw new JsonException(
+                    "Pregnancy conception time and father identity must both be present or both be absent.");
+            }
+
+            pregnancy =
+                snapshot.PregnancyConceptionTimeSeconds.HasValue
+                    ? new PregnancyState(
+                        snapshot.PregnancyConceptionTimeSeconds.Value,
+                        new PersonId(
+                            snapshot.PregnancyFatherId!.Value))
+                    : null;
+        }
+        else
+        {
+            pregnancy = null;
+        }
+
         return new PersonState(
             new PersonId(snapshot.PersonId),
             new PlanetId(snapshot.PlanetId),
@@ -332,7 +361,8 @@ public static class WorldSnapshotSerializer
                 ? new PersonId(snapshot.ParentId.Value)
                 : null,
             needs,
-            activity);
+            activity,
+            pregnancy);
     }
 
     private static PlanetSnapshot ToSnapshot(PlanetState planet)
@@ -453,6 +483,8 @@ public static class WorldSnapshotSerializer
         public double? EnergyReserve { get; set; }
         public double? Health { get; set; }
         public PersonActivity? Activity { get; set; }
+        public long? PregnancyConceptionTimeSeconds { get; set; }
+        public Guid? PregnancyFatherId { get; set; }
     }
 
     private sealed class PlanetSnapshot

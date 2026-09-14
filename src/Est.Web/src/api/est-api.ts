@@ -38,6 +38,9 @@ export interface PopulationPersonResponse {
   latitudeDegrees: number
   longitudeDegrees: number
   parentId: string | null
+  isPregnant: boolean
+  pregnancyConceptionTimeSeconds: number | null
+  pregnancyFatherId: string | null
   activity: string
   energyReserve: number
   health: number

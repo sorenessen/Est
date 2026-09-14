@@ -8,10 +8,11 @@ namespace Est.Simulation.Tests.Population;
 
 public sealed class ReproductionSystemTests
 {
+    private const long OneDaySeconds = 86_400;
     private const long OneYearSeconds = 31_536_000;
 
     [Fact]
-    public void Step_DistantEligiblePartnersSeekEachOtherBeforeBirth()
+    public void Step_DistantEligiblePartnersSeekEachOtherBeforeConception()
     {
         var planet = CreateEarth();
 
@@ -38,10 +39,10 @@ public sealed class ReproductionSystemTests
         var result =
             SimulationStepRunner.Step(
                 world,
-                86_400,
+                OneDaySeconds,
                 CreateSystem(
                     planet.Id,
-                    birthRate: 1000));
+                    conceptionProbability: 1));
 
         Assert.Equal(
             2,
@@ -59,9 +60,15 @@ public sealed class ReproductionSystemTests
         Assert.True(
             movedFemale.LongitudeDegrees > 0);
 
+        Assert.Null(movedFemale.Pregnancy);
+
         Assert.Equal(
             1,
             result.Change.Metrics["partnerSeeking"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
 
         Assert.Equal(
             0,
@@ -69,7 +76,7 @@ public sealed class ReproductionSystemTests
     }
 
     [Fact]
-    public void Step_NearbyEligiblePartnersCanProduceChild()
+    public void Step_NearbyEligiblePartnersCanConceiveWithinOneCycle()
     {
         var planet = CreateEarth();
 
@@ -87,22 +94,19 @@ public sealed class ReproductionSystemTests
                 0,
                 0.05);
 
-        var world =
-            CreateWorld(
-                planet,
-                female,
-                male);
-
         var result =
             SimulationStepRunner.Step(
-                world,
-                OneYearSeconds,
+                CreateWorld(
+                    planet,
+                    female,
+                    male),
+                28 * OneDaySeconds,
                 CreateSystem(
                     planet.Id,
-                    birthRate: 1000));
+                    conceptionProbability: 1));
 
         Assert.Equal(
-            3,
+            2,
             result.World.Population.Length);
 
         var mother =
@@ -114,15 +118,18 @@ public sealed class ReproductionSystemTests
             PersonActivity.Mating,
             mother.Activity);
 
-        var child =
-            result.World.Population.Single(
-                person =>
-                    person.ParentId ==
-                    female.Id);
+        var pregnancy =
+            Assert.IsType<PregnancyState>(
+                mother.Pregnancy);
+
+        Assert.InRange(
+            pregnancy.ConceptionTimeSeconds,
+            1,
+            28 * OneDaySeconds);
 
         Assert.Equal(
-            OneYearSeconds,
-            child.BirthTimeSeconds);
+            male.Id,
+            pregnancy.FatherId);
 
         Assert.Equal(
             1,
@@ -130,11 +137,156 @@ public sealed class ReproductionSystemTests
 
         Assert.Equal(
             1,
+            result.Change.Metrics["conceptions"]);
+
+        Assert.Equal(
+            0,
             result.Change.Metrics["births"]);
     }
 
     [Fact]
-    public void Step_NoNearbyPartnerPreventsBirth()
+    public void Step_PregnancyPersistsBeforeGestationAndPreventsReconception()
+    {
+        var planet = CreateEarth();
+
+        var father =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                0.05);
+
+        var mother =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0)
+            .WithPregnancy(
+                new PregnancyState(
+                    conceptionTimeSeconds: 0,
+                    father.Id));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    mother,
+                    father),
+                279 * OneDaySeconds,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 1));
+
+        Assert.Equal(
+            2,
+            result.World.Population.Length);
+
+        var restoredMother =
+            result.World.Population.Single(
+                person =>
+                    person.Id == mother.Id);
+
+        var pregnancy =
+            Assert.IsType<PregnancyState>(
+                restoredMother.Pregnancy);
+
+        Assert.Equal(
+            0,
+            pregnancy.ConceptionTimeSeconds);
+
+        Assert.Equal(
+            father.Id,
+            pregnancy.FatherId);
+
+        Assert.Equal(
+            PersonActivity.Idle,
+            restoredMother.Activity);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["pregnantFemales"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["matingEvents"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["births"]);
+    }
+
+    [Fact]
+    public void Step_GestationCompletionProducesChildAndClearsPregnancy()
+    {
+        var planet = CreateEarth();
+
+        var father =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                0.05);
+
+        var mother =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0)
+            .WithPregnancy(
+                new PregnancyState(
+                    conceptionTimeSeconds: 0,
+                    father.Id));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    mother,
+                    father),
+                280 * OneDaySeconds,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 1));
+
+        Assert.Equal(
+            3,
+            result.World.Population.Length);
+
+        var restoredMother =
+            result.World.Population.Single(
+                person =>
+                    person.Id == mother.Id);
+
+        Assert.Null(
+            restoredMother.Pregnancy);
+
+        Assert.Equal(
+            PersonActivity.Idle,
+            restoredMother.Activity);
+
+        var child =
+            result.World.Population.Single(
+                person =>
+                    person.ParentId ==
+                    mother.Id);
+
+        Assert.Equal(
+            280 * OneDaySeconds,
+            child.BirthTimeSeconds);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["births"]);
+    }
+
+    [Fact]
+    public void Step_NoNearbyPartnerPreventsConception()
     {
         var planet = CreateEarth();
 
@@ -164,7 +316,7 @@ public sealed class ReproductionSystemTests
                 OneYearSeconds,
                 CreateSystem(
                     planet.Id,
-                    birthRate: 1000));
+                    conceptionProbability: 1));
 
         Assert.Equal(
             2,
@@ -173,6 +325,10 @@ public sealed class ReproductionSystemTests
         Assert.Equal(
             1,
             result.Change.Metrics["noPartnerFound"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
 
         Assert.Equal(
             0,
@@ -215,7 +371,7 @@ public sealed class ReproductionSystemTests
                 OneYearSeconds,
                 CreateSystem(
                     planet.Id,
-                    birthRate: 1000));
+                    conceptionProbability: 1));
 
         Assert.Equal(
             2,
@@ -233,6 +389,10 @@ public sealed class ReproductionSystemTests
         Assert.Equal(
             0,
             result.Change.Metrics["eligibleFemales"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
 
         Assert.Equal(
             0,
@@ -273,7 +433,7 @@ public sealed class ReproductionSystemTests
                 OneYearSeconds,
                 CreateSystem(
                     planet.Id,
-                    birthRate: 1000));
+                    conceptionProbability: 1));
 
         Assert.Equal(
             2,
@@ -285,22 +445,28 @@ public sealed class ReproductionSystemTests
 
         Assert.Equal(
             0,
+            result.Change.Metrics["conceptions"]);
+
+        Assert.Equal(
+            0,
             result.Change.Metrics["births"]);
     }
 
     private static ReproductionSystem CreateSystem(
         PlanetId planetId,
-        double birthRate)
+        double conceptionProbability)
     {
         return new ReproductionSystem(
             planetId,
             new PopulationModelParameters(
                 seed: 42,
-                annualBirthRatePerEligibleFemale:
-                    birthRate,
+                annualBirthRatePerEligibleFemale: 0,
                 annualAdultMigrationRate: 0,
                 annualBaseMortalityRate: 0,
-                annualElderMortalityRate: 0));
+                annualElderMortalityRate: 0,
+                conceptionProbabilityPerMatingOpportunity:
+                    conceptionProbability,
+                gestationDays: 280));
     }
 
     private static WorldState CreateWorld(

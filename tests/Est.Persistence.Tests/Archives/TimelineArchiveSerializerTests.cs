@@ -203,7 +203,9 @@ public class TimelineArchiveSerializerTests
                 elderAgeYears: 68,
                 localMigrationDegrees: 2.25,
                 longMigrationProbability: 0.11,
-                longMigrationDegrees: 18);
+                longMigrationDegrees: 18,
+                conceptionProbabilityPerMatingOpportunity: 0.37,
+                gestationDays: 266);
 
         var definition =
             new SimulationDefinition(
@@ -229,6 +231,96 @@ public class TimelineArchiveSerializerTests
 
         Assert.Equal(planet.Id, model.PlanetId);
         Assert.Equal(parameters, model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_Version3ArchiveUsesDefaultReproductiveBehavior()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        new PopulationModelParameters(
+                            seed: 42,
+                            annualBirthRatePerEligibleFemale: 0.2,
+                            annualAdultMigrationRate: 0.04,
+                            annualBaseMortalityRate: 0.005,
+                            annualElderMortalityRate: 0.09,
+                            reproductiveAgeMinimumYears: 17,
+                            reproductiveAgeMaximumYears: 42,
+                            elderAgeYears: 68,
+                            localMigrationDegrees: 2.25,
+                            longMigrationProbability: 0.11,
+                            longMigrationDegrees: 18,
+                            conceptionProbabilityPerMatingOpportunity:
+                                0.37,
+                            gestationDays: 266))
+                ]);
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                definition,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)
+            ?? throw new InvalidOperationException(
+                "Archive JSON did not parse.");
+
+        node["schemaVersion"] = 3;
+
+        var parameters =
+            node["definition"]!
+                ["populationModels"]!
+                .AsArray()[0]!
+                ["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "conceptionProbabilityPerMatingOpportunity");
+
+        parameters.Remove(
+            "gestationDays");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                restored.Definition.PopulationModels)
+                .Parameters;
+
+        Assert.Equal(
+            0.20,
+            restoredParameters
+                .ConceptionProbabilityPerMatingOpportunity);
+
+        Assert.Equal(
+            280,
+            restoredParameters.GestationDays);
     }
 
     [Fact]

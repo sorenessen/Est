@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
@@ -145,6 +146,188 @@ public class WorldSnapshotSerializerTests
         Assert.Equal(
             parentId,
             restored.Population[1].ParentId);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesPregnancy()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var motherId = PersonId.New();
+        var fatherId = PersonId.New();
+
+        var pregnancy =
+            new PregnancyState(
+                conceptionTimeSeconds: 123_456,
+                fatherId);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(200_000),
+                [planet],
+                [
+                    new PersonState(
+                        motherId,
+                        planet.Id,
+                        PersonSex.Female,
+                        -800_000_000,
+                        10,
+                        20,
+                        pregnancy: pregnancy),
+                    new PersonState(
+                        fatherId,
+                        planet.Id,
+                        PersonSex.Male,
+                        -800_000_000,
+                        10.05,
+                        20.05)
+                ]);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                WorldSnapshotSerializer.Serialize(
+                    world));
+
+        var mother =
+            restored.Population.Single(
+                person =>
+                    person.Id == motherId);
+
+        Assert.Equal(
+            pregnancy,
+            mother.Pregnancy);
+    }
+
+    [Fact]
+    public void Deserialize_VersionSixDefaultsPregnancyToNull()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var mother =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                -800_000_000,
+                10,
+                20,
+                pregnancy:
+                    new PregnancyState(
+                        123_456,
+                        PersonId.New()));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(200_000),
+                [planet],
+                [mother]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 6;
+
+        foreach (var entry in
+                 node["population"]!.AsArray())
+        {
+            var person =
+                entry!.AsObject();
+
+            person.Remove(
+                "pregnancyConceptionTimeSeconds");
+
+            person.Remove(
+                "pregnancyFatherId");
+        }
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Null(
+            Assert.Single(
+                restored.Population)
+                .Pregnancy);
+    }
+
+    [Fact]
+    public void Deserialize_VersionSevenRejectsPartialPregnancy()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var mother =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                -800_000_000,
+                10,
+                20,
+                pregnancy:
+                    new PregnancyState(
+                        123_456,
+                        PersonId.New()));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(200_000),
+                [planet],
+                [mother]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        var person =
+            node["population"]!
+                .AsArray()[0]!
+                .AsObject();
+
+        person.Remove(
+            "pregnancyFatherId");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

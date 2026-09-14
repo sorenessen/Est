@@ -16,6 +16,9 @@ public sealed record PopulationPersonResponse(
     double LatitudeDegrees,
     double LongitudeDegrees,
     Guid? ParentId,
+    bool IsPregnant,
+    long? PregnancyConceptionTimeSeconds,
+    Guid? PregnancyFatherId,
     string Activity,
     double EnergyReserve,
     double Health);

@@ -554,6 +554,7 @@ function renderPopulation(
     latitudeDegrees: number
     longitudeDegrees: number
     activity: string
+    isPregnant: boolean
     energyReserve: number
     health: number
   }>,
@@ -597,6 +598,12 @@ function renderPopulation(
       activityColor(person.activity)
         .withAlpha(0.72 + health * 0.28)
 
+    const haloColor =
+      person.isPregnant
+        ? Color.fromCssColorString('#65e6c4')
+            .withAlpha(0.42)
+        : color.withAlpha(0.18)
+
     const coreSize =
       person.activity === 'Fleeing'
         ? 16
@@ -611,8 +618,9 @@ function renderPopulation(
         person.latitudeDegrees,
         95,
       ),
-      pixelSize: coreSize + 8,
-      color: color.withAlpha(0.18),
+      pixelSize:
+        coreSize + (person.isPregnant ? 11 : 8),
+      color: haloColor,
       outlineColor: color.withAlpha(0),
       outlineWidth: 0,
     })
@@ -947,6 +955,11 @@ if (sessionId) {
             {} as Record<string, number>,
           )
 
+        const pregnantCount =
+          population.filter(
+            person => person.isPregnant,
+          ).length
+
         const averageEnergy =
           population.length === 0
             ? 0
@@ -1047,6 +1060,15 @@ if (sessionId) {
                 ></span>
                 <span class="simulation-metric-label">Mating</span>
                 <strong>${activityCounts.Mating ?? 0}</strong>
+              </div>
+
+              <div class="simulation-metric">
+                <span
+                  class="activity-dot"
+                  style="background:#65e6c4;box-shadow:0 0 8px #65e6c4"
+                ></span>
+                <span class="simulation-metric-label">Pregnant</span>
+                <strong>${pregnantCount}</strong>
               </div>
             </div>
           </div>

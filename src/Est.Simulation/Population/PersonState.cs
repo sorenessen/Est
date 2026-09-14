@@ -13,7 +13,8 @@ public sealed record PersonState
         double longitudeDegrees,
         PersonId? parentId = null,
         PersonNeedsState? needs = null,
-        PersonActivity activity = PersonActivity.Idle)
+        PersonActivity activity = PersonActivity.Idle,
+        PregnancyState? pregnancy = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -47,6 +48,14 @@ public sealed record PersonState
                 "Longitude must be finite and within [-180, 180].");
         }
 
+        if (pregnancy is not null &&
+            sex != PersonSex.Female)
+        {
+            throw new ArgumentException(
+                "Only a female person can carry a pregnancy.",
+                nameof(pregnancy));
+        }
+
         Id = id;
         PlanetId = planetId;
         Sex = sex;
@@ -56,6 +65,7 @@ public sealed record PersonState
         ParentId = parentId;
         Needs = needs ?? new PersonNeedsState();
         Activity = activity;
+        Pregnancy = pregnancy;
     }
 
     public PersonId Id { get; private init; }
@@ -75,6 +85,8 @@ public sealed record PersonState
     public PersonNeedsState Needs { get; private init; }
 
     public PersonActivity Activity { get; private init; }
+
+    public PregnancyState? Pregnancy { get; private init; }
 
     public double AgeYears(long currentTimeSeconds)
     {
@@ -101,7 +113,8 @@ public sealed record PersonState
             LongitudeDegrees,
             ParentId,
             needs,
-            activity);
+            activity,
+            Pregnancy);
     }
 
     public PersonState MoveTo(
@@ -117,6 +130,40 @@ public sealed record PersonState
             longitudeDegrees,
             ParentId,
             Needs,
-            Activity);
+            Activity,
+            Pregnancy);
+    }
+
+    public PersonState WithPregnancy(
+        PregnancyState pregnancy)
+    {
+        ArgumentNullException.ThrowIfNull(pregnancy);
+
+        return new PersonState(
+            Id,
+            PlanetId,
+            Sex,
+            BirthTimeSeconds,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            ParentId,
+            Needs,
+            Activity,
+            pregnancy);
+    }
+
+    public PersonState WithoutPregnancy()
+    {
+        return new PersonState(
+            Id,
+            PlanetId,
+            Sex,
+            BirthTimeSeconds,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            ParentId,
+            Needs,
+            Activity,
+            pregnancy: null);
     }
 }

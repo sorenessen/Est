@@ -668,6 +668,11 @@ static WorldResponse ToWorldResponse(
                         person.LatitudeDegrees,
                         person.LongitudeDegrees,
                         person.ParentId?.Value,
+                        person.Pregnancy is not null,
+                        person.Pregnancy
+                            ?.ConceptionTimeSeconds,
+                        person.Pregnancy
+                            ?.FatherId.Value,
                         person.Activity.ToString(),
                         person.Needs.EnergyReserve,
                         person.Needs.Health))

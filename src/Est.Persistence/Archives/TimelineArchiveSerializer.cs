@@ -11,7 +11,9 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
+    private const int ReproductiveBehaviorSchemaVersion = 4;
+    private const int PopulationModelSchemaVersion = 3;
     private const int DefinitionSchemaVersion = 2;
     private const int LegacySchemaVersion = 1;
 
@@ -96,6 +98,7 @@ public static class TimelineArchiveSerializer
 
         if (archive.SchemaVersion != LegacySchemaVersion &&
             archive.SchemaVersion != DefinitionSchemaVersion &&
+            archive.SchemaVersion != PopulationModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -336,8 +339,20 @@ public static class TimelineArchiveSerializer
                                             model.Parameters
                                                 .LongMigrationProbability,
                                         LongMigrationDegrees =
+
                                             model.Parameters
-                                                .LongMigrationDegrees
+
+                                                .LongMigrationDegrees,
+
+                                        ConceptionProbabilityPerMatingOpportunity =
+
+                                            model.Parameters
+
+                                                .ConceptionProbabilityPerMatingOpportunity,
+
+                                        GestationDays =
+
+                                            model.Parameters.GestationDays
                                     }
                             })
                     .ToArray()
@@ -432,7 +447,23 @@ public static class TimelineArchiveSerializer
                                     model.Parameters
                                         .LongMigrationProbability,
                                     model.Parameters
-                                        .LongMigrationDegrees));
+                                        .LongMigrationDegrees,
+                                    conceptionProbabilityPerMatingOpportunity:
+                                        schemaVersion >=
+                                            ReproductiveBehaviorSchemaVersion
+                                            ? model.Parameters
+                                                .ConceptionProbabilityPerMatingOpportunity
+                                                ?? throw new JsonException(
+                                                    "Conception probability is required.")
+                                            : 0.20,
+                                    gestationDays:
+                                        schemaVersion >=
+                                            ReproductiveBehaviorSchemaVersion
+                                            ? model.Parameters
+                                                .GestationDays
+                                                ?? throw new JsonException(
+                                                    "Gestation duration is required.")
+                                            : 280));
                         })
                     .ToArray();
         }
@@ -535,6 +566,14 @@ public static class TimelineArchiveSerializer
         public required double LongMigrationProbability { get; set; }
 
         public required double LongMigrationDegrees { get; set; }
+
+        public double? ConceptionProbabilityPerMatingOpportunity
+        {
+            get;
+            set;
+        }
+
+        public double? GestationDays { get; set; }
     }
 
     private sealed class PlanetaryEnergyBalanceModelSnapshot
