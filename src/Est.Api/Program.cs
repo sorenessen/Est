@@ -10,6 +10,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -449,6 +450,64 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/terrain",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var terrain =
+            session.CurrentWorld.Terrain
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (terrain is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(
+            ToTerrainResponse(
+                planet,
+                terrain));
+    });
+
+app.MapGet(
     "/sessions/{id:guid}/planets/{planetId:guid}/hydrology",
     (
         Guid id,
@@ -839,6 +898,29 @@ static SurfaceResponse ToSurfaceResponse(
                                         coordinate.LatitudeDegrees,
                                         coordinate.LongitudeDegrees))
                             .ToArray()))
+            .ToArray());
+}
+
+static TerrainResponse ToTerrainResponse(
+    PlanetState planet,
+    PlanetTerrainState terrain)
+{
+    terrain.ValidateFor(
+        planet);
+
+    return new TerrainResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            terrain.GridDefinition.Kind.ToString(),
+            terrain.GridDefinition.IdentityVersion,
+            terrain.GridDefinition.LatitudeBandCount,
+            terrain.GridDefinition.LongitudeBandCount),
+        terrain.Cells
+            .Select(
+                cell =>
+                    new TerrainCellResponse(
+                        cell.CellId.Value,
+                        cell.ElevationMeters))
             .ToArray());
 }
 

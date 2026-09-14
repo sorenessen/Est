@@ -255,6 +255,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [ ] Add basin-local fill / spill equilibrium for perched inland lakes.
 - [x] Derive slope and downhill-neighbor topology for drainage.
 - [x] Preserve terrain through world copy, fork, snapshot, and archive.
+- [x] Expose authoritative terrain through Est.Api.
 - [x] Define durable per-cell hydrology state.
 - [x] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [x] Define explicit hydrology model policy in `SimulationDefinition`.

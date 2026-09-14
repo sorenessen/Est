@@ -764,6 +764,191 @@ public sealed class SessionEndpointTests
     }
 
     [Fact]
+    public async Task TerrainEndpoint_ExposesAuthoritativePlanetElevationState()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Terrain API World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0,
+                        0,
+                        new AtmosphereCreationRequest(
+                            0,
+                            new Dictionary<string, double>())),
+                    GeneratedTerrain:
+                        new GeneratedTerrainCreationRequest(
+                            Seed: 126,
+                            LatitudeBandCount: 4,
+                            LongitudeBandCount: 8,
+                            PlateCount: 4,
+                            ContinentalPlateFraction: 0.45))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        Assert.NotNull(
+            world);
+
+        var planet =
+            Assert.Single(
+                world.Planets);
+
+        var surface =
+            await client.GetFromJsonAsync<SurfaceResponse>(
+                $"/sessions/{created.SessionId}/planets/{planet.PlanetId}/surface");
+
+        var terrain =
+            await client.GetFromJsonAsync<TerrainResponse>(
+                $"/sessions/{created.SessionId}/planets/{planet.PlanetId}/terrain");
+
+        Assert.NotNull(
+            surface);
+
+        Assert.NotNull(
+            terrain);
+
+        Assert.Equal(
+            planet.PlanetId,
+            terrain.PlanetId);
+
+        Assert.Equal(
+            surface.Grid,
+            terrain.Grid);
+
+        Assert.Equal(
+            32,
+            terrain.Cells.Length);
+
+        Assert.Equal(
+            32,
+            terrain.Cells
+                .Select(
+                    cell =>
+                        cell.CellId)
+                .Distinct()
+                .Count());
+
+        Assert.All(
+            terrain.Cells,
+            cell =>
+            {
+                Assert.NotEqual(
+                    Guid.Empty,
+                    cell.CellId);
+
+                Assert.True(
+                    double.IsFinite(
+                        cell.ElevationMeters));
+            });
+
+        Assert.Equal(
+            surface.Cells
+                .Select(
+                    cell =>
+                        cell.CellId)
+                .OrderBy(
+                    id =>
+                        id),
+            terrain.Cells
+                .Select(
+                    cell =>
+                        cell.CellId)
+                .OrderBy(
+                    id =>
+                        id));
+    }
+
+    [Fact]
+    public async Task TerrainEndpoint_WithoutTerrain_ReturnsNotFound()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "No Terrain API World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0,
+                        0,
+                        new AtmosphereCreationRequest(
+                            0,
+                            new Dictionary<string, double>())))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            createResponse.StatusCode);
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{created.SessionId}/world");
+
+        Assert.NotNull(
+            world);
+
+        var planet =
+            Assert.Single(
+                world.Planets);
+
+        var response =
+            await client.GetAsync(
+                $"/sessions/{created.SessionId}/planets/{planet.PlanetId}/terrain");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
     public async Task HydrologyEndpoint_ExposesAuthoritativePlanetWaterState()
     {
         await using var factory =

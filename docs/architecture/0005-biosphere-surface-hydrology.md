@@ -122,6 +122,9 @@ concerns.
 The shared surface layer describes where a cell is and how it relates
 to neighboring cells.
 
+Terrain describes the durable solid-surface elevation of that cell relative
+to the planet mean-radius datum. Terrain elevation is not itself sea level.
+
 Hydrology describes water currently present in that cell.
 
 Vegetation will later describe plant biomass currently present in that
