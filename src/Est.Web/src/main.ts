@@ -15,7 +15,6 @@ import {
 } from '@babylonjs/core'
 
 import {
-  CUBE_FACES,
   createCubeSpherePatchGeometry,
   type CubeFace,
 } from './planet/cube-sphere'
@@ -23,7 +22,7 @@ import {
 import {
   patchBounds,
   patchKey,
-  patchesAtLevel,
+  selectPlanetPatches,
   type PlanetPatch,
 } from './planet/planet-quadtree'
 
@@ -46,7 +45,8 @@ app.innerHTML = `
 
   <div class="planet-foundation-status">
     <strong>Est Planet Renderer</strong>
-    <span>R2 · uniform quadtree patches · level 2</span>
+    <span>R2 · camera-driven quadtree LOD</span>
+    <span id="lodStatus">selecting patches…</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
 `
@@ -187,8 +187,22 @@ const showFaceDiagnostics =
     window.location.search,
   ).get('faces') === '1'
 
-const patchLevel = 2
 const segmentsPerPatch = 8
+
+const lodOptions = {
+  minimumLevel: 1,
+  maximumLevel: 5,
+  splitThreshold: 0.28,
+} as const
+
+const patchMeshes =
+  new Map<string, Mesh>()
+
+const diagnosticMaterials =
+  new Map<
+    string,
+    StandardMaterial
+  >()
 
 function createPatchMaterial(
   patch: PlanetPatch,
@@ -197,91 +211,205 @@ function createPatchMaterial(
     return sharedSurface
   }
 
+  const parity =
+    (patch.x + patch.y) % 2
+
+  const materialKey = [
+    patch.face,
+    patch.level,
+    parity,
+  ].join(':')
+
+  const existing =
+    diagnosticMaterials.get(
+      materialKey,
+    )
+
+  if (existing) {
+    return existing
+  }
+
   const base =
     diagnosticFaceColors[
       patch.face
     ]
 
-  const checker =
-    (patch.x + patch.y) % 2
+  const levelFactor =
+    0.62 +
+    patch.level * 0.075
 
-  const factor =
-    checker === 0
-      ? 0.78
-      : 1.05
+  const checkerFactor =
+    parity === 0
+      ? 0.86
+      : 1.08
 
   const material =
     new StandardMaterial(
-      `cube-sphere-${patchKey(patch)}-material`,
+      `cube-sphere-${materialKey}-material`,
       scene,
     )
 
   material.diffuseColor =
-    base.scale(factor)
+    base.scale(
+      Math.min(
+        1.15,
+        levelFactor *
+          checkerFactor,
+      ),
+    )
 
   material.emissiveColor =
-    base.scale(0.03)
+    base.scale(0.025)
 
   material.specularColor =
     Color3.Black()
 
+  diagnosticMaterials.set(
+    materialKey,
+    material,
+  )
+
   return material
 }
 
-for (const face of CUBE_FACES) {
-  for (
-    const patch of
-      patchesAtLevel(
-        face,
-        patchLevel,
-      )
-  ) {
-    const bounds =
-      patchBounds(patch)
+function createPatchMesh(
+  patch: PlanetPatch,
+): Mesh {
+  const bounds =
+    patchBounds(patch)
 
-    const geometry =
-      createCubeSpherePatchGeometry(
-        face,
-        segmentsPerPatch,
-        bounds.uMin,
-        bounds.uMax,
-        bounds.vMin,
-        bounds.vMax,
-      )
-
-    const mesh =
-      new Mesh(
-        `cube-sphere-${patchKey(patch)}`,
-        scene,
-      )
-
-    const vertexData =
-      new VertexData()
-
-    vertexData.positions =
-      geometry.positions
-
-    vertexData.indices =
-      geometry.indices
-
-    vertexData.normals =
-      geometry.normals
-
-    vertexData.applyToMesh(
-      mesh,
-      false,
+  const geometry =
+    createCubeSpherePatchGeometry(
+      patch.face,
+      segmentsPerPatch,
+      bounds.uMin,
+      bounds.uMax,
+      bounds.vMin,
+      bounds.vMax,
     )
 
-    mesh.material =
-      createPatchMaterial(
-        patch,
+  const mesh =
+    new Mesh(
+      `cube-sphere-${patchKey(patch)}`,
+      scene,
+    )
+
+  const vertexData =
+    new VertexData()
+
+  vertexData.positions =
+    geometry.positions
+
+  vertexData.indices =
+    geometry.indices
+
+  vertexData.normals =
+    geometry.normals
+
+  vertexData.applyToMesh(
+    mesh,
+    false,
+  )
+
+  mesh.material =
+    createPatchMaterial(patch)
+
+  mesh.isPickable = false
+
+  return mesh
+}
+
+const lodStatus =
+  document.querySelector<HTMLSpanElement>(
+    '#lodStatus',
+  )
+
+let previousSelection = ''
+
+function synchronizePlanetPatches(): void {
+  const selected =
+    selectPlanetPatches(
+      {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+      },
+      lodOptions,
+    )
+
+  const keys =
+    selected.map(patchKey)
+
+  const selectionSignature =
+    keys.join('|')
+
+  if (
+    selectionSignature ===
+    previousSelection
+  ) {
+    return
+  }
+
+  previousSelection =
+    selectionSignature
+
+  const selectedKeys =
+    new Set(keys)
+
+  for (
+    const [
+      key,
+      mesh,
+    ] of patchMeshes
+  ) {
+    if (
+      selectedKeys.has(key)
+    ) {
+      continue
+    }
+
+    mesh.dispose()
+    patchMeshes.delete(key)
+  }
+
+  for (const patch of selected) {
+    const key =
+      patchKey(patch)
+
+    if (
+      patchMeshes.has(key)
+    ) {
+      continue
+    }
+
+    patchMeshes.set(
+      key,
+      createPatchMesh(patch),
+    )
+  }
+
+  if (lodStatus) {
+    const levels =
+      selected.map(
+        (patch) =>
+          patch.level,
       )
 
-    mesh.isPickable = false
+    const minimum =
+      Math.min(...levels)
+
+    const maximum =
+      Math.max(...levels)
+
+    lodStatus.textContent =
+      `${selected.length} patches · L${minimum}–L${maximum}`
   }
 }
 
+synchronizePlanetPatches()
+
 engine.runRenderLoop(() => {
+  synchronizePlanetPatches()
   scene.render()
 })
 

@@ -7,9 +7,14 @@ import {
 import {
   patchBounds,
   patchesAtLevel,
+  selectPlanetPatches,
   subdividePatch,
   type PlanetPatch,
 } from './planet-quadtree'
+
+import {
+  CUBE_FACES,
+} from './cube-sphere'
 
 describe('planet quadtree', () => {
   it('maps the root patch to the complete cube face', () => {
@@ -190,5 +195,143 @@ describe('planet quadtree', () => {
         }
       }
     }
+  })
+})
+
+describe('planet LOD selection', () => {
+  const options = {
+    minimumLevel: 1,
+    maximumLevel: 5,
+    splitThreshold: 0.28,
+  } as const
+
+  it('refines the planet more deeply as the camera approaches', () => {
+    const far =
+      selectPlanetPatches(
+        {
+          x: 0,
+          y: 0,
+          z: 8,
+        },
+        options,
+      )
+
+    const near =
+      selectPlanetPatches(
+        {
+          x: 0,
+          y: 0,
+          z: 1.2,
+        },
+        options,
+      )
+
+    expect(
+      near.length,
+    ).toBeGreaterThan(
+      far.length,
+    )
+
+    expect(
+      Math.max(
+        ...near.map(
+          (patch) =>
+            patch.level,
+        ),
+      ),
+    ).toBeGreaterThan(
+      Math.max(
+        ...far.map(
+          (patch) =>
+            patch.level,
+        ),
+      ),
+    )
+  })
+
+  it('never selects beyond the configured maximum level', () => {
+    const selected =
+      selectPlanetPatches(
+        {
+          x: 0,
+          y: 0,
+          z: 1.01,
+        },
+        options,
+      )
+
+    expect(
+      Math.max(
+        ...selected.map(
+          (patch) =>
+            patch.level,
+        ),
+      ),
+    ).toBeLessThanOrEqual(
+      options.maximumLevel,
+    )
+  })
+
+  it('preserves complete cube-face coverage at mixed levels', () => {
+    const selected =
+      selectPlanetPatches(
+        {
+          x: 1.4,
+          y: 0.35,
+          z: 1.2,
+        },
+        options,
+      )
+
+    for (const face of CUBE_FACES) {
+      const normalizedArea =
+        selected
+          .filter(
+            (patch) =>
+              patch.face === face,
+          )
+          .reduce(
+            (
+              total,
+              patch,
+            ) =>
+              total +
+              4 /
+                4 **
+                  patch.level,
+            0,
+          )
+
+      expect(
+        normalizedArea,
+      ).toBeCloseTo(
+        4,
+        12,
+      )
+    }
+  })
+
+  it('produces mixed levels for an ordinary oblique view', () => {
+    const selected =
+      selectPlanetPatches(
+        {
+          x: 2.1,
+          y: 1.3,
+          z: 2.4,
+        },
+        options,
+      )
+
+    const levels =
+      new Set(
+        selected.map(
+          (patch) =>
+            patch.level,
+        ),
+      )
+
+    expect(
+      levels.size,
+    ).toBeGreaterThan(1)
   })
 })

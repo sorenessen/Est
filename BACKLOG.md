@@ -230,8 +230,8 @@ Do not connect authoritative terrain yet.
 #### R2 - Quadtree terrain patches
 
 - [x] Introduce reusable regular terrain patches.
-- [ ] Add renderer-owned quadtree subdivision and merging.
-- [ ] Add view-dependent terrain LOD.
+- [x] Add renderer-owned quadtree subdivision and merging.
+- [x] Add view-dependent terrain LOD.
 - [ ] Preserve continuity between neighboring LOD levels.
 - [ ] Add frustum culling.
 - [ ] Add horizon culling.

@@ -1,4 +1,9 @@
-import type { CubeFace } from './cube-sphere'
+import {
+  CUBE_FACES,
+  cubeFacePoint,
+  projectCubePointToUnitSphere,
+  type CubeFace,
+} from './cube-sphere'
 
 export interface PlanetPatch {
   readonly face: CubeFace
@@ -133,4 +138,193 @@ export function patchesAtLevel(
   }
 
   return patches
+}
+
+export interface PlanetViewPoint {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
+
+export interface PlanetLodOptions {
+  readonly minimumLevel: number
+  readonly maximumLevel: number
+  readonly splitThreshold: number
+}
+
+function patchCornerDirections(
+  patch: PlanetPatch,
+): readonly PlanetViewPoint[] {
+  const bounds = patchBounds(patch)
+
+  return [
+    [bounds.uMin, bounds.vMin],
+    [bounds.uMax, bounds.vMin],
+    [bounds.uMin, bounds.vMax],
+    [bounds.uMax, bounds.vMax],
+  ].map(([u, v]) =>
+    projectCubePointToUnitSphere(
+      cubeFacePoint(
+        patch.face,
+        u,
+        v,
+      ),
+    ),
+  )
+}
+
+export function patchCenterDirection(
+  patch: PlanetPatch,
+): PlanetViewPoint {
+  const bounds = patchBounds(patch)
+
+  return projectCubePointToUnitSphere(
+    cubeFacePoint(
+      patch.face,
+      (bounds.uMin + bounds.uMax) / 2,
+      (bounds.vMin + bounds.vMax) / 2,
+    ),
+  )
+}
+
+export function patchWorldDiameter(
+  patch: PlanetPatch,
+): number {
+  const corners =
+    patchCornerDirections(patch)
+
+  let maximum = 0
+
+  for (
+    let a = 0;
+    a < corners.length;
+    a += 1
+  ) {
+    for (
+      let b = a + 1;
+      b < corners.length;
+      b += 1
+    ) {
+      maximum = Math.max(
+        maximum,
+        Math.hypot(
+          corners[a].x - corners[b].x,
+          corners[a].y - corners[b].y,
+          corners[a].z - corners[b].z,
+        ),
+      )
+    }
+  }
+
+  return maximum
+}
+
+function distance(
+  a: PlanetViewPoint,
+  b: PlanetViewPoint,
+): number {
+  return Math.hypot(
+    a.x - b.x,
+    a.y - b.y,
+    a.z - b.z,
+  )
+}
+
+function shouldSplitPatch(
+  patch: PlanetPatch,
+  camera: PlanetViewPoint,
+  options: PlanetLodOptions,
+): boolean {
+  if (
+    patch.level <
+    options.minimumLevel
+  ) {
+    return true
+  }
+
+  if (
+    patch.level >=
+    options.maximumLevel
+  ) {
+    return false
+  }
+
+  const center =
+    patchCenterDirection(patch)
+
+  const cameraDistance =
+    Math.max(
+      distance(camera, center),
+      0.0001,
+    )
+
+  const projectedSize =
+    patchWorldDiameter(patch) /
+    cameraDistance
+
+  return (
+    projectedSize >
+    options.splitThreshold
+  )
+}
+
+export function selectPlanetPatches(
+  camera: PlanetViewPoint,
+  options: PlanetLodOptions,
+): PlanetPatch[] {
+  if (
+    !Number.isInteger(
+      options.minimumLevel,
+    ) ||
+    options.minimumLevel < 0 ||
+    !Number.isInteger(
+      options.maximumLevel,
+    ) ||
+    options.maximumLevel <
+      options.minimumLevel ||
+    !Number.isFinite(
+      options.splitThreshold,
+    ) ||
+    options.splitThreshold <= 0
+  ) {
+    throw new Error(
+      'Planet LOD options are invalid.',
+    )
+  }
+
+  const selected: PlanetPatch[] = []
+
+  function visit(
+    patch: PlanetPatch,
+  ): void {
+    if (
+      shouldSplitPatch(
+        patch,
+        camera,
+        options,
+      )
+    ) {
+      for (
+        const child of
+          subdividePatch(patch)
+      ) {
+        visit(child)
+      }
+
+      return
+    }
+
+    selected.push(patch)
+  }
+
+  for (const face of CUBE_FACES) {
+    visit({
+      face,
+      level: 0,
+      x: 0,
+      y: 0,
+    })
+  }
+
+  return selected
 }
