@@ -248,7 +248,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Define durable per-cell terrain state.
 - [x] Generate deterministic tectonic-informed planet-scale topography from a seed.
 - [ ] Derive flooded land/ocean/lake state from terrain plus hydrologic water inventory.
-- [ ] Derive slope and downhill-neighbor topology for drainage.
+- [x] Derive slope and downhill-neighbor topology for drainage.
 - [x] Preserve terrain through world copy, fork, snapshot, and archive.
 - [ ] Define durable per-cell hydrology state.
 - [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
