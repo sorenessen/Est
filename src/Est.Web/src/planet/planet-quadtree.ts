@@ -316,6 +316,60 @@ export function filterPlanetPatchesByFrustum(
   )
 }
 
+export function patchIntersectsHorizon(
+  patch: PlanetPatch,
+  camera: PlanetViewPoint,
+): boolean {
+  if (
+    !Number.isFinite(camera.x) ||
+    !Number.isFinite(camera.y) ||
+    !Number.isFinite(camera.z)
+  ) {
+    throw new Error(
+      'Planet horizon camera position is invalid.',
+    )
+  }
+
+  const cameraDistance =
+    Math.hypot(
+      camera.x,
+      camera.y,
+      camera.z,
+    )
+
+  if (cameraDistance <= 1) {
+    return true
+  }
+
+  const sphere =
+    patchBoundingSphere(patch)
+
+  const maximumCameraDot =
+    camera.x *
+      sphere.center.x +
+    camera.y *
+      sphere.center.y +
+    camera.z *
+      sphere.center.z +
+    cameraDistance *
+      sphere.radius
+
+  return maximumCameraDot >= 1
+}
+
+export function filterPlanetPatchesByHorizon(
+  patches: readonly PlanetPatch[],
+  camera: PlanetViewPoint,
+): PlanetPatch[] {
+  return patches.filter(
+    (patch) =>
+      patchIntersectsHorizon(
+        patch,
+        camera,
+      ),
+  )
+}
+
 function distance(
   a: PlanetViewPoint,
   b: PlanetViewPoint,

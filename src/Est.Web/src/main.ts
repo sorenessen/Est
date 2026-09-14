@@ -21,6 +21,7 @@ import {
 
 import {
   filterPlanetPatchesByFrustum,
+  filterPlanetPatchesByHorizon,
   findPlanetPatchStitchEdges,
   patchBounds,
   patchKey,
@@ -347,13 +348,15 @@ let stitchEdgesByPatch =
   >()
 
 function synchronizePlanetPatches(): void {
+  const cameraPoint = {
+    x: camera.position.x,
+    y: camera.position.y,
+    z: camera.position.z,
+  }
+
   const selected =
     selectBalancedPlanetPatches(
-      {
-        x: camera.position.x,
-        y: camera.position.y,
-        z: camera.position.z,
-      },
+      cameraPoint,
       lodOptions,
     )
 
@@ -380,10 +383,16 @@ function synchronizePlanetPatches(): void {
 
   scene.updateTransformMatrix(true)
 
-  const visible =
+  const frustumVisible =
     filterPlanetPatchesByFrustum(
       selected,
       scene.frustumPlanes,
+    )
+
+  const visible =
+    filterPlanetPatchesByHorizon(
+      frustumVisible,
+      cameraPoint,
     )
 
   const visibleKeys =
@@ -479,7 +488,7 @@ function synchronizePlanetPatches(): void {
       Math.max(...levels)
 
     lodStatus.textContent =
-      `${visible.length}/${selected.length} visible patches · L${minimum}–L${maximum}`
+      `${visible.length} visible · ${frustumVisible.length} frustum · ${selected.length} selected · L${minimum}–L${maximum}`
   }
 }
 

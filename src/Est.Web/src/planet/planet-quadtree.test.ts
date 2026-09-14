@@ -7,6 +7,7 @@ import {
 import {
   balancePlanetPatches,
   filterPlanetPatchesByFrustum,
+  filterPlanetPatchesByHorizon,
   findPlanetPatchNeighbors,
   findPlanetPatchStitchEdges,
   patchBoundingSphere,
@@ -498,6 +499,71 @@ describe('planet quadtree frustum culling', () => {
 
     expect(visible).toEqual([
       front,
+    ])
+  })
+})
+
+describe('planet quadtree horizon culling', () => {
+  const camera = {
+    x: 0,
+    y: 0,
+    z: 3,
+  } as const
+
+  const front: PlanetPatch = {
+    face: 'positiveZ',
+    level: 3,
+    x: 3,
+    y: 3,
+  }
+
+  const back: PlanetPatch = {
+    face: 'negativeZ',
+    level: 3,
+    x: 3,
+    y: 3,
+  }
+
+  it('keeps a camera-facing patch', () => {
+    expect(
+      filterPlanetPatchesByHorizon(
+        [front],
+        camera,
+      ),
+    ).toEqual([front])
+  })
+
+  it('rejects a patch wholly behind the geometric horizon', () => {
+    expect(
+      filterPlanetPatchesByHorizon(
+        [back],
+        camera,
+      ),
+    ).toEqual([])
+  })
+
+  it('filters opposite planetary patches by the geometric horizon', () => {
+    expect(
+      filterPlanetPatchesByHorizon(
+        [front, back],
+        camera,
+      ),
+    ).toEqual([front])
+  })
+
+  it('does not horizon-cull when the camera is on or inside the unit sphere', () => {
+    expect(
+      filterPlanetPatchesByHorizon(
+        [front, back],
+        {
+          x: 0,
+          y: 0,
+          z: 1,
+        },
+      ),
+    ).toEqual([
+      front,
+      back,
     ])
   })
 })
