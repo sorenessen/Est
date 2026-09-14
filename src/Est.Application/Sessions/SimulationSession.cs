@@ -3,6 +3,7 @@ using Est.Simulation.Causality;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -59,6 +60,15 @@ public sealed class SimulationSession
                                 model.PlanetId,
                                 model.Parameters));
 
+        var hydrologySystems =
+            definition.HydrologyModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new HydrologySystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var foragingSystems =
             definition.PopulationModels
                 .Select(
@@ -101,6 +111,7 @@ public sealed class SimulationSession
 
         _causalSystems =
             energyBalanceSystems
+                .Concat(hydrologySystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
                 .Concat(reproductionSystems)

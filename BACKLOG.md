@@ -253,7 +253,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Define durable per-cell hydrology state.
 - [x] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [x] Define explicit hydrology model policy in `SimulationDefinition`.
-- [ ] Implement conservative evaporation / precipitation / infiltration /
+- [x] Implement conservative evaporation / precipitation / infiltration /
       runoff transfers.
 - [ ] Add freezing and melting water transfers.
 - [ ] Add water mass-conservation telemetry and tests.
