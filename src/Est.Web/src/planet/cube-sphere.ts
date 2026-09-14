@@ -25,6 +25,11 @@ export type CubeSphereRadialOffset =
     direction: Vector3Like,
   ) => number
 
+export type CubeSphereSurfaceNormal =
+  (
+    direction: Vector3Like,
+  ) => Vector3Like
+
 export interface CubeSphereFaceGeometry {
   readonly positions: number[]
   readonly indices: number[]
@@ -417,6 +422,7 @@ export function createCubeSpherePatchGeometry(
   vMax: number,
   stitchEdges: CubeSpherePatchStitchEdges = {},
   radialOffset?: CubeSphereRadialOffset,
+  normalAtDirection?: CubeSphereSurfaceNormal,
 ): CubeSphereFaceGeometry {
   if (
     !Number.isInteger(segments) ||
@@ -498,15 +504,35 @@ export function createCubeSpherePatchGeometry(
         spherePoint.z * radius,
       )
 
-      // R3 initially retains radial normals. Terrain-derived
-      // surface normals belong to the later material/lighting
-      // pass once authoritative displacement is runtime-green.
-      // This also guarantees identical normals where
-      // independently generated cube faces meet.
+      let surfaceNormal =
+        normalAtDirection
+          ? projectCubePointToUnitSphere(
+              normalAtDirection(
+                spherePoint,
+              ),
+            )
+          : spherePoint
+
+      if (
+        surfaceNormal.x *
+          spherePoint.x +
+        surfaceNormal.y *
+          spherePoint.y +
+        surfaceNormal.z *
+          spherePoint.z <
+        0
+      ) {
+        surfaceNormal = {
+          x: -surfaceNormal.x,
+          y: -surfaceNormal.y,
+          z: -surfaceNormal.z,
+        }
+      }
+
       normals.push(
-        spherePoint.x,
-        spherePoint.y,
-        spherePoint.z,
+        surfaceNormal.x,
+        surfaceNormal.y,
+        surfaceNormal.z,
       )
     }
   }

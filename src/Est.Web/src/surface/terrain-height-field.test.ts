@@ -329,3 +329,158 @@ describe('createTerrainHeightField', () => {
     )
   })
 })
+
+describe(
+  'terrain surface gradients',
+  () => {
+    it(
+      'returns zero gradient for locally flat authoritative terrain',
+      () => {
+        const {
+          surface,
+          terrain,
+        } =
+          createResponses([
+            {
+              id: 'center',
+              latitudeDegrees: 0,
+              longitudeDegrees: 0,
+              elevationMeters: 100,
+            },
+            {
+              id: 'north',
+              latitudeDegrees: 1,
+              longitudeDegrees: 0,
+              elevationMeters: 100,
+            },
+            {
+              id: 'south',
+              latitudeDegrees: -1,
+              longitudeDegrees: 0,
+              elevationMeters: 100,
+            },
+            {
+              id: 'east',
+              latitudeDegrees: 0,
+              longitudeDegrees: 1,
+              elevationMeters: 100,
+            },
+            {
+              id: 'west',
+              latitudeDegrees: 0,
+              longitudeDegrees: -1,
+              elevationMeters: 100,
+            },
+          ])
+
+        const field =
+          createTerrainHeightField(
+            surface,
+            terrain,
+          )
+
+        const sample =
+          field.sampleSurfaceMeters(
+            0,
+            0,
+          )
+
+        expect(
+          sample.elevationMeters,
+        ).toBe(100)
+
+        expect(
+          sample.gradientMetersPerUnit.x,
+        ).toBeCloseTo(0, 8)
+
+        expect(
+          sample.gradientMetersPerUnit.y,
+        ).toBeCloseTo(0, 8)
+
+        expect(
+          sample.gradientMetersPerUnit.z,
+        ).toBeCloseTo(0, 8)
+      },
+    )
+
+    it(
+      'recovers the direction of a local north-south terrain slope',
+      () => {
+        const {
+          surface,
+          terrain,
+        } =
+          createResponses([
+            {
+              id: 'center',
+              latitudeDegrees: 0,
+              longitudeDegrees: 0,
+              elevationMeters: 0,
+            },
+            {
+              id: 'north',
+              latitudeDegrees: 1,
+              longitudeDegrees: 0,
+              elevationMeters: 100,
+            },
+            {
+              id: 'south',
+              latitudeDegrees: -1,
+              longitudeDegrees: 0,
+              elevationMeters: -100,
+            },
+            {
+              id: 'east',
+              latitudeDegrees: 0,
+              longitudeDegrees: 1,
+              elevationMeters: 0,
+            },
+            {
+              id: 'west',
+              latitudeDegrees: 0,
+              longitudeDegrees: -1,
+              elevationMeters: 0,
+            },
+          ])
+
+        const field =
+          createTerrainHeightField(
+            surface,
+            terrain,
+          )
+
+        const sample =
+          field.sampleSurfaceMeters(
+            0,
+            0,
+          )
+
+        expect(
+          sample.elevationMeters,
+        ).toBe(0)
+
+        expect(
+          Math.abs(
+            sample
+              .gradientMetersPerUnit
+              .x,
+          ),
+        ).toBeLessThan(1)
+
+        expect(
+          Math.abs(
+            sample
+              .gradientMetersPerUnit
+              .y,
+          ),
+        ).toBeLessThan(1)
+
+        expect(
+          sample
+            .gradientMetersPerUnit
+            .z,
+        ).toBeGreaterThan(5_000)
+      },
+    )
+  },
+)

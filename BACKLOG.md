@@ -250,7 +250,7 @@ Do not connect authoritative terrain yet.
 
 #### R4 - Materials, lighting, ocean, and atmosphere
 
-- [ ] Compute terrain normals from the rendered terrain surface.
+- [x] Compute terrain normals from the rendered terrain surface.
 - [ ] Add Est-controlled terrain materials.
 - [ ] Add directional planetary lighting independent of Cesium assumptions.
 - [ ] Add a continuous ocean representation driven by authoritative water state.

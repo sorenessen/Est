@@ -19,6 +19,7 @@ import {
   sphereDirectionToGeographicDegrees,
   type CubeFace,
   type CubeSphereRadialOffset,
+  type CubeSphereSurfaceNormal,
 } from './planet/cube-sphere'
 
 import {
@@ -213,6 +214,9 @@ const terrainStatus =
 let terrainRadialOffset:
   CubeSphereRadialOffset | undefined
 
+let terrainNormalAtDirection:
+  CubeSphereSurfaceNormal | undefined
+
 if (sessionId) {
   const api =
     new EstApi('/api')
@@ -329,6 +333,44 @@ if (sessionId) {
         ) /
         meanRadiusMeters
       )
+    }
+
+  terrainNormalAtDirection =
+    direction => {
+      const coordinate =
+        sphereDirectionToGeographicDegrees(
+          direction,
+        )
+
+      const sample =
+        heightField.sampleSurfaceMeters(
+          coordinate.latitudeDegrees,
+          coordinate.longitudeDegrees,
+        )
+
+      const renderRadius =
+        1 +
+        sample.elevationMeters /
+          meanRadiusMeters
+
+      const gradientScale =
+        meanRadiusMeters *
+        renderRadius
+
+      return {
+        x:
+          direction.x -
+          sample.gradientMetersPerUnit.x /
+            gradientScale,
+        y:
+          direction.y -
+          sample.gradientMetersPerUnit.y /
+            gradientScale,
+        z:
+          direction.z -
+          sample.gradientMetersPerUnit.z /
+            gradientScale,
+      }
     }
 
   if (terrainStatus) {
@@ -448,6 +490,7 @@ function createPatchMesh(
       bounds.vMax,
       stitchEdges,
       terrainRadialOffset,
+      terrainNormalAtDirection,
     )
 
   const mesh =
