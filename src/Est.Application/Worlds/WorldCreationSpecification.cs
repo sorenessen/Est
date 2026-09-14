@@ -10,7 +10,15 @@ public sealed record PlanetCreationSpecification(
     PlanetEnvironmentCreationSpecification Environment,
     SyntheticPopulationCreationSpecification? SyntheticPopulation = null,
     SyntheticFoodCreationSpecification? SyntheticFood = null,
-    SyntheticAnimalCreationSpecification? SyntheticAnimals = null);
+    SyntheticAnimalCreationSpecification? SyntheticAnimals = null,
+    GeneratedTerrainCreationSpecification? GeneratedTerrain = null);
+
+public sealed record GeneratedTerrainCreationSpecification(
+    int Seed,
+    int LatitudeBandCount = 72,
+    int LongitudeBandCount = 144,
+    int PlateCount = 24,
+    double ContinentalPlateFraction = 0.45);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,

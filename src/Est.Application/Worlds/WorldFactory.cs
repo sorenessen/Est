@@ -2,6 +2,8 @@ using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -51,13 +53,30 @@ public static class WorldFactory
                                 .SyntheticAnimals))
                 .ToArray();
 
+        var terrain =
+            specification.Planets
+                .Select(
+                    (planetSpecification, index) =>
+                        CreateTerrain(
+                            planets[index],
+                            planetSpecification
+                                .GeneratedTerrain))
+                .Where(
+                    item =>
+                        item is not null)
+                .Select(
+                    item =>
+                        item!)
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
             planets,
             population,
             foodResources,
-            animals);
+            animals,
+            terrain);
     }
 
     private static PlanetState CreatePlanet(
@@ -83,6 +102,32 @@ public static class WorldFactory
                 new AtmosphereState(
                     atmosphere.SurfacePressurePascals,
                     atmosphere.CompositionByMoleFraction)));
+    }
+
+    private static PlanetTerrainState? CreateTerrain(
+        PlanetState planet,
+        GeneratedTerrainCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return null;
+        }
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                specification.LatitudeBandCount,
+                specification.LongitudeBandCount);
+
+        var parameters =
+            new TectonicTerrainGenerationParameters(
+                gridDefinition,
+                specification.Seed,
+                specification.PlateCount,
+                specification.ContinentalPlateFraction);
+
+        return TectonicTerrainGenerator.Generate(
+            planet,
+            parameters);
     }
 
     private static IEnumerable<AnimalState> CreateAnimals(
