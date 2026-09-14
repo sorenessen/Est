@@ -249,7 +249,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [ ] Generate deterministic tectonic-informed planet-scale topography from a seed.
 - [ ] Derive land/ocean classification from elevation and reference level.
 - [ ] Derive slope and downhill-neighbor topology for drainage.
-- [ ] Preserve terrain through world copy, fork, snapshot, and archive.
+- [x] Preserve terrain through world copy, fork, snapshot, and archive.
 - [ ] Define durable per-cell hydrology state.
 - [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [ ] Define explicit hydrology model policy in `SimulationDefinition`.

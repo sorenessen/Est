@@ -7,6 +7,8 @@ using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
+using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -33,6 +35,115 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             timeline.CurrentWorld.CurrentTime,
             restored.Timeline.CurrentWorld.CurrentTime);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesTerrainInCurrentWorldAndCheckpoints()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Generated World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters:
+                                index * 100 - 1_500)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(100),
+                [planet],
+                [],
+                [],
+                [],
+                [terrain]);
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var step =
+            new SimulationStepResult(
+                world.AdvanceBy(60),
+                new SimulationChange(
+                    new AdvanceTimeOperation(0),
+                    "terrain-test-step",
+                    "Terrain persistence test.",
+                    planet.Id,
+                    60));
+
+        timeline =
+            timeline
+                .RecordStep(step)
+                .CreateCheckpoint();
+
+        var restored =
+            RoundTrip(
+                timeline);
+
+        var restoredCurrentTerrain =
+            Assert.Single(
+                restored.Timeline
+                    .CurrentWorld
+                    .Terrain);
+
+        Assert.Equal(
+            terrain.PlanetId,
+            restoredCurrentTerrain.PlanetId);
+
+        Assert.Equal(
+            terrain.GridDefinition,
+            restoredCurrentTerrain.GridDefinition);
+
+        Assert.True(
+            terrain.Cells.SequenceEqual(
+                restoredCurrentTerrain.Cells));
+
+        Assert.All(
+            restored.Timeline.Checkpoints,
+            checkpoint =>
+            {
+                var restoredCheckpointTerrain =
+                    Assert.Single(
+                        checkpoint.World.Terrain);
+
+                Assert.Equal(
+                    terrain.PlanetId,
+                    restoredCheckpointTerrain.PlanetId);
+
+                Assert.Equal(
+                    terrain.GridDefinition,
+                    restoredCheckpointTerrain.GridDefinition);
+
+                Assert.True(
+                    terrain.Cells.SequenceEqual(
+                        restoredCheckpointTerrain.Cells));
+            });
     }
 
     [Fact]

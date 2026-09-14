@@ -3,6 +3,8 @@ using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -10,7 +12,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -18,6 +20,7 @@ public static class WorldSnapshotSerializer
     private const int RenewableFoodSchemaVersion = 5;
     private const int AnimalSchemaVersion = 6;
     private const int PregnancySchemaVersion = 7;
+    private const int TerrainSchemaVersion = 8;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -48,6 +51,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             Animals = world.Animals
                 .Select(ToSnapshot)
+                .ToArray(),
+            Terrain = world.Terrain
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -77,6 +83,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != FoodSchemaVersion &&
             snapshot.SchemaVersion != RenewableFoodSchemaVersion &&
             snapshot.SchemaVersion != AnimalSchemaVersion &&
+            snapshot.SchemaVersion != PregnancySchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -160,13 +167,99 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetTerrainState[] terrain;
+
+        if (snapshot.SchemaVersion <
+            TerrainSchemaVersion)
+        {
+            terrain = [];
+        }
+        else
+        {
+            if (snapshot.Terrain is null)
+            {
+                throw new JsonException(
+                    "Snapshot terrain collection is required.");
+            }
+
+            terrain = snapshot.Terrain
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
             planets,
             population,
             foodResources,
-            animals);
+            animals,
+            terrain);
+    }
+
+    private static PlanetTerrainSnapshot ToSnapshot(
+        PlanetTerrainState terrain)
+    {
+        return new PlanetTerrainSnapshot
+        {
+            PlanetId = terrain.PlanetId.Value,
+            GridDefinition =
+                new SurfaceGridDefinitionSnapshot
+                {
+                    Kind =
+                        terrain.GridDefinition.Kind,
+                    IdentityVersion =
+                        terrain.GridDefinition.IdentityVersion,
+                    LatitudeBandCount =
+                        terrain.GridDefinition.LatitudeBandCount,
+                    LongitudeBandCount =
+                        terrain.GridDefinition.LongitudeBandCount
+                },
+            Cells = terrain.Cells
+                .Select(
+                    cell =>
+                        new TerrainCellSnapshot
+                        {
+                            SurfaceCellId =
+                                cell.CellId.Value,
+                            ElevationMeters =
+                                cell.ElevationMeters
+                        })
+                .ToArray()
+        };
+    }
+
+    private static PlanetTerrainState FromSnapshot(
+        PlanetTerrainSnapshot snapshot)
+    {
+        if (snapshot.GridDefinition is null)
+        {
+            throw new JsonException(
+                "Terrain surface-grid definition is required.");
+        }
+
+        if (snapshot.Cells is null)
+        {
+            throw new JsonException(
+                "Terrain cells collection is required.");
+        }
+
+        var gridDefinition =
+            new SurfaceGridDefinition(
+                snapshot.GridDefinition.Kind,
+                snapshot.GridDefinition.IdentityVersion,
+                snapshot.GridDefinition.LatitudeBandCount,
+                snapshot.GridDefinition.LongitudeBandCount);
+
+        return new PlanetTerrainState(
+            new PlanetId(snapshot.PlanetId),
+            gridDefinition,
+            snapshot.Cells.Select(
+                cell =>
+                    new TerrainCellState(
+                        new SurfaceCellId(
+                            cell.SurfaceCellId),
+                        cell.ElevationMeters)));
     }
 
     private static AnimalSnapshot ToSnapshot(
@@ -446,6 +539,39 @@ public static class WorldSnapshotSerializer
         public PersonSnapshot[]? Population { get; set; }
         public FoodResourceSnapshot[]? FoodResources { get; set; }
         public AnimalSnapshot[]? Animals { get; set; }
+        public PlanetTerrainSnapshot[]? Terrain { get; set; }
+    }
+
+    private sealed class PlanetTerrainSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SurfaceGridDefinitionSnapshot
+            GridDefinition
+        {
+            get;
+            set;
+        }
+
+        public required TerrainCellSnapshot[] Cells
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class SurfaceGridDefinitionSnapshot
+    {
+        public required SurfaceGridKind Kind { get; set; }
+        public required int IdentityVersion { get; set; }
+        public required int LatitudeBandCount { get; set; }
+        public required int LongitudeBandCount { get; set; }
+    }
+
+    private sealed class TerrainCellSnapshot
+    {
+        public required Guid SurfaceCellId { get; set; }
+        public required double ElevationMeters { get; set; }
     }
 
     private sealed class AnimalSnapshot

@@ -5,6 +5,8 @@ using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -810,6 +812,126 @@ public class WorldSnapshotSerializerTests
 
         Assert.Throws<ArgumentOutOfRangeException>(
             () => WorldSnapshotSerializer.Deserialize(json));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesTerrain()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Generated World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters:
+                                index * 125 - 2_000)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(12_345),
+                [planet],
+                [],
+                [],
+                [],
+                [terrain]);
+
+        var json =
+            WorldSnapshotSerializer.Serialize(
+                world);
+
+        Assert.Contains(
+            "\"schemaVersion\": 8",
+            json,
+            StringComparison.Ordinal);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                json);
+
+        var restoredTerrain =
+            Assert.Single(
+                restored.Terrain);
+
+        Assert.Equal(
+            terrain.PlanetId,
+            restoredTerrain.PlanetId);
+
+        Assert.Equal(
+            terrain.GridDefinition,
+            restoredTerrain.GridDefinition);
+
+        Assert.True(
+            terrain.Cells.SequenceEqual(
+                restoredTerrain.Cells));
+
+        restoredTerrain.ValidateFor(
+            Assert.Single(
+                restored.Planets));
+    }
+
+    [Fact]
+    public void Deserialize_VersionSevenGetsEmptyTerrain()
+    {
+        var world =
+            CreateVacuumWorld();
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 7;
+        node.Remove("terrain");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Terrain);
+    }
+
+    [Fact]
+    public void Deserialize_VersionEightRequiresTerrain()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node.Remove("terrain");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     private static WorldState CreateVacuumWorld()
