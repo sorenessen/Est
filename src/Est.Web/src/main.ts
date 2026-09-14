@@ -16,9 +16,16 @@ import {
 
 import {
   CUBE_FACES,
-  createCubeSphereFaceGeometry,
+  createCubeSpherePatchGeometry,
   type CubeFace,
 } from './planet/cube-sphere'
+
+import {
+  patchBounds,
+  patchKey,
+  patchesAtLevel,
+  type PlanetPatch,
+} from './planet/planet-quadtree'
 
 const app =
   document.querySelector<HTMLDivElement>(
@@ -39,7 +46,7 @@ app.innerHTML = `
 
   <div class="planet-foundation-status">
     <strong>Est Planet Renderer</strong>
-    <span>R1 · six-face cube-sphere</span>
+    <span>R2 · uniform quadtree patches · level 2</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
 `
@@ -180,26 +187,40 @@ const showFaceDiagnostics =
     window.location.search,
   ).get('faces') === '1'
 
-function createFaceMaterial(
-  face: CubeFace,
+const patchLevel = 2
+const segmentsPerPatch = 8
+
+function createPatchMaterial(
+  patch: PlanetPatch,
 ): StandardMaterial {
   if (!showFaceDiagnostics) {
     return sharedSurface
   }
 
+  const base =
+    diagnosticFaceColors[
+      patch.face
+    ]
+
+  const checker =
+    (patch.x + patch.y) % 2
+
+  const factor =
+    checker === 0
+      ? 0.78
+      : 1.05
+
   const material =
     new StandardMaterial(
-      `cube-sphere-${face}-material`,
+      `cube-sphere-${patchKey(patch)}-material`,
       scene,
     )
 
   material.diffuseColor =
-    diagnosticFaceColors[face]
+    base.scale(factor)
 
   material.emissiveColor =
-    diagnosticFaceColors[
-      face
-    ].scale(0.035)
+    base.scale(0.03)
 
   material.specularColor =
     Color3.Black()
@@ -207,42 +228,57 @@ function createFaceMaterial(
   return material
 }
 
-const segmentsPerFace = 32
-
 for (const face of CUBE_FACES) {
-  const geometry =
-    createCubeSphereFaceGeometry(
-      face,
-      segmentsPerFace,
+  for (
+    const patch of
+      patchesAtLevel(
+        face,
+        patchLevel,
+      )
+  ) {
+    const bounds =
+      patchBounds(patch)
+
+    const geometry =
+      createCubeSpherePatchGeometry(
+        face,
+        segmentsPerPatch,
+        bounds.uMin,
+        bounds.uMax,
+        bounds.vMin,
+        bounds.vMax,
+      )
+
+    const mesh =
+      new Mesh(
+        `cube-sphere-${patchKey(patch)}`,
+        scene,
+      )
+
+    const vertexData =
+      new VertexData()
+
+    vertexData.positions =
+      geometry.positions
+
+    vertexData.indices =
+      geometry.indices
+
+    vertexData.normals =
+      geometry.normals
+
+    vertexData.applyToMesh(
+      mesh,
+      false,
     )
 
-  const mesh =
-    new Mesh(
-      `cube-sphere-${face}`,
-      scene,
-    )
+    mesh.material =
+      createPatchMaterial(
+        patch,
+      )
 
-  const vertexData =
-    new VertexData()
-
-  vertexData.positions =
-    geometry.positions
-
-  vertexData.indices =
-    geometry.indices
-
-  vertexData.normals =
-    geometry.normals
-
-  vertexData.applyToMesh(
-    mesh,
-    false,
-  )
-
-  mesh.material =
-    createFaceMaterial(face)
-
-  mesh.isPickable = false
+    mesh.isPickable = false
+  }
 }
 
 engine.runRenderLoop(() => {

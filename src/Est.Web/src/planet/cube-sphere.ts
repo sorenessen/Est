@@ -135,9 +135,13 @@ function appendOutwardTriangle(
   indices.push(a, c, b)
 }
 
-export function createCubeSphereFaceGeometry(
+export function createCubeSpherePatchGeometry(
   face: CubeFace,
   segments: number,
+  uMin: number,
+  uMax: number,
+  vMin: number,
+  vMax: number,
 ): CubeSphereFaceGeometry {
   if (
     !Number.isInteger(segments) ||
@@ -160,8 +164,9 @@ export function createCubeSphereFaceGeometry(
     row += 1
   ) {
     const v =
-      -1 +
-      (row / segments) * 2
+      vMin +
+      (row / segments) *
+        (vMax - vMin)
 
     for (
       let column = 0;
@@ -169,8 +174,9 @@ export function createCubeSphereFaceGeometry(
       column += 1
     ) {
       const u =
-        -1 +
-        (column / segments) * 2
+        uMin +
+        (column / segments) *
+          (uMax - uMin)
 
       const cubePoint =
         cubeFacePoint(face, u, v)
@@ -243,4 +249,18 @@ export function createCubeSphereFaceGeometry(
     indices,
     normals,
   }
+}
+
+export function createCubeSphereFaceGeometry(
+  face: CubeFace,
+  segments: number,
+): CubeSphereFaceGeometry {
+  return createCubeSpherePatchGeometry(
+    face,
+    segments,
+    -1,
+    1,
+    -1,
+    1,
+  )
 }
