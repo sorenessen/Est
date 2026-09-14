@@ -2,6 +2,7 @@ using System.Text.Json;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -11,7 +12,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
+    private const int HydrologyModelSchemaVersion = 5;
     private const int ReproductiveBehaviorSchemaVersion = 4;
     private const int PopulationModelSchemaVersion = 3;
     private const int DefinitionSchemaVersion = 2;
@@ -99,6 +101,7 @@ public static class TimelineArchiveSerializer
         if (archive.SchemaVersion != LegacySchemaVersion &&
             archive.SchemaVersion != DefinitionSchemaVersion &&
             archive.SchemaVersion != PopulationModelSchemaVersion &&
+            archive.SchemaVersion != ReproductiveBehaviorSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -355,6 +358,52 @@ public static class TimelineArchiveSerializer
                                             model.Parameters.GestationDays
                                     }
                             })
+                    .ToArray(),
+            HydrologyModels =
+                definition.HydrologyModels
+                    .Select(
+                        model =>
+                            new HydrologyModelSnapshot
+                            {
+                                PlanetId = model.PlanetId.Value,
+                                Parameters =
+                                    new HydrologyModelParametersSnapshot
+                                    {
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        MaximumEvaporationRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumEvaporationRateKilogramsPerSquareMeterPerDay,
+                                        AtmosphericPrecipitationThresholdKilogramsPerSquareMeter =
+                                            model.Parameters
+                                                .AtmosphericPrecipitationThresholdKilogramsPerSquareMeter,
+                                        MaximumPrecipitationRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumPrecipitationRateKilogramsPerSquareMeterPerDay,
+                                        SoilWaterCapacityKilogramsPerSquareMeter =
+                                            model.Parameters
+                                                .SoilWaterCapacityKilogramsPerSquareMeter,
+                                        MaximumInfiltrationRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumInfiltrationRateKilogramsPerSquareMeterPerDay,
+                                        MaximumRunoffRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumRunoffRateKilogramsPerSquareMeterPerDay,
+                                        FreezingTemperatureKelvin =
+                                            model.Parameters
+                                                .FreezingTemperatureKelvin,
+                                        MeltingTemperatureKelvin =
+                                            model.Parameters
+                                                .MeltingTemperatureKelvin,
+                                        MaximumFreezingRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumFreezingRateKilogramsPerSquareMeterPerDay,
+                                        MaximumMeltingRateKilogramsPerSquareMeterPerDay =
+                                            model.Parameters
+                                                .MaximumMeltingRateKilogramsPerSquareMeterPerDay
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -468,9 +517,65 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        HydrologyModelDefinition[] hydrologyModels;
+
+        if (schemaVersion <
+            HydrologyModelSchemaVersion)
+        {
+            hydrologyModels = [];
+        }
+        else
+        {
+            if (snapshot.HydrologyModels is null)
+            {
+                throw new JsonException(
+                    "Hydrology model collection is required.");
+            }
+
+            hydrologyModels =
+                snapshot.HydrologyModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Hydrology model parameters are required.");
+                            }
+
+                            return new HydrologyModelDefinition(
+                                new PlanetId(model.PlanetId),
+                                new HydrologyModelParameters(
+                                    model.Parameters
+                                        .MaximumIntegrationStepSeconds,
+                                    model.Parameters
+                                        .MaximumEvaporationRateKilogramsPerSquareMeterPerDay,
+                                    model.Parameters
+                                        .AtmosphericPrecipitationThresholdKilogramsPerSquareMeter,
+                                    model.Parameters
+                                        .MaximumPrecipitationRateKilogramsPerSquareMeterPerDay,
+                                    model.Parameters
+                                        .SoilWaterCapacityKilogramsPerSquareMeter,
+                                    model.Parameters
+                                        .MaximumInfiltrationRateKilogramsPerSquareMeterPerDay,
+                                    model.Parameters
+                                        .MaximumRunoffRateKilogramsPerSquareMeterPerDay,
+                                    model.Parameters
+                                        .FreezingTemperatureKelvin,
+                                    model.Parameters
+                                        .MeltingTemperatureKelvin,
+                                    model.Parameters
+                                        .MaximumFreezingRateKilogramsPerSquareMeterPerDay,
+                                    model.Parameters
+                                        .MaximumMeltingRateKilogramsPerSquareMeterPerDay));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
-            populationModels);
+            populationModels,
+            hydrologyModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -532,6 +637,85 @@ public static class TimelineArchiveSerializer
             PlanetaryEnergyBalanceModels { get; set; }
 
         public PopulationModelSnapshot[]? PopulationModels { get; set; }
+
+        public HydrologyModelSnapshot[]? HydrologyModels { get; set; }
+    }
+
+    private sealed class HydrologyModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required HydrologyModelParametersSnapshot
+            Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class HydrologyModelParametersSnapshot
+    {
+        public required long MaximumIntegrationStepSeconds { get; set; }
+
+        public required double
+            MaximumEvaporationRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            AtmosphericPrecipitationThresholdKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            MaximumPrecipitationRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SoilWaterCapacityKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            MaximumInfiltrationRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            MaximumRunoffRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
+
+        public required double FreezingTemperatureKelvin { get; set; }
+
+        public required double MeltingTemperatureKelvin { get; set; }
+
+        public required double
+            MaximumFreezingRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            MaximumMeltingRateKilogramsPerSquareMeterPerDay
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class PopulationModelSnapshot

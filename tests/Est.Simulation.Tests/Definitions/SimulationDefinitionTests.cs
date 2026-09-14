@@ -1,5 +1,6 @@
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -19,6 +20,10 @@ public class SimulationDefinitionTests
         Assert.Empty(
             SimulationDefinition.Empty
                 .PopulationModels);
+
+        Assert.Empty(
+            SimulationDefinition.Empty
+                .HydrologyModels);
     }
 
     [Fact]
@@ -165,6 +170,101 @@ public class SimulationDefinitionTests
         Assert.Throws<ArgumentException>(
             () => definition.ValidateFor(
                 CreateWorld(PlanetId.New())));
+    }
+
+    [Fact]
+    public void Constructor_PreservesConfiguredHydrologyModel()
+    {
+        var planetId =
+            PlanetId.New();
+
+        var model =
+            new HydrologyModelDefinition(
+                planetId,
+                new HydrologyModelParameters(
+                    maximumIntegrationStepSeconds: 3_600,
+                    maximumEvaporationRateKilogramsPerSquareMeterPerDay: 5,
+                    atmosphericPrecipitationThresholdKilogramsPerSquareMeter: 18,
+                    maximumPrecipitationRateKilogramsPerSquareMeterPerDay: 14,
+                    soilWaterCapacityKilogramsPerSquareMeter: 175,
+                    maximumInfiltrationRateKilogramsPerSquareMeterPerDay: 22,
+                    maximumRunoffRateKilogramsPerSquareMeterPerDay: 28,
+                    freezingTemperatureKelvin: 272.5,
+                    meltingTemperatureKelvin: 274,
+                    maximumFreezingRateKilogramsPerSquareMeterPerDay: 21,
+                    maximumMeltingRateKilogramsPerSquareMeterPerDay: 23));
+
+        var definition =
+            new SimulationDefinition(
+                hydrologyModels:
+                [
+                    model
+                ]);
+
+        Assert.Same(
+            model,
+            Assert.Single(
+                definition.HydrologyModels));
+    }
+
+    [Fact]
+    public void Constructor_RejectsDuplicateHydrologyModelForPlanet()
+    {
+        var planetId =
+            PlanetId.New();
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                new SimulationDefinition(
+                    hydrologyModels:
+                    [
+                        new HydrologyModelDefinition(
+                            planetId,
+                            new HydrologyModelParameters()),
+                        new HydrologyModelDefinition(
+                            planetId,
+                            new HydrologyModelParameters())
+                    ]));
+    }
+
+    [Fact]
+    public void ValidateFor_RejectsHydrologyModelForUnknownPlanet()
+    {
+        var definition =
+            new SimulationDefinition(
+                hydrologyModels:
+                [
+                    new HydrologyModelDefinition(
+                        PlanetId.New(),
+                        new HydrologyModelParameters())
+                ]);
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                definition.ValidateFor(
+                    CreateWorld(
+                        PlanetId.New())));
+    }
+
+    [Fact]
+    public void HydrologyParameters_RejectInvalidPolicy()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new HydrologyModelParameters(
+                    maximumIntegrationStepSeconds: 0));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new HydrologyModelParameters(
+                    maximumRunoffRateKilogramsPerSquareMeterPerDay:
+                        double.NaN));
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                new HydrologyModelParameters(
+                    freezingTemperatureKelvin: 275,
+                    meltingTemperatureKelvin: 274));
     }
 
     private static WorldState CreateWorld(PlanetId planetId)

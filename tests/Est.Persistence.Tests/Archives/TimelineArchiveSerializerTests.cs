@@ -473,6 +473,140 @@ public class TimelineArchiveSerializerTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesHydrologyModelDefinition()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var parameters =
+            new HydrologyModelParameters(
+                maximumIntegrationStepSeconds: 3_600,
+                maximumEvaporationRateKilogramsPerSquareMeterPerDay: 5,
+                atmosphericPrecipitationThresholdKilogramsPerSquareMeter: 18,
+                maximumPrecipitationRateKilogramsPerSquareMeterPerDay: 14,
+                soilWaterCapacityKilogramsPerSquareMeter: 175,
+                maximumInfiltrationRateKilogramsPerSquareMeterPerDay: 22,
+                maximumRunoffRateKilogramsPerSquareMeterPerDay: 28,
+                freezingTemperatureKelvin: 272.5,
+                meltingTemperatureKelvin: 274,
+                maximumFreezingRateKilogramsPerSquareMeterPerDay: 21,
+                maximumMeltingRateKilogramsPerSquareMeterPerDay: 23);
+
+        var definition =
+            new SimulationDefinition(
+                hydrologyModels:
+                [
+                    new HydrologyModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()));
+
+        var model =
+            Assert.Single(
+                restored.Definition.HydrologyModels);
+
+        Assert.Equal(
+            planet.Id,
+            model.PlanetId);
+
+        Assert.Equal(
+            parameters,
+            model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFourDefaultsHydrologyModelsToEmpty()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["schemaVersion"] = 4;
+
+        node["definition"]!
+            .AsObject()
+            .Remove("hydrologyModels");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Definition.HydrologyModels);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFiveRequiresHydrologyModels()
+    {
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                CreateTimelineWithHistory(),
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()
+            .Remove("hydrologyModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
     public void Deserialize_Version3ArchiveUsesDefaultReproductiveBehavior()
     {
         var planet =

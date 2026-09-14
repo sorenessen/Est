@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Population;
 using Est.Simulation.Worlds;
 
@@ -8,7 +9,8 @@ public sealed record SimulationDefinition
 {
     public SimulationDefinition(
         IEnumerable<PlanetaryEnergyBalanceModelDefinition>? planetaryEnergyBalanceModels = null,
-        IEnumerable<PopulationModelDefinition>? populationModels = null)
+        IEnumerable<PopulationModelDefinition>? populationModels = null,
+        IEnumerable<HydrologyModelDefinition>? hydrologyModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -17,6 +19,10 @@ public sealed record SimulationDefinition
         var population = populationModels?
             .ToImmutableArray()
             ?? ImmutableArray<PopulationModelDefinition>.Empty;
+
+        var hydrology = hydrologyModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<HydrologyModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -30,6 +36,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null population model definitions.",
                 nameof(populationModels));
+        }
+
+        if (hydrology.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null hydrology model definitions.",
+                nameof(hydrologyModels));
         }
 
         if (models
@@ -50,8 +63,18 @@ public sealed record SimulationDefinition
                 nameof(populationModels));
         }
 
+        if (hydrology
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one hydrology model definition.",
+                nameof(hydrologyModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
+        HydrologyModels = hydrology;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -59,6 +82,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<PopulationModelDefinition>
         PopulationModels { get; }
+
+    public ImmutableArray<HydrologyModelDefinition>
+        HydrologyModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -86,6 +112,16 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Population model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in HydrologyModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Hydrology model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
                     nameof(world));
             }
         }
