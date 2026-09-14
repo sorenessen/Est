@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -865,7 +866,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 8",
+            "\"schemaVersion\": 9",
             json,
             StringComparison.Ordinal);
 
@@ -892,6 +893,140 @@ public class WorldSnapshotSerializerTests
         restoredTerrain.ValidateFor(
             Assert.Single(
                 restored.Planets));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesHydrology()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Water World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            index * 100 - 1_000)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                2 + index * 0.01,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                100 + index,
+                            soilWaterKilogramsPerSquareMeter:
+                                25 + index * 0.5,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                index % 3)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(12_345),
+                [planet],
+                [],
+                [],
+                [],
+                [terrain],
+                [hydrology]);
+
+        var json =
+            WorldSnapshotSerializer.Serialize(
+                world);
+
+        Assert.Contains(
+            "\"schemaVersion\": 9",
+            json,
+            StringComparison.Ordinal);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                json);
+
+        var restoredHydrology =
+            Assert.Single(
+                restored.Hydrology);
+
+        Assert.Equal(
+            hydrology.PlanetId,
+            restoredHydrology.PlanetId);
+
+        Assert.Equal(
+            hydrology.GridDefinition,
+            restoredHydrology.GridDefinition);
+
+        Assert.True(
+            hydrology.Cells.SequenceEqual(
+                restoredHydrology.Cells));
+
+        restoredHydrology.ValidateFor(
+            Assert.Single(
+                restored.Planets));
+    }
+
+    [Fact]
+    public void Deserialize_VersionEightGetsEmptyHydrology()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node["schemaVersion"] = 8;
+        node.Remove("hydrology");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Hydrology);
+    }
+
+    [Fact]
+    public void Deserialize_VersionNineRequiresHydrology()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node.Remove("hydrology");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

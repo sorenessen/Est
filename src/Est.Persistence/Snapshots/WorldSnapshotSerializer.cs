@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -12,7 +13,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -21,6 +22,7 @@ public static class WorldSnapshotSerializer
     private const int AnimalSchemaVersion = 6;
     private const int PregnancySchemaVersion = 7;
     private const int TerrainSchemaVersion = 8;
+    private const int HydrologySchemaVersion = 9;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -54,6 +56,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             Terrain = world.Terrain
                 .Select(ToSnapshot)
+                .ToArray(),
+            Hydrology = world.Hydrology
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -84,6 +89,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != RenewableFoodSchemaVersion &&
             snapshot.SchemaVersion != AnimalSchemaVersion &&
             snapshot.SchemaVersion != PregnancySchemaVersion &&
+            snapshot.SchemaVersion != TerrainSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -187,6 +193,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetHydrologyState[] hydrology;
+
+        if (snapshot.SchemaVersion <
+            HydrologySchemaVersion)
+        {
+            hydrology = [];
+        }
+        else
+        {
+            if (snapshot.Hydrology is null)
+            {
+                throw new JsonException(
+                    "Snapshot hydrology collection is required.");
+            }
+
+            hydrology = snapshot.Hydrology
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -194,7 +220,82 @@ public static class WorldSnapshotSerializer
             population,
             foodResources,
             animals,
-            terrain);
+            terrain,
+            hydrology);
+    }
+
+    private static PlanetHydrologySnapshot ToSnapshot(
+        PlanetHydrologyState hydrology)
+    {
+        return new PlanetHydrologySnapshot
+        {
+            PlanetId = hydrology.PlanetId.Value,
+            GridDefinition =
+                new SurfaceGridDefinitionSnapshot
+                {
+                    Kind =
+                        hydrology.GridDefinition.Kind,
+                    IdentityVersion =
+                        hydrology.GridDefinition.IdentityVersion,
+                    LatitudeBandCount =
+                        hydrology.GridDefinition.LatitudeBandCount,
+                    LongitudeBandCount =
+                        hydrology.GridDefinition.LongitudeBandCount
+                },
+            Cells = hydrology.Cells
+                .Select(
+                    cell =>
+                        new HydrologyCellSnapshot
+                        {
+                            SurfaceCellId =
+                                cell.CellId.Value,
+                            AtmosphericWaterKilogramsPerSquareMeter =
+                                cell.AtmosphericWaterKilogramsPerSquareMeter,
+                            SurfaceLiquidWaterKilogramsPerSquareMeter =
+                                cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+                            SoilWaterKilogramsPerSquareMeter =
+                                cell.SoilWaterKilogramsPerSquareMeter,
+                            SnowIceWaterEquivalentKilogramsPerSquareMeter =
+                                cell.SnowIceWaterEquivalentKilogramsPerSquareMeter
+                        })
+                .ToArray()
+        };
+    }
+
+    private static PlanetHydrologyState FromSnapshot(
+        PlanetHydrologySnapshot snapshot)
+    {
+        if (snapshot.GridDefinition is null)
+        {
+            throw new JsonException(
+                "Hydrology surface-grid definition is required.");
+        }
+
+        if (snapshot.Cells is null)
+        {
+            throw new JsonException(
+                "Hydrology cells collection is required.");
+        }
+
+        var gridDefinition =
+            new SurfaceGridDefinition(
+                snapshot.GridDefinition.Kind,
+                snapshot.GridDefinition.IdentityVersion,
+                snapshot.GridDefinition.LatitudeBandCount,
+                snapshot.GridDefinition.LongitudeBandCount);
+
+        return new PlanetHydrologyState(
+            new PlanetId(snapshot.PlanetId),
+            gridDefinition,
+            snapshot.Cells.Select(
+                cell =>
+                    new HydrologyCellState(
+                        new SurfaceCellId(
+                            cell.SurfaceCellId),
+                        cell.AtmosphericWaterKilogramsPerSquareMeter,
+                        cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+                        cell.SoilWaterKilogramsPerSquareMeter,
+                        cell.SnowIceWaterEquivalentKilogramsPerSquareMeter)));
     }
 
     private static PlanetTerrainSnapshot ToSnapshot(
@@ -540,6 +641,58 @@ public static class WorldSnapshotSerializer
         public FoodResourceSnapshot[]? FoodResources { get; set; }
         public AnimalSnapshot[]? Animals { get; set; }
         public PlanetTerrainSnapshot[]? Terrain { get; set; }
+        public PlanetHydrologySnapshot[]? Hydrology { get; set; }
+    }
+
+    private sealed class PlanetHydrologySnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SurfaceGridDefinitionSnapshot
+            GridDefinition
+        {
+            get;
+            set;
+        }
+
+        public required HydrologyCellSnapshot[] Cells
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class HydrologyCellSnapshot
+    {
+        public required Guid SurfaceCellId { get; set; }
+
+        public required double
+            AtmosphericWaterKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SurfaceLiquidWaterKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SoilWaterKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SnowIceWaterEquivalentKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class PlanetTerrainSnapshot
