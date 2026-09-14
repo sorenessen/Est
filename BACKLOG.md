@@ -175,26 +175,116 @@ Goal:
 
 See Est.
 
-Candidate client:
+Production client direction:
 
-TypeScript web application with Babylon.js or another browser-native renderer selected after a focused technical spike.
+TypeScript web application with Babylon.js as the first production planetary
+renderer.
+
+Cesium is retained only as historical/evaluation evidence. ADR 0006 records
+the renderer reset and the explicit separation between simulation spatial
+resolution and render spatial resolution.
+
+Earlier Cesium work proved that a browser-hosted globe, authoritative API
+integration, orbit/zoom interaction, local geometry, and multi-scale
+presentation are feasible. Those proofs remain useful, but their rendering
+implementation is not the production foundation.
 
 - [x] Create Est.Web
-- [x] Render large 3D planet
-- [x] Orbit camera
-- [x] Zoom controls
-- [ ] Basic lighting
-- [ ] Basic generated or placeholder surface
-- [x] Fetch authoritative world state from API
-- [x] Display core planetary values
+- [x] Prove browser-hosted 3D globe interaction in the evaluation renderer
+- [x] Prove authoritative world-state fetch and display
+- [x] Prove continuous authoritative simulation advancement in a globe view
+- [x] Prove authoritative population presentation and movement
+- [ ] Build the production Babylon planetary renderer
+- [ ] Add production-quality simulation time controls
 - [ ] Pause
 - [ ] User-selectable 1x
 - [ ] User-selectable 10x
 - [ ] User-selectable 100x
 - [ ] User-selectable 1000x
-- [x] Advance authoritative simulation continuously in the globe development view
-- [x] Visually reflect authoritative population state and movement
-- [ ] Add production-quality simulation time controls rather than relying on the current development heartbeat
+
+### Planetary renderer rebuild
+
+Architecture:
+
+`docs/architecture/0006-planetary-rendering-separation.md`
+
+Core rule:
+
+`simulation spatial resolution != render spatial resolution`
+
+The authoritative surface grid remains simulation state. It is not the
+finished terrain mesh, coastline geometry, imagery pixel grid, or render LOD
+structure.
+
+#### R1 - Babylon planetary foundation
+
+- [ ] Add a Babylon renderer entry point separate from the Cesium evaluation.
+- [ ] Define six renderer-owned cube faces.
+- [ ] Implement deterministic cube-to-sphere mapping.
+- [ ] Render one mathematically correct six-face sphere.
+- [ ] Support stable orbit, zoom, and resize.
+- [ ] Runtime-verify face orientation and continuity with no visible gaps.
+
+Do not connect authoritative terrain yet.
+
+#### R2 - Quadtree terrain patches
+
+- [ ] Introduce reusable regular terrain patches.
+- [ ] Add renderer-owned quadtree subdivision and merging.
+- [ ] Add view-dependent terrain LOD.
+- [ ] Preserve continuity between neighboring LOD levels.
+- [ ] Add frustum culling.
+- [ ] Add horizon culling.
+- [ ] Runtime-verify stable geometry with no disappearing sectors.
+- [ ] Runtime-verify no visible cube-face seams or quadtree cracks.
+
+#### R3 - Authoritative terrain sampling
+
+- [ ] Connect the renderer to Est-owned terrain sampling.
+- [ ] Sample authoritative macro terrain into render vertices.
+- [ ] Verify major terrain structure corresponds to authoritative Est state.
+- [ ] Preserve deterministic output from the same world and terrain seed.
+- [ ] Ensure authoritative surface-cell boundaries are not visible.
+- [ ] Keep any intermediate procedural visual detail explicitly
+      presentation-only.
+
+#### R4 - Materials, lighting, ocean, and atmosphere
+
+- [ ] Compute terrain normals from the rendered terrain surface.
+- [ ] Add Est-controlled terrain materials.
+- [ ] Add directional planetary lighting independent of Cesium assumptions.
+- [ ] Add a continuous ocean representation driven by authoritative water state.
+- [ ] Make visible shorelines emerge from terrain/water intersection rather
+      than hydrology-cell polygons.
+- [ ] Add atmosphere only after terrain, lighting, and water are runtime-green.
+
+#### R5 - Living-world presentation
+
+- [ ] Reconnect authoritative population presentation.
+- [ ] Reconnect authoritative animal and resource presentation as justified.
+- [ ] Select representations by view scale rather than rendering every
+      authoritative object identically at every distance.
+- [ ] Preserve `simulation truth -> API -> presentation`.
+- [ ] Do not infer simulation truth from renderer animation or procedural
+      decoration.
+
+#### R6 - Cesium retirement
+
+Only after the Babylon renderer passes its runtime gates:
+
+- [ ] Retarget normal Play Est flow to the production Babylon renderer.
+- [ ] Remove Cesium from the production application path.
+- [ ] Retain only Cesium evaluation artifacts that still provide useful
+      architectural evidence.
+- [ ] Remove obsolete Cesium-specific terrain, imagery, and water adapters.
+- [ ] Remove obsolete Cesium dependencies when no remaining evaluation path
+      requires them.
+- [ ] Update launcher and development documentation for the final renderer path.
+
+Renderer milestones require browser runtime validation.
+
+A green build or automated test suite does not override a failed visual runtime
+gate.
 
 ### Local development launcher
 
@@ -203,8 +293,10 @@ TypeScript web application with Babylon.js or another browser-native renderer se
 - [x] Launch API and Web in separate iTerm windows and wait for health.
 - [x] Reuse healthy Est-owned listeners without duplicate service windows.
 - [x] Refuse automatic termination or restart of occupied ports.
-- [x] Create a fresh Earth session and open Cesium from Play.
+- [x] Create a fresh Earth session and open the current globe client from Play.
 - [x] Validate cold-start Play from Sparrow and subsequent service reuse.
+- [ ] Retarget Play Est to the Babylon production renderer after R1 is
+      runtime-green.
 - [ ] Consider portable terminal integration if Est development expands beyond macOS.
 - [ ] Revisit durable session selection/resumption when the product requires it.
 
@@ -265,10 +357,13 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Add water mass-conservation telemetry and tests.
 - [x] Seed deterministic generated terrain and hydrology for the development planet.
 - [x] Expose authoritative hydrology through Est.Api.
-- [x] Add hydrology visualization after authoritative state is stable.
+- [x] Prove authoritative hydrology can be visualized after state is stable.
   - [x] Expose shared surface-cell geometry needed to locate hydrology cells.
-  - [x] Render authoritative surface-liquid state without coupling to opaque
-        cell identity or the static Earth-reference surface studies.
+  - [x] Prove renderer access to authoritative surface-liquid state.
+  - [x] Reject direct per-cell water polygons as a production representation
+        after runtime evaluation exposed simulation-grid coastlines.
+  - [ ] Re-present large standing-water bodies through the R4 continuous-ocean
+        renderer without changing authoritative hydrology ownership.
 - [ ] Build plant biomass on the shared surface substrate.
 - [ ] Replace synthetic food resources only after vegetation can preserve
       the existing population survival vertical slice.
@@ -433,7 +528,14 @@ These are intentionally not rejected. They are simply not allowed to distort Fir
 - Galaxy generation
 - Cross-universe travel
 
-### Olympia land-cover vertical slice
+### Olympia land-cover vertical slice (historical renderer evaluation)
+
+
+The following completed surface and Cesium experiments are retained as
+architectural evidence. They are not the active production-renderer path.
+New planetary rendering work follows ADR 0006 and the Phase 7 R1-R6 sequence
+above.
+
 
 - [x] Retrieve the 2025 Annual NLCD GeoTIFF from MRLC request `5a3e2c72-778a-4f3b-9c57-be4e7b1fef82`.
 - [x] Inspect CRS, bounds, resolution, NoData, categorical values, legend, and source provenance.
@@ -447,7 +549,7 @@ These are intentionally not rejected. They are simply not allowed to distort Fir
 - [x] Establish an Est-owned natural material presentation seam with deterministic geographic variation, independent of Cesium.
 - [ ] Evaluate water treatment, close-range quality, performance, and transitions at multiple scales.
 
-## Regional surface TMS follow-up
+## Regional surface TMS follow-up (historical renderer evaluation)
 
 - [x] Generate and validate a full-resolution regional geographic TMS pyramid.
 - [x] Integrate the pyramid as a fifth Cesium comparison mode.
@@ -467,7 +569,7 @@ These are intentionally not rejected. They are simply not allowed to distort Fir
 - [x] Conclude the raster-resolution escalation experiment: do not pursue additional Sentinel zoom levels, sharpening, interpolation, semantic tinting, or slope tuning as substitutes for local geometric detail.
 - [ ] Harden and test TMS publication rollback behavior.
 
-## Multi-scale presentation evaluation
+## Multi-scale presentation evaluation (historical renderer evaluation)
 
 The regional surface experiments established that no single representation
 should be expected to serve planetary, regional, city, and street scales.
