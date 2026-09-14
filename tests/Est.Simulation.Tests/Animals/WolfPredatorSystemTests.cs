@@ -9,16 +9,175 @@ namespace Est.Simulation.Tests.Animals;
 
 public sealed class WolfPredatorSystemTests
 {
+    private const long OneDaySeconds = 86_400;
+
     [Fact]
-    public void Step_WolfWithinAttackRadiusKillsNearestPerson()
+    public void Step_NonDesperateWolfDoesNotAttackNearbyHuman()
     {
         var planet = CreatePlanet();
 
         var person =
             CreatePerson(
                 planet.Id,
-                latitude: 10,
-                longitude: 20,
+                latitude: 0,
+                longitude: 0.05);
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.35);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Single(
+            result.World.Population);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            0.27,
+            changedWolf.EnergyReserve,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "wolfAttacks"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "predationDeaths"]);
+    }
+
+    [Fact]
+    public void Step_DesperateWolfDoesNotHomeTowardDistantHuman()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 2);
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                14 * OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Single(
+            result.World.Population);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            0,
+            changedWolf.LongitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "wolfAttacks"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "predationDeaths"]);
+    }
+
+    [Fact]
+    public void Step_HumanGroupDetersLoneWolf()
+    {
+        var planet = CreatePlanet();
+
+        var first =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.05);
+
+        var second =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.10);
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.01);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [first, second],
+                    [wolf]),
+                14 * OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Equal(
+            2,
+            result.World.Population.Length);
+
+        Assert.True(
+            result.Change.Metrics[
+                "avoidedEncounters"] >= 1);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "predationDeaths"]);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.True(
+            changedWolf.LongitudeDegrees < 0);
+    }
+
+    [Fact]
+    public void Step_StarvingWolfAtContactCanBeInjuredByHumanDefense()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.05,
                 id: new PersonId(
                     Guid.Parse(
                         "00000000-0000-0000-0000-000000000101")));
@@ -26,60 +185,99 @@ public sealed class WolfPredatorSystemTests
         var wolf =
             CreateWolf(
                 planet.Id,
-                latitude: 10.05,
-                longitude: 20.05,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0,
                 id: new AnimalId(
                     Guid.Parse(
                         "00000000-0000-0000-0000-000000000301")));
 
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
-
         var result =
             SimulationStepRunner.Step(
-                world,
-                86_400,
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                14 * OneDaySeconds,
                 new WolfPredatorSystem(
                     planet.Id));
 
-        Assert.Empty(result.World.Population);
+        Assert.True(
+            result.Change.Metrics[
+                "wolfAttacks"] >= 1);
 
-        var changedWolf =
-            Assert.Single(result.World.Animals);
+        Assert.True(
+            result.Change.Metrics[
+                "wolfInjuries"] >= 1);
 
-        Assert.Equal(
-            AnimalActivity.Eating,
-            changedWolf.Activity);
+        if (result.World.Animals.Length > 0)
+        {
+            var changedWolf =
+                Assert.Single(
+                    result.World.Animals);
 
-        Assert.Equal(
-            person.LatitudeDegrees,
-            changedWolf.LatitudeDegrees);
-
-        Assert.Equal(
-            person.LongitudeDegrees,
-            changedWolf.LongitudeDegrees);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["wolfAttacks"]);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["successfulKills"]);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["predationDeaths"]);
+            Assert.True(
+                changedWolf.Health < 1);
+        }
+        else
+        {
+            Assert.True(
+                result.Change.Metrics[
+                    "wolfDeaths"] +
+                result.Change.Metrics[
+                    "wolfStarvationDeaths"] >= 1);
+        }
     }
 
     [Fact]
-    public void Step_SatiatedWolfRestsInsteadOfHunting()
+    public void Step_DesperateWolfPackCanEscalateAgainstIsolatedHuman()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.05);
+
+        var firstWolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0);
+
+        var secondWolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0.01,
+                longitude: 0,
+                energyReserve: 0,
+                id: new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000302")));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [person],
+                    [firstWolf, secondWolf]),
+                14 * OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.True(
+            result.Change.Metrics[
+                "packEncounters"] >= 1);
+
+        Assert.True(
+            result.Change.Metrics[
+                "wolfAttacks"] >= 1);
+    }
+
+    [Fact]
+    public void Step_SatiatedWolfRestsInsteadOfTargetingHuman()
     {
         var planet = CreatePlanet();
 
@@ -96,19 +294,13 @@ public sealed class WolfPredatorSystemTests
                 longitude: 0,
                 energyReserve: 1);
 
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
-
         var result =
             SimulationStepRunner.Step(
-                world,
-                86_400,
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                OneDaySeconds,
                 new WolfPredatorSystem(
                     planet.Id));
 
@@ -130,15 +322,12 @@ public sealed class WolfPredatorSystemTests
 
         Assert.Equal(
             0,
-            result.Change.Metrics["wolfAttacks"]);
-
-        Assert.Equal(
-            0,
-            result.Change.Metrics["predationDeaths"]);
+            result.Change.Metrics[
+                "wolfAttacks"]);
     }
 
     [Fact]
-    public void Step_RestingWolfResumesHuntingAfterEnergyFalls()
+    public void Step_WolfEnergyUseRemainsBoundedForPartialDay()
     {
         var planet = CreatePlanet();
 
@@ -153,21 +342,15 @@ public sealed class WolfPredatorSystemTests
                 planet.Id,
                 latitude: 0,
                 longitude: 0,
-                energyReserve: 0.6);
-
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
+                energyReserve: 1);
 
         var result =
             SimulationStepRunner.Step(
-                world,
-                86_400,
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                OneDaySeconds / 2,
                 new WolfPredatorSystem(
                     planet.Id));
 
@@ -176,24 +359,23 @@ public sealed class WolfPredatorSystemTests
                 result.World.Animals);
 
         Assert.Equal(
-            AnimalActivity.Traveling,
-            changedWolf.Activity);
-
-        Assert.Equal(
-            0.52,
+            0.96,
             changedWolf.EnergyReserve,
             precision: 10);
 
-        Assert.True(
-            changedWolf.LongitudeDegrees > 0);
-
         Assert.Equal(
             1,
-            result.Change.Metrics["chaseSteps"]);
+            changedWolf.Health,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "wolfStarvationDeaths"]);
     }
 
     [Fact]
-    public void Step_FailedAttackLetsHumanFlee()
+    public void Step_WolfWithoutFoodEventuallyDiesFromStarvation()
     {
         var planet = CreatePlanet();
 
@@ -201,249 +383,40 @@ public sealed class WolfPredatorSystemTests
             CreatePerson(
                 planet.Id,
                 latitude: 0,
-                longitude: 0.05,
-                id: new PersonId(
-                    Guid.Parse(
-                        "159dfc07-5c90-45d6-bf6b-be33bc2eb035")));
+                longitude: 10);
 
         var wolf =
             CreateWolf(
                 planet.Id,
                 latitude: 0,
                 longitude: 0,
-                id: new AnimalId(
-                    Guid.Parse(
-                        "00000000-0000-0000-0000-000000000301")));
-
-        var world =
-            new WorldState(
-                WorldId.New(),
-                new SimulationTime(86_400),
-                [planet],
-                [person],
-                [],
-                [wolf]);
+                energyReserve: 0.05);
 
         var result =
             SimulationStepRunner.Step(
-                world,
-                86_400,
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf]),
+                30 * OneDaySeconds,
                 new WolfPredatorSystem(
                     planet.Id));
 
-        var changedPerson =
-            Assert.Single(
-                result.World.Population);
+        Assert.Empty(
+            result.World.Animals);
 
-        Assert.Equal(
-            PersonActivity.Fleeing,
-            changedPerson.Activity);
-
-        Assert.True(
-            changedPerson.LongitudeDegrees >
-            person.LongitudeDegrees);
-
-        var changedWolf =
-            Assert.Single(
-                result.World.Animals);
-
-        Assert.Equal(
-            AnimalActivity.Attacking,
-            changedWolf.Activity);
+        Assert.Single(
+            result.World.Population);
 
         Assert.Equal(
             1,
-            result.Change.Metrics["wolfAttacks"]);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["failedAttacks"]);
-
-        Assert.Equal(
-            0,
-            result.Change.Metrics["successfulKills"]);
-
-        Assert.Equal(
-            0,
-            result.Change.Metrics["predationDeaths"]);
-    }
-
-    [Fact]
-    public void Step_DistantWolfTravelsTowardNearestPerson()
-    {
-        var planet = CreatePlanet();
-
-        var person =
-            CreatePerson(
-                planet.Id,
-                latitude: 0,
-                longitude: 2);
-
-        var wolf =
-            CreateWolf(
-                planet.Id,
-                latitude: 0,
-                longitude: 0);
-
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
-
-        var result =
-            SimulationStepRunner.Step(
-                world,
-                86_400,
-                new WolfPredatorSystem(
-                    planet.Id));
-
-        Assert.Single(result.World.Population);
-
-        var changedWolf =
-            Assert.Single(result.World.Animals);
-
-        Assert.Equal(
-            AnimalActivity.Traveling,
-            changedWolf.Activity);
-
-        Assert.Equal(
-            0,
-            changedWolf.LatitudeDegrees,
-            10);
-
-        Assert.Equal(
-            0.75,
-            changedWolf.LongitudeDegrees,
-            10);
-
-        Assert.Equal(
-            0,
-            result.Change.Metrics["predationDeaths"]);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["chaseSteps"]);
-    }
-
-    [Fact]
-    public void Step_HumanWithinThreatRadiusFleesBeforeWolfPursues()
-    {
-        var planet = CreatePlanet();
-
-        var person =
-            CreatePerson(
-                planet.Id,
-                latitude: 0,
-                longitude: 0.8);
-
-        var wolf =
-            CreateWolf(
-                planet.Id,
-                latitude: 0,
-                longitude: 0);
-
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
-
-        var result =
-            SimulationStepRunner.Step(
-                world,
-                86_400,
-                new WolfPredatorSystem(
-                    planet.Id));
-
-        var changedPerson =
-            Assert.Single(
-                result.World.Population);
-
-        Assert.Equal(
-            PersonActivity.Fleeing,
-            changedPerson.Activity);
-
-        Assert.Equal(
-            1.05,
-            changedPerson.LongitudeDegrees,
-            10);
-
-        var changedWolf =
-            Assert.Single(
-                result.World.Animals);
-
-        Assert.Equal(
-            AnimalActivity.Traveling,
-            changedWolf.Activity);
-
-        Assert.Equal(
-            0.75,
-            changedWolf.LongitudeDegrees,
-            10);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["fleeSteps"]);
-
-        Assert.Equal(
-            1,
-            result.Change.Metrics["chaseSteps"]);
+            result.Change.Metrics[
+                "wolfStarvationDeaths"]);
 
         Assert.Equal(
             0,
             result.Change.Metrics[
                 "predationDeaths"]);
-    }
-
-    [Fact]
-    public void Step_WolfTravelRemainsBoundedForPartialDay()
-    {
-        var planet = CreatePlanet();
-
-        var person =
-            CreatePerson(
-                planet.Id,
-                latitude: 0,
-                longitude: 2);
-
-        var wolf =
-            CreateWolf(
-                planet.Id,
-                latitude: 0,
-                longitude: 0);
-
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person],
-                [],
-                [wolf]);
-
-        var result =
-            SimulationStepRunner.Step(
-                world,
-                43_200,
-                new WolfPredatorSystem(
-                    planet.Id));
-
-        var changedWolf =
-            Assert.Single(result.World.Animals);
-
-        Assert.Equal(
-            0.375,
-            changedWolf.LongitudeDegrees,
-            10);
-
-        Assert.Single(result.World.Population);
     }
 
     [Fact]
@@ -457,30 +430,26 @@ public sealed class WolfPredatorSystemTests
                 latitude: 0,
                 longitude: 0);
 
-        var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
-                [person]);
-
         var result =
             SimulationStepRunner.Step(
-                world,
-                86_400,
+                CreateWorld(
+                    planet,
+                    [person],
+                    []),
+                OneDaySeconds,
                 new WolfPredatorSystem(
                     planet.Id));
 
-        Assert.Single(result.World.Population);
-        Assert.Empty(result.World.Animals);
+        Assert.Single(
+            result.World.Population);
+
+        Assert.Empty(
+            result.World.Animals);
 
         Assert.Equal(
             0,
-            result.Change.Metrics["wolfAttacks"]);
-
-        Assert.Equal(
-            0,
-            result.Change.Metrics["predationDeaths"]);
+            result.Change.Metrics[
+                "wolfAttacks"]);
     }
 
     [Fact]
@@ -492,41 +461,51 @@ public sealed class WolfPredatorSystemTests
             CreatePerson(
                 planet.Id,
                 latitude: 0,
-                longitude: 0,
-                id: new PersonId(
-                    Guid.Parse(
-                        "00000000-0000-0000-0000-000000000101")));
+                longitude: 0.05);
 
         var wolf =
             CreateWolf(
                 planet.Id,
                 latitude: 0,
-                longitude: 0.05,
-                id: new AnimalId(
-                    Guid.Parse(
-                        "00000000-0000-0000-0000-000000000301")));
+                longitude: 0,
+                energyReserve: 0);
 
         var world =
-            new WorldState(
-                WorldId.New(),
-                SimulationTime.Zero,
-                [planet],
+            CreateWorld(
+                planet,
                 [person],
-                [],
                 [wolf]);
 
         var result =
             SimulationStepRunner.Step(
                 world,
-                86_400,
+                14 * OneDaySeconds,
                 new WolfPredatorSystem(
                     planet.Id));
 
-        Assert.Single(world.Population);
-        Assert.Single(world.Animals);
+        Assert.Single(
+            world.Population);
 
-        Assert.Empty(result.World.Population);
-        Assert.Single(result.World.Animals);
+        Assert.Single(
+            world.Animals);
+
+        Assert.NotSame(
+            world,
+            result.World);
+    }
+
+    private static WorldState CreateWorld(
+        PlanetState planet,
+        PersonState[] people,
+        AnimalState[] animals)
+    {
+        return new WorldState(
+            WorldId.New(),
+            SimulationTime.Zero,
+            [planet],
+            people,
+            [],
+            animals);
     }
 
     private static PlanetState CreatePlanet()
@@ -550,7 +529,9 @@ public sealed class WolfPredatorSystemTests
         PersonId? id = null)
     {
         return new PersonState(
-            id ?? new PersonId(Guid.NewGuid()),
+            id ??
+                new PersonId(
+                    Guid.NewGuid()),
             planetId,
             PersonSex.Female,
             -800_000_000,
@@ -562,20 +543,21 @@ public sealed class WolfPredatorSystemTests
         PlanetId planetId,
         double latitude,
         double longitude,
-        AnimalId? id = null,
-        double energyReserve = 0.35)
+        double energyReserve,
+        AnimalId? id = null)
     {
         return new AnimalState(
             id ??
-            new AnimalId(
-                Guid.Parse(
-                    "00000000-0000-0000-0000-000000000301")),
+                new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000301")),
             planetId,
             AnimalSpecies.Wolf,
             latitude,
             longitude,
-            energyReserve: energyReserve,
+            energyReserve,
             health: 1,
-            activity: AnimalActivity.Hunting);
+            activity:
+                AnimalActivity.Hunting);
     }
 }
