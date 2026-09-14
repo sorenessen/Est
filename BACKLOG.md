@@ -250,7 +250,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [ ] Derive flooded land/ocean/lake state from terrain plus hydrologic water inventory.
 - [x] Derive slope and downhill-neighbor topology for drainage.
 - [x] Preserve terrain through world copy, fork, snapshot, and archive.
-- [ ] Define durable per-cell hydrology state.
+- [x] Define durable per-cell hydrology state.
 - [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [ ] Define explicit hydrology model policy in `SimulationDefinition`.
 - [ ] Implement conservative evaporation / precipitation / infiltration /
