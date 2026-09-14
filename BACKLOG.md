@@ -242,9 +242,9 @@ animals, and eventually decomposition and nutrient cycling.
 
 Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 
-- [ ] Define reusable planet-surface cell identity and grid contract.
-- [ ] Implement deterministic coarse spherical surface grid.
-- [ ] Verify cell area accounting, lookup, and neighbor topology.
+- [x] Define reusable planet-surface cell identity and grid contract.
+- [x] Implement deterministic coarse spherical surface grid.
+- [x] Verify cell area accounting, lookup, and neighbor topology.
 - [ ] Define durable per-cell hydrology state.
 - [ ] Preserve hydrology through world copy, fork, snapshot, and archive.
 - [ ] Define explicit hydrology model policy in `SimulationDefinition`.
