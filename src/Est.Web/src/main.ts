@@ -7,212 +7,251 @@ import {
   DirectionalLight,
   Engine,
   HemisphericLight,
-  MeshBuilder,
-  PBRMaterial,
+  Mesh,
   Scene,
   StandardMaterial,
   Vector3,
-  VertexBuffer,
+  VertexData,
 } from '@babylonjs/core'
 
-const app = document.querySelector<HTMLDivElement>('#app')
+import {
+  CUBE_FACES,
+  createCubeSphereFaceGeometry,
+  type CubeFace,
+} from './planet/cube-sphere'
+
+const app =
+  document.querySelector<HTMLDivElement>(
+    '#app',
+  )
 
 if (!app) {
-  throw new Error('Application root was not found.')
+  throw new Error(
+    'Application root was not found.',
+  )
 }
 
 app.innerHTML = `
-  <canvas id="renderCanvas" aria-label="Est planet viewport"></canvas>
+  <canvas
+    id="renderCanvas"
+    aria-label="Est planetary renderer"
+  ></canvas>
+
+  <div class="planet-foundation-status">
+    <strong>Est Planet Renderer</strong>
+    <span>R1 · six-face cube-sphere</span>
+    <span>drag to orbit · wheel to zoom</span>
+  </div>
 `
 
-const canvas = document.querySelector<HTMLCanvasElement>('#renderCanvas')
+const canvas =
+  document.querySelector<HTMLCanvasElement>(
+    '#renderCanvas',
+  )
 
 if (!canvas) {
-  throw new Error('Render canvas was not created.')
+  throw new Error(
+    'Render canvas was not created.',
+  )
 }
 
-const engine = new Engine(canvas, true, {
-  preserveDrawingBuffer: true,
-  stencil: true,
-})
-
-const scene = new Scene(engine)
-scene.clearColor = new Color4(0.002, 0.004, 0.009, 1)
-
-const camera = new ArcRotateCamera(
-  'planet-camera',
-  Math.PI * 1.25,
-  Math.PI * 0.42,
-  3.2,
-  Vector3.Zero(),
-  scene,
+const engine = new Engine(
+  canvas,
+  true,
+  {
+    preserveDrawingBuffer: true,
+    stencil: true,
+  },
 )
 
-camera.attachControl(canvas, true)
-camera.lowerRadiusLimit = 1.35
+const scene = new Scene(engine)
+
+scene.clearColor =
+  new Color4(
+    0.002,
+    0.004,
+    0.009,
+    1,
+  )
+
+const camera =
+  new ArcRotateCamera(
+    'planet-camera',
+    Math.PI * 1.25,
+    Math.PI * 0.40,
+    3.2,
+    Vector3.Zero(),
+    scene,
+  )
+
+camera.attachControl(
+  canvas,
+  true,
+)
+
+camera.lowerRadiusLimit = 1.18
 camera.upperRadiusLimit = 12
 camera.wheelPrecision = 35
 camera.panningSensibility = 0
 camera.inertia = 0.82
+camera.minZ = 0.01
 
-const sunlight = new DirectionalLight(
-  'sunlight',
-  new Vector3(-0.8, -0.25, 0.5),
-  scene,
-)
-
-sunlight.intensity = 3.2
-
-const ambient = new HemisphericLight(
-  'ambient',
-  new Vector3(0, 1, 0),
-  scene,
-)
-
-ambient.intensity = 0.12
-
-const planet = MeshBuilder.CreateSphere(
-  'planet',
-  {
-    diameter: 2,
-    segments: 192,
-    updatable: true,
-  },
-  scene,
-)
-
-const positions = planet.getVerticesData(
-  VertexBuffer.PositionKind,
-)
-
-const colors: number[] = []
-
-if (!positions) {
-  throw new Error('Planet geometry was not created.')
-}
-
-function noise(x: number, y: number, z: number): number {
-  return (
-    Math.sin(x * 3.7 + Math.cos(z * 2.1)) *
-    Math.cos(y * 4.3 - Math.sin(x * 1.7)) *
-    0.5 +
-    Math.sin(x * 9.1 + y * 5.3 + z * 3.7) * 0.18 +
-    Math.cos(x * 17.3 - y * 11.7 + z * 7.9) * 0.07
+const sunlight =
+  new DirectionalLight(
+    'sunlight',
+    new Vector3(
+      -0.8,
+      -0.35,
+      0.6,
+    ),
+    scene,
   )
-}
 
-const ocean = new Color3(0.012, 0.095, 0.17)
-const shallow = new Color3(0.025, 0.22, 0.27)
-const lowland = new Color3(0.12, 0.24, 0.13)
-const highland = new Color3(0.31, 0.29, 0.19)
-const mountain = new Color3(0.52, 0.49, 0.42)
-const ice = new Color3(0.76, 0.86, 0.91)
+sunlight.intensity = 1.8
 
-function blend(a: Color3, b: Color3, t: number): Color3 {
-  return Color3.Lerp(a, b, Math.max(0, Math.min(1, t)))
-}
+const ambient =
+  new HemisphericLight(
+    'ambient',
+    new Vector3(0, 1, 0),
+    scene,
+  )
 
-for (let i = 0; i < positions.length; i += 3) {
-  const x = positions[i]
-  const y = positions[i + 1]
-  const z = positions[i + 2]
+ambient.intensity = 0.35
 
-  const elevation = noise(x, y, z)
-  const latitude = Math.abs(y)
+const sharedSurface =
+  new StandardMaterial(
+    'cube-sphere-surface',
+    scene,
+  )
 
-  let color: Color3
+sharedSurface.diffuseColor =
+  new Color3(
+    0.12,
+    0.36,
+    0.58,
+  )
 
-  if (elevation < -0.08) {
-    color = blend(
-      ocean,
-      shallow,
-      (elevation + 0.6) / 0.52,
-    )
-  } else if (elevation < 0.02) {
-    color = blend(
-      shallow,
-      lowland,
-      (elevation + 0.08) / 0.1,
-    )
-  } else if (elevation < 0.28) {
-    color = blend(
-      lowland,
-      highland,
-      (elevation - 0.02) / 0.26,
-    )
-  } else {
-    color = blend(
-      highland,
-      mountain,
-      (elevation - 0.28) / 0.3,
-    )
+sharedSurface.emissiveColor =
+  new Color3(
+    0.006,
+    0.018,
+    0.03,
+  )
+
+sharedSurface.specularColor =
+  Color3.Black()
+
+const diagnosticFaceColors:
+  Record<CubeFace, Color3> = {
+    positiveX: new Color3(
+      0.50,
+      0.20,
+      0.18,
+    ),
+    negativeX: new Color3(
+      0.18,
+      0.42,
+      0.60,
+    ),
+    positiveY: new Color3(
+      0.24,
+      0.50,
+      0.24,
+    ),
+    negativeY: new Color3(
+      0.54,
+      0.42,
+      0.16,
+    ),
+    positiveZ: new Color3(
+      0.34,
+      0.24,
+      0.56,
+    ),
+    negativeZ: new Color3(
+      0.18,
+      0.48,
+      0.48,
+    ),
   }
 
-  const polarIce = Math.max(
-    0,
-    Math.min(1, (latitude - 0.72) / 0.16),
-  )
+const showFaceDiagnostics =
+  new URLSearchParams(
+    window.location.search,
+  ).get('faces') === '1'
 
-  color = blend(color, ice, polarIce)
+function createFaceMaterial(
+  face: CubeFace,
+): StandardMaterial {
+  if (!showFaceDiagnostics) {
+    return sharedSurface
+  }
 
-  colors.push(color.r, color.g, color.b, 1)
+  const material =
+    new StandardMaterial(
+      `cube-sphere-${face}-material`,
+      scene,
+    )
+
+  material.diffuseColor =
+    diagnosticFaceColors[face]
+
+  material.emissiveColor =
+    diagnosticFaceColors[
+      face
+    ].scale(0.035)
+
+  material.specularColor =
+    Color3.Black()
+
+  return material
 }
 
-planet.setVerticesData(
-  VertexBuffer.ColorKind,
-  colors,
-)
+const segmentsPerFace = 32
 
-const surface = new PBRMaterial(
-  'planet-surface',
-  scene,
-)
+for (const face of CUBE_FACES) {
+  const geometry =
+    createCubeSphereFaceGeometry(
+      face,
+      segmentsPerFace,
+    )
 
-surface.albedoColor = Color3.White()
-surface.metallic = 0
-surface.roughness = 0.92
-surface.environmentIntensity = 0
-planet.useVertexColors = true
+  const mesh =
+    new Mesh(
+      `cube-sphere-${face}`,
+      scene,
+    )
 
-planet.material = surface
+  const vertexData =
+    new VertexData()
 
-const atmosphere = MeshBuilder.CreateSphere(
-  'atmosphere',
-  {
-    diameter: 2.08,
-    segments: 96,
-  },
-  scene,
-)
+  vertexData.positions =
+    geometry.positions
 
-const atmosphereMaterial = new StandardMaterial(
-  'atmosphere-material',
-  scene,
-)
+  vertexData.indices =
+    geometry.indices
 
-atmosphereMaterial.diffuseColor = new Color3(
-  0.08,
-  0.28,
-  0.55,
-)
+  vertexData.normals =
+    geometry.normals
 
-atmosphereMaterial.emissiveColor = new Color3(
-  0.015,
-  0.055,
-  0.12,
-)
+  vertexData.applyToMesh(
+    mesh,
+    false,
+  )
 
-atmosphereMaterial.alpha = 0.055
-atmosphereMaterial.backFaceCulling = false
-atmosphereMaterial.disableLighting = true
-atmosphereMaterial.disableDepthWrite = true
+  mesh.material =
+    createFaceMaterial(face)
 
-atmosphere.material = atmosphereMaterial
+  mesh.isPickable = false
+}
 
 engine.runRenderLoop(() => {
   scene.render()
 })
 
-window.addEventListener('resize', () => {
-  engine.resize()
-})
+window.addEventListener(
+  'resize',
+  () => {
+    engine.resize()
+  },
+)

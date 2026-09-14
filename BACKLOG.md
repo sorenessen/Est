@@ -218,12 +218,12 @@ structure.
 
 #### R1 - Babylon planetary foundation
 
-- [ ] Add a Babylon renderer entry point separate from the Cesium evaluation.
-- [ ] Define six renderer-owned cube faces.
-- [ ] Implement deterministic cube-to-sphere mapping.
-- [ ] Render one mathematically correct six-face sphere.
-- [ ] Support stable orbit, zoom, and resize.
-- [ ] Runtime-verify face orientation and continuity with no visible gaps.
+- [x] Add a Babylon renderer entry point separate from the Cesium evaluation.
+- [x] Define six renderer-owned cube faces.
+- [x] Implement deterministic cube-to-sphere mapping.
+- [x] Render one mathematically correct six-face sphere.
+- [x] Support stable orbit, zoom, and resize.
+- [x] Runtime-verify face orientation and continuity with no visible gaps.
 
 Do not connect authoritative terrain yet.
 
