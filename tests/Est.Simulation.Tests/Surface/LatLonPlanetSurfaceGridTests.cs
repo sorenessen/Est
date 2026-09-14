@@ -137,6 +137,51 @@ public sealed class LatLonPlanetSurfaceGridTests
     }
 
     [Fact]
+    public void GetBoundary_PolarCellsUseSinglePhysicalPoleVertex()
+    {
+        var grid =
+            CreateGrid();
+
+        var northCell =
+            grid.LocateCell(
+                89.9,
+                45);
+
+        var northBoundary =
+            grid.GetBoundary(
+                northCell.Id);
+
+        Assert.Equal(
+            3,
+            northBoundary.Count);
+
+        Assert.Single(
+            northBoundary,
+            coordinate =>
+                coordinate.LatitudeDegrees ==
+                90);
+
+        var southCell =
+            grid.LocateCell(
+                -89.9,
+                45);
+
+        var southBoundary =
+            grid.GetBoundary(
+                southCell.Id);
+
+        Assert.Equal(
+            3,
+            southBoundary.Count);
+
+        Assert.Single(
+            southBoundary,
+            coordinate =>
+                coordinate.LatitudeDegrees ==
+                -90);
+    }
+
+    [Fact]
     public void GetBoundary_PreservesDatelineEdgeCoordinates()
     {
         var grid =

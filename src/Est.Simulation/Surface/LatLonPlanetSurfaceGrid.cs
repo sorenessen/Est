@@ -225,6 +225,43 @@ public sealed class LatLonPlanetSurfaceGrid
             westLongitudeDegrees +
             _longitudeStepDegrees;
 
+        var centerLongitudeDegrees =
+            NormalizeLongitude(
+                westLongitudeDegrees +
+                _longitudeStepDegrees / 2);
+
+        if (southLatitudeDegrees <= -90)
+        {
+            return
+            [
+                new SurfaceCoordinate(
+                    -90,
+                    centerLongitudeDegrees),
+                new SurfaceCoordinate(
+                    northLatitudeDegrees,
+                    eastLongitudeDegrees),
+                new SurfaceCoordinate(
+                    northLatitudeDegrees,
+                    westLongitudeDegrees)
+            ];
+        }
+
+        if (northLatitudeDegrees >= 90)
+        {
+            return
+            [
+                new SurfaceCoordinate(
+                    southLatitudeDegrees,
+                    westLongitudeDegrees),
+                new SurfaceCoordinate(
+                    southLatitudeDegrees,
+                    eastLongitudeDegrees),
+                new SurfaceCoordinate(
+                    90,
+                    centerLongitudeDegrees)
+            ];
+        }
+
         return
         [
             new SurfaceCoordinate(
