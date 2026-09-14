@@ -127,6 +127,158 @@ public sealed class HydrologySystemTests
     }
 
     [Fact]
+    public void Step_ColdConditionsFreezeSurfaceLiquidWater()
+    {
+        var setup =
+            CreateUniformWorld(
+                atmospheric: 0,
+                surface: 12,
+                soil: 0,
+                snowIce: 3,
+                temperatureKelvin: 270);
+
+        var result =
+            SimulationStepRunner.Step(
+                setup.World,
+                OneDaySeconds,
+                new HydrologySystem(
+                    setup.Planet.Id,
+                    CreateParameters(
+                        freezing: 5,
+                        melting: 5)));
+
+        var cell =
+            result.World.Hydrology[0]
+                .GetCell(
+                    setup.Grid.Cells[0].Id);
+
+        Assert.Equal(
+            7,
+            cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+            10);
+
+        Assert.Equal(
+            8,
+            cell.SnowIceWaterEquivalentKilogramsPerSquareMeter,
+            10);
+
+        Assert.True(
+            result.Change.Metrics[
+                "freezingMassKilograms"] >
+            0);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "meltingMassKilograms"]);
+
+        AssertConserved(
+            result);
+    }
+
+    [Fact]
+    public void Step_WarmConditionsMeltSnowAndIce()
+    {
+        var setup =
+            CreateUniformWorld(
+                atmospheric: 0,
+                surface: 2,
+                soil: 0,
+                snowIce: 9,
+                temperatureKelvin: 278);
+
+        var result =
+            SimulationStepRunner.Step(
+                setup.World,
+                OneDaySeconds,
+                new HydrologySystem(
+                    setup.Planet.Id,
+                    CreateParameters(
+                        freezing: 5,
+                        melting: 4)));
+
+        var cell =
+            result.World.Hydrology[0]
+                .GetCell(
+                    setup.Grid.Cells[0].Id);
+
+        Assert.Equal(
+            6,
+            cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+            10);
+
+        Assert.Equal(
+            5,
+            cell.SnowIceWaterEquivalentKilogramsPerSquareMeter,
+            10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "freezingMassKilograms"]);
+
+        Assert.True(
+            result.Change.Metrics[
+                "meltingMassKilograms"] >
+            0);
+
+        AssertConserved(
+            result);
+    }
+
+    [Fact]
+    public void Step_BetweenPhaseThresholdsLeavesPhaseStoresUnchanged()
+    {
+        var setup =
+            CreateUniformWorld(
+                atmospheric: 0,
+                surface: 7,
+                soil: 0,
+                snowIce: 6,
+                temperatureKelvin: 273.5);
+
+        var result =
+            SimulationStepRunner.Step(
+                setup.World,
+                OneDaySeconds,
+                new HydrologySystem(
+                    setup.Planet.Id,
+                    CreateParameters(
+                        freezingTemperatureKelvin: 273,
+                        meltingTemperatureKelvin: 274,
+                        freezing: 10,
+                        melting: 10)));
+
+        var cell =
+            result.World.Hydrology[0]
+                .GetCell(
+                    setup.Grid.Cells[0].Id);
+
+        Assert.Equal(
+            7,
+            cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
+            10);
+
+        Assert.Equal(
+            6,
+            cell.SnowIceWaterEquivalentKilogramsPerSquareMeter,
+            10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "freezingMassKilograms"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "meltingMassKilograms"]);
+
+        AssertConserved(
+            result);
+    }
+
+    [Fact]
     public void Step_RunoffTransfersPhysicalMassAcrossUnequalCellAreas()
     {
         var planet =
@@ -429,10 +581,12 @@ public sealed class HydrologySystemTests
         double atmospheric,
         double surface,
         double soil,
-        double snowIce = 0)
+        double snowIce = 0,
+        double temperatureKelvin = 285)
     {
         var planet =
-            CreatePlanet();
+            CreatePlanet(
+                temperatureKelvin);
 
         var definition =
             SurfaceGridDefinition.LatitudeLongitude(
@@ -499,6 +653,10 @@ public sealed class HydrologySystemTests
         double soilCapacity = 150,
         double infiltration = 0,
         double runoff = 0,
+        double freezingTemperatureKelvin = 273.15,
+        double meltingTemperatureKelvin = 273.15,
+        double freezing = 0,
+        double melting = 0,
         long maximumIntegrationStepSeconds =
             OneDaySeconds)
     {
@@ -517,13 +675,18 @@ public sealed class HydrologySystemTests
                 infiltration,
             maximumRunoffRateKilogramsPerSquareMeterPerDay:
                 runoff,
+            freezingTemperatureKelvin:
+                freezingTemperatureKelvin,
+            meltingTemperatureKelvin:
+                meltingTemperatureKelvin,
             maximumFreezingRateKilogramsPerSquareMeterPerDay:
-                0,
+                freezing,
             maximumMeltingRateKilogramsPerSquareMeterPerDay:
-                0);
+                melting);
     }
 
-    private static PlanetState CreatePlanet()
+    private static PlanetState CreatePlanet(
+        double temperatureKelvin = 285)
     {
         return new PlanetState(
             PlanetId.New(),
@@ -531,7 +694,7 @@ public sealed class HydrologySystemTests
             5.0e24,
             6_000_000,
             new PlanetEnvironment(
-                285,
+                temperatureKelvin,
                 0.60,
                 0.05,
                 AtmosphereState.Vacuum));

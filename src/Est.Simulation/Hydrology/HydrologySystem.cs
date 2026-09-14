@@ -15,6 +15,8 @@ namespace Est.Simulation.Hydrology;
 /// surface liquid -> atmosphere          evaporation
 /// atmosphere    -> surface liquid       precipitation
 /// surface liquid -> soil                infiltration
+/// surface liquid -> snow / ice          freezing
+/// snow / ice    -> surface liquid       melting
 ///
 /// Runoff is then evaluated from one shared post-local snapshot and applied
 /// simultaneously. This prevents iteration order from allowing water to
@@ -125,6 +127,8 @@ public sealed class HydrologySystem
         var totalEvaporationMass = 0d;
         var totalPrecipitationMass = 0d;
         var totalInfiltrationMass = 0d;
+        var totalFreezingMass = 0d;
+        var totalMeltingMass = 0d;
         var totalRunoffMass = 0d;
         var integrationSubsteps = 0;
 
@@ -239,6 +243,51 @@ public sealed class HydrologySystem
                 totalInfiltrationMass +=
                     infiltration *
                     area;
+
+                if (planet.Environment
+                        .MeanSurfaceTemperatureKelvin <=
+                    _parameters
+                        .FreezingTemperatureKelvin)
+                {
+                    var freezing =
+                        Math.Min(
+                            surface,
+                            _parameters
+                                .MaximumFreezingRateKilogramsPerSquareMeterPerDay *
+                            elapsedDays);
+
+                    surface -=
+                        freezing;
+
+                    snowIce +=
+                        freezing;
+
+                    totalFreezingMass +=
+                        freezing *
+                        area;
+                }
+                else if (planet.Environment
+                             .MeanSurfaceTemperatureKelvin >=
+                         _parameters
+                             .MeltingTemperatureKelvin)
+                {
+                    var melting =
+                        Math.Min(
+                            snowIce,
+                            _parameters
+                                .MaximumMeltingRateKilogramsPerSquareMeterPerDay *
+                            elapsedDays);
+
+                    snowIce -=
+                        melting;
+
+                    surface +=
+                        melting;
+
+                    totalMeltingMass +=
+                        melting *
+                        area;
+                }
 
                 localStores.Add(
                     cell.CellId,
@@ -430,6 +479,10 @@ public sealed class HydrologySystem
                     totalPrecipitationMass,
                 ["infiltrationMassKilograms"] =
                     totalInfiltrationMass,
+                ["freezingMassKilograms"] =
+                    totalFreezingMass,
+                ["meltingMassKilograms"] =
+                    totalMeltingMass,
                 ["runoffMassKilograms"] =
                     totalRunoffMass,
                 ["integrationSubsteps"] =

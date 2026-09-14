@@ -255,8 +255,8 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Define explicit hydrology model policy in `SimulationDefinition`.
 - [x] Implement conservative evaporation / precipitation / infiltration /
       runoff transfers.
-- [ ] Add freezing and melting water transfers.
-- [ ] Add water mass-conservation telemetry and tests.
+- [x] Add freezing and melting water transfers.
+- [x] Add water mass-conservation telemetry and tests.
 - [ ] Seed deterministic generated terrain and hydrology for the development planet.
 - [ ] Expose authoritative hydrology through Est.Api.
 - [ ] Add hydrology visualization after authoritative state is stable.
