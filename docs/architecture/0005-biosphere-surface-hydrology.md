@@ -261,10 +261,11 @@ branching preserve simulation semantics.
 
 The intended causal stack is:
 
-    stellar energy
-      -> planetary / regional climate
-      -> terrain and topography
-      -> hydrology
+    planet / orbital / stellar conditions
+      -> solid terrain and topography
+      -> global climate baseline
+      -> regional climate interacting with terrain
+      -> hydrology and standing-water distribution
       -> soil and nutrient state
       -> plant biomass
       -> invertebrate populations
@@ -316,9 +317,12 @@ state.
 ### Phase B: terrain and topography
 
 1. Define durable per-cell terrain state.
-2. Represent elevation relative to a planetary reference level.
-3. Distinguish land and ocean from elevation rather than hand-authored
-   ecological categories.
+2. Represent solid-surface elevation relative to the planetary
+   mean-radius datum.
+3. Keep terrain elevation independent from sea level. Terrain defines
+   basin geometry; later hydrology and total water inventory determine
+   which terrain is flooded and therefore whether a cell is land,
+   ocean, lake, wetland, or another standing-water state.
 4. Derive local slope and downhill neighbor relationships from surface
    topology.
 5. Add immutable world ownership and replacement operation.
@@ -330,6 +334,18 @@ state.
 Terrain exists before detailed hydrology because runoff, drainage,
 rivers, lakes, wetlands, erosion, soil formation, and habitat structure
 all depend on topography.
+
+Terrain also physically precedes regional climate effects such as
+orographic precipitation, rain shadows, and elevation-dependent
+temperature. The existing zero-dimensional planetary energy-balance
+model may continue to provide a global climate baseline before regional
+climate is implemented, but regional climate must consume terrain rather
+than precede it.
+
+A terrain elevation datum is not sea level. Ocean coverage must
+eventually emerge from water inventory, basin geometry, and hydrologic
+equilibrium. `PlanetEnvironment.SurfaceWaterFraction` remains a coarse
+compatibility descriptor until that hydrologic state can replace it.
 
 The first terrain generator does not need to simulate full plate
 tectonics, but terrain state must leave room for later geological
