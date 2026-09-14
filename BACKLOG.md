@@ -250,8 +250,9 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [ ] Derive flooded land/ocean/lake state from terrain plus hydrologic water inventory.
   - [x] Derive connected standing-water bodies from authoritative per-cell
         surface-liquid state.
-  - [ ] Initialize flooded distribution from planet-level water inventory and
-        terrain basin geometry.
+  - [x] Initialize global-equilibrium flooded distribution from planet-level
+        water inventory and terrain geometry.
+  - [ ] Add basin-local fill / spill equilibrium for perched inland lakes.
 - [x] Derive slope and downhill-neighbor topology for drainage.
 - [x] Preserve terrain through world copy, fork, snapshot, and archive.
 - [x] Define durable per-cell hydrology state.

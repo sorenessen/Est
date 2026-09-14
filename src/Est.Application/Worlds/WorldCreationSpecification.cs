@@ -11,7 +11,8 @@ public sealed record PlanetCreationSpecification(
     SyntheticPopulationCreationSpecification? SyntheticPopulation = null,
     SyntheticFoodCreationSpecification? SyntheticFood = null,
     SyntheticAnimalCreationSpecification? SyntheticAnimals = null,
-    GeneratedTerrainCreationSpecification? GeneratedTerrain = null);
+    GeneratedTerrainCreationSpecification? GeneratedTerrain = null,
+    GeneratedHydrologyCreationSpecification? GeneratedHydrology = null);
 
 public sealed record GeneratedTerrainCreationSpecification(
     int Seed,
@@ -19,6 +20,9 @@ public sealed record GeneratedTerrainCreationSpecification(
     int LongitudeBandCount = 144,
     int PlateCount = 24,
     double ContinentalPlateFraction = 0.45);
+
+public sealed record GeneratedHydrologyCreationSpecification(
+    double SurfaceLiquidWaterInventoryKilograms);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,

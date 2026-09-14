@@ -1,5 +1,6 @@
 using Est.Simulation.Animals;
 using Est.Simulation.Ecology;
+using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -69,6 +70,29 @@ public static class WorldFactory
                         item!)
                 .ToArray();
 
+        var terrainByPlanetId =
+            terrain.ToDictionary(
+                item =>
+                    item.PlanetId);
+
+        var hydrology =
+            specification.Planets
+                .Select(
+                    (planetSpecification, index) =>
+                        CreateHydrology(
+                            planets[index],
+                            terrainByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedHydrology))
+                .Where(
+                    item =>
+                        item is not null)
+                .Select(
+                    item =>
+                        item!)
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
@@ -76,7 +100,8 @@ public static class WorldFactory
             population,
             foodResources,
             animals,
-            terrain);
+            terrain,
+            hydrology);
     }
 
     private static PlanetState CreatePlanet(
@@ -128,6 +153,45 @@ public static class WorldFactory
         return TectonicTerrainGenerator.Generate(
             planet,
             parameters);
+    }
+
+    private static PlanetHydrologyState? CreateHydrology(
+        PlanetState planet,
+        PlanetTerrainState? terrain,
+        GeneratedHydrologyCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return null;
+        }
+
+        if (terrain is null)
+        {
+            throw new ArgumentException(
+                "Generated hydrology requires generated terrain.",
+                nameof(specification));
+        }
+
+        if (!double.IsFinite(
+                specification
+                    .SurfaceLiquidWaterInventoryKilograms) ||
+            specification
+                .SurfaceLiquidWaterInventoryKilograms <
+            0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    specification
+                        .SurfaceLiquidWaterInventoryKilograms),
+                "Surface-liquid water inventory must be finite and nonnegative.");
+        }
+
+        return PlanetHydrologyInitializer
+            .FromSurfaceLiquidWaterInventory(
+                planet,
+                terrain,
+                specification
+                    .SurfaceLiquidWaterInventoryKilograms);
     }
 
     private static IEnumerable<AnimalState> CreateAnimals(
