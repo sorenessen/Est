@@ -35,6 +35,10 @@ import {
 } from './surface/terrain-material'
 
 import {
+  createStandingWaterMesh,
+} from './surface/standing-water-mesh'
+
+import {
   defaultPlanetaryLighting,
   planetaryLightRayDirection,
 } from './planet/planetary-lighting'
@@ -116,7 +120,8 @@ camera.upperRadiusLimit = 12
 camera.wheelPrecision = 35
 camera.panningSensibility = 0
 camera.inertia = 0.82
-camera.minZ = 0.01
+camera.minZ = 0.05
+camera.maxZ = 20
 
 const planetaryLighting =
   defaultPlanetaryLighting
@@ -232,6 +237,10 @@ let terrainSurfaceMaterial:
     typeof createTerrainShaderMaterial
   > | undefined
 
+// Maximum radial extent of geometry that the camera must preserve.
+// The unit sphere is the fallback when no simulation session is active.
+let maximumPlanetRenderRadius = 1
+
 if (sessionId) {
   const api =
     new EstApi('/api')
@@ -264,6 +273,7 @@ if (sessionId) {
   const [
     surface,
     terrain,
+    standingWater,
   ] =
     await Promise.all([
       api.getPlanetSurface(
@@ -274,16 +284,22 @@ if (sessionId) {
         sessionId,
         planet.planetId,
       ),
+      api.getPlanetStandingWater(
+        sessionId,
+        planet.planetId,
+      ),
     ])
 
   if (
     surface.planetId !==
       planet.planetId ||
     terrain.planetId !==
+      planet.planetId ||
+    standingWater.planetId !==
       planet.planetId
   ) {
     throw new Error(
-      'Authoritative terrain responses do not match the active planet.',
+      'Authoritative planetary responses do not match the active planet.',
     )
   }
 
@@ -307,6 +323,16 @@ if (sessionId) {
 
   const meanRadiusMeters =
     planet.meanRadiusMeters
+
+  createStandingWaterMesh(
+    scene,
+    {
+      meanRadiusMeters,
+      surface,
+      standingWater,
+      sphereSubdivisions: 64,
+    },
+  )
 
   terrainSurfaceMaterial =
     createTerrainShaderMaterial(
@@ -345,6 +371,9 @@ if (sessionId) {
       'Authoritative terrain produces invalid planetary radius bounds.',
     )
   }
+
+  maximumPlanetRenderRadius =
+    maximumRenderRadius
 
   terrainRadialOffset =
     direction => {
@@ -504,7 +533,34 @@ if (lodStatus) {
 void showFaceDiagnostics
 void diagnosticFaceColors
 
+function updateCameraDepthRange(): void {
+  const nearestPlanetDistance =
+    Math.max(
+      0,
+      camera.radius -
+        maximumPlanetRenderRadius,
+    )
+
+  // Keep the near plane comfortably in front of the planet while allowing it
+  // to move outward as the camera retreats. This preserves depth precision
+  // for shallow terrain/water separation at planetary viewing distances.
+  camera.minZ =
+    Math.max(
+      0.05,
+      nearestPlanetDistance *
+        0.5,
+    )
+
+  // The farthest visible point is on the opposite limb of the planet.
+  // A small margin keeps the bound safely outside all current geometry.
+  camera.maxZ =
+    camera.radius +
+    maximumPlanetRenderRadius +
+    0.5
+}
+
 engine.runRenderLoop(() => {
+  updateCameraDepthRange()
   scene.render()
 })
 
