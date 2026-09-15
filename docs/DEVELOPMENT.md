@@ -2,6 +2,28 @@
 
 Canonical operational reference for local development and repository recovery. Procedures described as verified have been exercised in the documented development environment.
 
+## Current planetary renderer — 2026-09-15
+
+The active production browser renderer at `/` uses one immutable Babylon
+icosphere with authoritative terrain baked radially into fixed geometry.
+
+Current invariant:
+
+`camera movement changes the view, never the planet`
+
+The current live planet does not use cube-sphere geometry, terrain patches, a
+renderer quadtree, or camera-driven planetary LOD.
+
+Cesium evaluation pages and the historical R1/R2/R3/R4 work are intentionally
+preserved as engineering evidence for future features and enhancements. Do not
+delete them simply because they are not the current production rendering path.
+
+Some launcher instructions below still describe the earlier Cesium-first
+workflow. Until those scripts are deliberately realigned, validate the current
+production renderer at:
+
+`http://localhost:5173/?session=<session-id>`
+
 ## Local Environment
 
 Primary environment: macOS Apple Silicon. Repository: `~/Projects/Est`. Solution: `Est.slnx`. Target framework: `net10.0`. Recorded SDK: `10.0.301`.

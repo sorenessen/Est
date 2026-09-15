@@ -1,5 +1,22 @@
 # Regional Surface Evaluation
 
+## Current status — 2026-09-15
+
+This document is preserved as engineering evidence.
+
+Cesium is not the current production planetary renderer. The active First Light
+globe uses one immutable Babylon icosphere with authoritative terrain baked
+into fixed spherical geometry.
+
+That change does not invalidate the evidence collected here. The regional
+surface, TMS, multi-scale presentation, local-building, Longmire,
+camera-significance, source-normalization, and renderer-neutral preparation
+work may inform future Est enhancements.
+
+Do not interpret preservation of these experiments as a commitment to restore
+Cesium as the production renderer. Do not interpret the current Babylon sphere
+as a reason to discard useful Cesium evidence.
+
 ## Purpose
 
 Validate a real categorical land-cover pipeline for Est without coupling

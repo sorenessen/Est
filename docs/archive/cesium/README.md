@@ -1,5 +1,20 @@
 # Cesium historical evaluation archive
 
+## Preservation intent
+
+This archive is intentionally retained as future-facing engineering evidence,
+not merely as dead code.
+
+Cesium demonstrated capabilities and integration seams that may become useful
+again for future Est enhancements, including global-to-local navigation,
+streamed terrain and imagery, regional surface presentation, local geographic
+geometry, scale/significance behavior, and renderer-neutral preparation
+boundaries.
+
+Preserving this work does not make Cesium the current production renderer.
+It ensures Est does not discard useful evidence that may accelerate later
+features.
+
 Cesium is no longer the production planetary-renderer direction for Est.
 
 This directory preserves unique implementation evidence from the Cesium
@@ -15,15 +30,20 @@ rendered the resulting planet through Cesium.
 It is retained only as historical/reference material. It is not part of the
 active application path and should not receive new production development.
 
-## Retirement policy
+## Preservation policy
 
-Once the Babylon renderer is fully established through terrain, lighting,
-ocean, atmosphere, and subsequent runtime validation, review this archive
-during R6 Cesium retirement.
+Cesium is not the current production planetary renderer, but this archive is
+not scheduled for wholesale deletion.
 
-At that point:
+Preserve working examples, failed experiments and their failure reasons,
+renderer-neutral seams, regional-surface and local-geometry studies, runtime
+observations, screenshots, and lessons about terrain, imagery, streaming,
+scale, and LOD.
 
-- preserve only evidence that still explains useful architectural lessons;
-- rely on Git history for redundant implementation snapshots;
-- delete obsolete Cesium runtime code, adapters, dependencies, and archived
-  implementation files that no longer provide useful reference value.
+Future cleanup may remove obsolete Cesium code from active production
+dependencies or move additional material into archival locations. Cleanup must
+distinguish "not currently production" from "not useful."
+
+If future Est features require continuous extreme-scale navigation, mature
+terrain streaming, regional/local transitions, GIS-oriented presentation, or
+similar capabilities, review this preserved evidence first.

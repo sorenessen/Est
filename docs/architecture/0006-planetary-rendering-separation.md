@@ -4,6 +4,38 @@
 
 Accepted for implementation.
 
+## Current implementation direction — 2026-09-15
+
+The architectural separation in this ADR remains accepted:
+
+`simulation spatial resolution != render spatial resolution`
+
+The current First Light production planet uses one immutable Babylon icosphere.
+Authoritative terrain is sampled by stable spherical direction, displaced
+radially once, and normals are computed from the final fixed geometry. Camera
+movement changes only the view and must never change planet topology, vertex
+ownership, terrain placement, or mesh resolution.
+
+The earlier cube-sphere, quadtree, patch, culling, stitching, and LOD work is
+superseded as the current live planet geometry. It is deliberately preserved as
+engineering evidence and a potential source for future capabilities. Runtime
+visual testing showed unacceptable apparent surface morphology as recognizable
+regions moved from the center of the camera view toward the planetary limb.
+That evidence is part of the reason Est is using the simpler immutable sphere
+for now.
+
+This is a pragmatic implementation choice, not a claim that advanced
+multi-resolution planetary rendering has no future value. Preserved R1/R2/R3/R4
+work may be reused when concrete product requirements justify streaming,
+regional detail, feature LOD, culling, stitching, continuous extreme-scale
+navigation, or other enhancements.
+
+Cesium is likewise not the current production planetary renderer, but its
+evaluation code, documents, runtime observations, regional surface work, local
+geometry work, scale/significance experiments, and related evidence are
+intentionally preserved. They may inform or accelerate future features and
+should not be deleted merely because the current renderer is Babylon.
+
 ## Context
 
 Est's authoritative simulation and its visual planet have reached an important
@@ -112,24 +144,28 @@ replace it without requiring the render surface to use the same topology.
 
 ### Production render surface
 
-The production planetary renderer will use a cube-sphere divided into
-hierarchical quadtree patches.
+The current production planetary renderer uses one immutable spherical mesh.
 
-Each of the six cube faces can recursively subdivide according to view-dependent
-level of detail.
+Babylon's icosphere distribution is used as the present foundation because it
+provides a stable sphere without cube-face projection or camera-selected
+terrain topology.
 
-Terrain patches will use reusable regular mesh topology. Their vertices will be
-projected from cube space onto the planetary sphere and displaced using
-Est-owned terrain sampling.
+Authoritative terrain is sampled through Est-owned continuous spherical
+sampling. Each render vertex is displaced radially from the unit sphere using
+authoritative elevation relative to the planet mean radius. The final normals
+are computed from the displaced fixed geometry.
 
-The render hierarchy belongs to presentation.
+The current production geometry has no live cube faces, terrain patches,
+renderer quadtree, or camera-driven planetary LOD.
 
-Its patch identities are not `SurfaceCellId` values.
+The render mesh is still presentation state, not simulation state. It may have
+far more vertices than the authoritative surface grid has cells, and it remains
+independent of `SurfaceCellId`.
 
-Its subdivisions are not authoritative world state.
-
-Its level of detail may change continuously as the camera moves without
-changing simulation state.
+Future product requirements may justify reintroducing multi-resolution
+rendering, streaming, regional meshes, local-scene transitions, or other
+scale-dependent techniques. When that happens, review the preserved R-series
+and Cesium evidence before designing those systems again from scratch.
 
 ### Terrain sampling
 
@@ -224,6 +260,22 @@ stream, or transition according to viewing scale and significance.
 
 ## Implementation Sequence
 
+### Historical R-series preservation note
+
+The R1 through R4 sections below are intentionally retained as an engineering
+record. They document implemented and tested techniques, runtime gates,
+failures, and lessons. They are not the current marching orders for live planet
+geometry.
+
+Current path:
+
+1. keep one immutable spherical terrain mesh;
+2. add convincing water without changing terrain geometry;
+3. add atmosphere and environmental presentation;
+4. reconnect living-world and ecosystem presentation;
+5. revisit advanced LOD, streaming, regional/local transitions, or Cesium-derived
+   capabilities only when a concrete feature requires them.
+
 ### R1: Babylon planetary foundation
 
 1. Add a Babylon renderer entry point separate from the Cesium evaluation.
@@ -289,15 +341,23 @@ cells, or simulation polygons.
 
 4. Do not invent authoritative behavior in the renderer.
 
-### R6: Cesium retirement cleanup
+### R6: Cesium production-path separation and evidence preservation
 
-After the replacement renderer satisfies its runtime gates:
+Cesium is not the current production planetary renderer.
 
-1. remove Cesium from the production application path;
-2. retain only evaluation artifacts still worth preserving;
-3. remove obsolete Cesium-specific adapters and dependencies;
-4. update development scripts and documentation;
-5. archive or delete failed experiments that no longer provide useful evidence.
+Preserve the Cesium evaluation work as a body of engineering evidence,
+including useful implementation examples, failed approaches, regional surface
+studies, local geometry, scale/significance experiments, global-to-local
+navigation behavior, terrain/imagery integration, and renderer-neutral
+preparation boundaries.
+
+Future cleanup may remove obsolete Cesium code from active production
+dependencies, but it must not erase technically useful evidence merely because
+the current production renderer is Babylon.
+
+If Est later needs mature streaming, regional/local transitions, GIS-oriented
+presentation, or continuous extreme-scale navigation, review this preserved
+work before designing those capabilities again.
 
 ## Runtime Acceptance Gates
 
@@ -372,14 +432,16 @@ It does not supersede:
 
 ## Immediate Next Step
 
-Stop modifying the Cesium production path.
+Keep the runtime-green immutable spherical terrain foundation unchanged.
 
-Begin R1 with a separate Babylon renderer.
+The next visual milestone is convincing water and shoreline presentation driven
+by authoritative hydrology while preserving the invariant:
 
-The first proof is intentionally small:
+`camera movement changes the view, never the planet`
 
-Render one mathematically correct six-face cube-sphere, orbit it, zoom it, and
-prove that its geometry is stable.
+After water is stable, continue atmosphere and living ecosystem presentation.
 
-Do not add terrain displacement, hydrology, atmosphere, population, procedural
-detail, or local geometry until that foundation is runtime-green.
+Do not reintroduce cube-sphere patches, camera-driven planet topology, or
+generalized planetary LOD merely as speculative optimization. Preserve and
+review the earlier R-series and Cesium evidence when a concrete future feature
+justifies that complexity.

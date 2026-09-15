@@ -43,6 +43,21 @@ fields. Adding one bespoke coordinate model for hydrology, another for
 vegetation, and another for small-animal populations would create
 avoidable architectural fragmentation.
 
+## Presentation clarification — 2026-09-15
+
+The reusable surface grid in this ADR remains authoritative simulation topology
+for terrain, hydrology, vegetation, regional climate, and later ecosystem
+state. It is not the visual planet mesh.
+
+The current production browser renderer uses one immutable spherical
+presentation mesh. Authoritative terrain is sampled from Est state and baked
+radially into that independent visual sphere. Hydrology and later biosphere
+state remain owned by simulation systems regardless of how they are presented.
+
+Earlier cube-sphere/quadtree renderer work and Cesium evaluation work are
+preserved as future presentation evidence. Their preservation does not change
+the simulation ownership model established here.
+
 ## Decision
 
 Est will introduce a reusable planet-surface grid abstraction before
