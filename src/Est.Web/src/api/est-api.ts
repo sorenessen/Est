@@ -117,6 +117,29 @@ export interface HydrologyResponse {
   cells: HydrologyCellResponse[]
 }
 
+export interface StandingWaterCellResponse {
+  cellId: string
+  kind: string
+  waterBodyAnchorCellId: string | null
+  waterDepthMeters: number
+  waterSurfaceElevationMeters: number
+}
+
+export interface StandingWaterBodyResponse {
+  anchorCellId: string
+  kind: string
+  cellIds: string[]
+  surfaceAreaSquareMeters: number
+  waterVolumeCubicMeters: number
+}
+
+export interface StandingWaterResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  cells: StandingWaterCellResponse[]
+  waterBodies: StandingWaterBodyResponse[]
+}
+
 export interface TimelineEventResponse {
   eventId: string
   occurredAtSeconds: number
@@ -211,6 +234,15 @@ export class EstApi {
   ): Promise<HydrologyResponse> {
     return this.get(
       `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/hydrology`,
+    )
+  }
+
+  getPlanetStandingWater(
+    sessionId: string,
+    planetId: string,
+  ): Promise<StandingWaterResponse> {
+    return this.get(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/standing-water`,
     )
   }
 

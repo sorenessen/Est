@@ -566,6 +566,77 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/standing-water",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var terrain =
+            session.CurrentWorld.Terrain
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        var hydrology =
+            session.CurrentWorld.Hydrology
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (terrain is null ||
+            hydrology is null)
+        {
+            return Results.NotFound();
+        }
+
+        var standingWater =
+            PlanetStandingWaterState.Derive(
+                planet,
+                terrain,
+                hydrology);
+
+        return Results.Ok(
+            ToStandingWaterResponse(
+                standingWater));
+    });
+
+app.MapGet(
     "/sessions/{id:guid}/timeline",
     (
         Guid id,
@@ -949,6 +1020,42 @@ static HydrologyResponse ToHydrologyResponse(
                         cell.SurfaceLiquidWaterKilogramsPerSquareMeter,
                         cell.SoilWaterKilogramsPerSquareMeter,
                         cell.SnowIceWaterEquivalentKilogramsPerSquareMeter))
+            .ToArray());
+}
+
+static StandingWaterResponse ToStandingWaterResponse(
+    PlanetStandingWaterState standingWater)
+{
+    return new StandingWaterResponse(
+        standingWater.PlanetId.Value,
+        new SurfaceGridResponse(
+            standingWater.GridDefinition.Kind.ToString(),
+            standingWater.GridDefinition.IdentityVersion,
+            standingWater.GridDefinition.LatitudeBandCount,
+            standingWater.GridDefinition.LongitudeBandCount),
+        standingWater.Cells
+            .Select(
+                cell =>
+                    new StandingWaterCellResponse(
+                        cell.CellId.Value,
+                        cell.Kind.ToString(),
+                        cell.WaterBodyAnchorCellId?.Value,
+                        cell.WaterDepthMeters,
+                        cell.WaterSurfaceElevationMeters))
+            .ToArray(),
+        standingWater.WaterBodies
+            .Select(
+                body =>
+                    new StandingWaterBodyResponse(
+                        body.AnchorCellId.Value,
+                        body.Kind.ToString(),
+                        body.CellIds
+                            .Select(
+                                cellId =>
+                                    cellId.Value)
+                            .ToArray(),
+                        body.SurfaceAreaSquareMeters,
+                        body.WaterVolumeCubicMeters))
             .ToArray());
 }
 
