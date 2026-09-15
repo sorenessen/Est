@@ -344,7 +344,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         surface-liquid state.
   - [x] Initialize global-equilibrium flooded distribution from planet-level
         water inventory and terrain geometry.
-  - [ ] Add basin-local fill / spill equilibrium for perched inland lakes.
+  - [x] Add basin-local fill / spill equilibrium for perched inland lakes.
 - [x] Derive slope and downhill-neighbor topology for drainage.
 - [x] Preserve terrain through world copy, fork, snapshot, and archive.
 - [x] Expose authoritative terrain through Est.Api.

@@ -464,6 +464,399 @@ public sealed class HydrologySystemTests
     }
 
     [Fact]
+    public void Step_ClosedBasinEqualizesSurfaceBelowSpillElevation()
+    {
+        var planet =
+            CreatePlanet();
+
+        var definition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                definition);
+
+        var sink =
+            grid.LocateCell(
+                22.5,
+                22.5);
+
+        var sinkNeighbors =
+            grid.GetNeighbors(
+                    sink.Id)
+                .ToHashSet();
+
+        var shelfId =
+            sinkNeighbors
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var shelf =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    shelfId);
+
+        var shelfNeighbors =
+            grid.GetNeighbors(
+                    shelf.Id)
+                .ToHashSet();
+
+        var saddleId =
+            shelfNeighbors
+                .Where(
+                    cellId =>
+                        cellId !=
+                        sink.Id &&
+                        !sinkNeighbors.Contains(
+                            cellId))
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var saddle =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    saddleId);
+
+        var outletId =
+            grid.GetNeighbors(
+                    saddle.Id)
+                .Where(
+                    cellId =>
+                        cellId !=
+                        sink.Id &&
+                        cellId !=
+                        shelf.Id &&
+                        !sinkNeighbors.Contains(
+                            cellId) &&
+                        !shelfNeighbors.Contains(
+                            cellId))
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var outlet =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    outletId);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            cell.Id ==
+                            sink.Id
+                                ? 0
+                                : cell.Id ==
+                                  shelf.Id
+                                    ? 2
+                                    : cell.Id ==
+                                      saddle.Id
+                                        ? 10
+                                        : cell.Id ==
+                                          outlet.Id
+                                            ? -10
+                                            : 20)));
+
+        const double targetWaterSurfaceElevation =
+            6;
+
+        var targetBasinVolumeCubicMeters =
+            (targetWaterSurfaceElevation - 0) *
+            sink.AreaSquareMeters +
+            (targetWaterSurfaceElevation - 2) *
+            shelf.AreaSquareMeters;
+
+        var initialSinkSurfaceWater =
+            targetBasinVolumeCubicMeters *
+            1_000 /
+            sink.AreaSquareMeters;
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            0,
+                            cell.Id ==
+                            sink.Id
+                                ? initialSinkSurfaceWater
+                                : 0,
+                            0,
+                            0)));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    terrain,
+                    hydrology),
+                OneDaySeconds,
+                new HydrologySystem(
+                    planet.Id,
+                    CreateParameters()));
+
+        var changed =
+            Assert.Single(
+                result.World.Hydrology);
+
+        Assert.Equal(
+            6_000,
+            changed.GetCell(
+                    sink.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            4_000,
+            changed.GetCell(
+                    shelf.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            0,
+            changed.GetCell(
+                    saddle.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            0,
+            changed.GetCell(
+                    outlet.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        AssertConserved(
+            result);
+    }
+
+    [Fact]
+    public void Step_ClosedBasinSpillsExcessAboveSaddle()
+    {
+        var planet =
+            CreatePlanet();
+
+        var definition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                definition);
+
+        var sink =
+            grid.LocateCell(
+                22.5,
+                22.5);
+
+        var sinkNeighbors =
+            grid.GetNeighbors(
+                    sink.Id)
+                .ToHashSet();
+
+        var shelfId =
+            sinkNeighbors
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var shelf =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    shelfId);
+
+        var shelfNeighbors =
+            grid.GetNeighbors(
+                    shelf.Id)
+                .ToHashSet();
+
+        var saddleId =
+            shelfNeighbors
+                .Where(
+                    cellId =>
+                        cellId !=
+                        sink.Id &&
+                        !sinkNeighbors.Contains(
+                            cellId))
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var saddle =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    saddleId);
+
+        var outletId =
+            grid.GetNeighbors(
+                    saddle.Id)
+                .Where(
+                    cellId =>
+                        cellId !=
+                        sink.Id &&
+                        cellId !=
+                        shelf.Id &&
+                        !sinkNeighbors.Contains(
+                            cellId) &&
+                        !shelfNeighbors.Contains(
+                            cellId))
+                .OrderBy(
+                    cellId =>
+                        cellId.Value)
+                .First();
+
+        var outlet =
+            grid.Cells.Single(
+                cell =>
+                    cell.Id ==
+                    outletId);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            cell.Id ==
+                            sink.Id
+                                ? 0
+                                : cell.Id ==
+                                  shelf.Id
+                                    ? 2
+                                    : cell.Id ==
+                                      saddle.Id
+                                        ? 10
+                                        : cell.Id ==
+                                          outlet.Id
+                                            ? -10
+                                            : 20)));
+
+        const double spillElevationMeters =
+            10;
+
+        const double expectedSpillDepthMeters =
+            2;
+
+        var retainedBasinVolumeCubicMeters =
+            (spillElevationMeters - 0) *
+            sink.AreaSquareMeters +
+            (spillElevationMeters - 2) *
+            shelf.AreaSquareMeters;
+
+        var expectedSpillMassKilograms =
+            expectedSpillDepthMeters *
+            saddle.AreaSquareMeters *
+            1_000;
+
+        var initialSinkSurfaceWater =
+            (retainedBasinVolumeCubicMeters *
+             1_000 +
+             expectedSpillMassKilograms) /
+            sink.AreaSquareMeters;
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            0,
+                            cell.Id ==
+                            sink.Id
+                                ? initialSinkSurfaceWater
+                                : 0,
+                            0,
+                            0)));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    terrain,
+                    hydrology),
+                OneDaySeconds,
+                new HydrologySystem(
+                    planet.Id,
+                    CreateParameters()));
+
+        var changed =
+            Assert.Single(
+                result.World.Hydrology);
+
+        Assert.Equal(
+            10_000,
+            changed.GetCell(
+                    sink.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            8_000,
+            changed.GetCell(
+                    shelf.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            2_000,
+            changed.GetCell(
+                    saddle.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        Assert.Equal(
+            0,
+            changed.GetCell(
+                    outlet.Id)
+                .SurfaceLiquidWaterKilogramsPerSquareMeter,
+            8);
+
+        var actualSpillMassKilograms =
+            result.Change.Metrics[
+                "basinSpillMassKilograms"];
+
+        Assert.InRange(
+            Math.Abs(
+                actualSpillMassKilograms -
+                expectedSpillMassKilograms) /
+            expectedSpillMassKilograms,
+            0,
+            1e-12);
+
+        AssertConserved(
+            result);
+    }
+
+    [Fact]
     public void Evaluate_IsDeterministicForSameInputs()
     {
         var setup =

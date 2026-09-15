@@ -112,6 +112,12 @@ public sealed class HydrologySystem
                 planet,
                 terrain);
 
+        var basins =
+            PlanetTerrainBasinTopology.Derive(
+                planet,
+                terrain,
+                drainage);
+
         var surfaceCellsById =
             grid.Cells.ToDictionary(
                 cell =>
@@ -130,6 +136,7 @@ public sealed class HydrologySystem
         var totalFreezingMass = 0d;
         var totalMeltingMass = 0d;
         var totalRunoffMass = 0d;
+        var totalBasinSpillMass = 0d;
         var integrationSubsteps = 0;
 
         var remainingSeconds =
@@ -429,11 +436,27 @@ public sealed class HydrologySystem
                             .SnowIceWaterEquivalentKilogramsPerSquareMeter);
             }
 
-            current =
+            var postRunoff =
                 new PlanetHydrologyState(
                     hydrology.PlanetId,
                     hydrology.GridDefinition,
                     nextCells);
+
+            var basinEquilibrium =
+                PlanetHydrologyBasinEquilibrator
+                    .Equilibrate(
+                        planet,
+                        terrain,
+                        postRunoff,
+                        basins);
+
+            current =
+                basinEquilibrium
+                    .Hydrology;
+
+            totalBasinSpillMass +=
+                basinEquilibrium
+                    .SpillMassKilograms;
 
             integrationSubsteps++;
             remainingSeconds -=
@@ -485,6 +508,8 @@ public sealed class HydrologySystem
                     totalMeltingMass,
                 ["runoffMassKilograms"] =
                     totalRunoffMass,
+                ["basinSpillMassKilograms"] =
+                    totalBasinSpillMass,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });
