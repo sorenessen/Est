@@ -1,5 +1,6 @@
 import {
   Color3,
+  FresnelParameters,
   Mesh,
   Scene,
   StandardMaterial,
@@ -275,27 +276,58 @@ export function createStandingWaterMesh(
 
   material.diffuseColor =
     new Color3(
-      0.01,
-      0.15,
-      0.30,
+      0.008,
+      0.075,
+      0.13,
     )
 
+  /*
+   * Disable direct specular entirely. The previous point highlight
+   * read as an artificial circular hotspot on the ocean surface.
+   */
   material.specularColor =
     new Color3(
-      1.0,
-      1.0,
-      1.0,
+      0.0,
+      0.0,
+      0.0,
     )
-
-  material.specularPower =
-    128
 
   material.emissiveColor =
     new Color3(
-      0.0,
-      0.015,
-      0.035,
+      0.002,
+      0.012,
+      0.020,
     )
+
+  /*
+   * Give the ocean a restrained grazing-angle lift so the spherical
+   * surface reads as curved without introducing another light hotspot.
+   */
+  const emissiveFresnel =
+    new FresnelParameters()
+
+  emissiveFresnel.leftColor =
+    new Color3(
+      0.010,
+      0.045,
+      0.070,
+    )
+
+  emissiveFresnel.rightColor =
+    new Color3(
+      0.001,
+      0.004,
+      0.007,
+    )
+
+  emissiveFresnel.bias =
+    0.02
+
+  emissiveFresnel.power =
+    3.0
+
+  material.emissiveFresnelParameters =
+    emissiveFresnel
 
   material.alpha = 1
   material.backFaceCulling = true
