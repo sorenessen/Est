@@ -14,12 +14,13 @@ import {
 } from '@babylonjs/core'
 
 import {
-  createCubeSpherePatchGeometry,
   sphereDirectionToGeographicDegrees,
   type CubeFace,
-  type CubeSphereRadialOffset,
-  type CubeSphereSurfaceNormal,
 } from './planet/cube-sphere'
+
+import {
+  CreateIcoSphereVertexData,
+} from '@babylonjs/core/Meshes/Builders/icoSphereBuilder.js'
 
 import {
   EstApi,
@@ -38,13 +39,6 @@ import {
   planetaryLightRayDirection,
 } from './planet/planetary-lighting'
 
-import {
-  findPlanetPatchStitchEdges,
-  patchBounds,
-  patchKey,
-  selectBalancedPlanetPatches,
-  type PlanetPatch,
-} from './planet/planet-quadtree'
 
 const app =
   document.querySelector<HTMLDivElement>(
@@ -67,7 +61,7 @@ app.innerHTML = `
     <strong>Est Planet Renderer</strong>
     <span>R4 · procedural terrain materials</span>
     <span id="terrainStatus">preparing terrain…</span>
-    <span id="lodStatus">selecting patches…</span>
+    <span id="lodStatus">building spherical terrain…</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
 `
@@ -221,11 +215,17 @@ const terrainStatus =
     '#terrainStatus',
   )
 
-let terrainRadialOffset:
-  CubeSphereRadialOffset | undefined
+interface SphereDirection {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
 
-let terrainNormalAtDirection:
-  CubeSphereSurfaceNormal | undefined
+type TerrainRadialOffset =
+  (direction: SphereDirection) => number
+
+let terrainRadialOffset:
+  TerrainRadialOffset | undefined
 
 let terrainSurfaceMaterial:
   ReturnType<
@@ -362,44 +362,6 @@ if (sessionId) {
       )
     }
 
-  terrainNormalAtDirection =
-    direction => {
-      const coordinate =
-        sphereDirectionToGeographicDegrees(
-          direction,
-        )
-
-      const sample =
-        heightField.sampleSurfaceMeters(
-          coordinate.latitudeDegrees,
-          coordinate.longitudeDegrees,
-        )
-
-      const renderRadius =
-        1 +
-        sample.elevationMeters /
-          meanRadiusMeters
-
-      const gradientScale =
-        meanRadiusMeters *
-        renderRadius
-
-      return {
-        x:
-          direction.x -
-          sample.gradientMetersPerUnit.x /
-            gradientScale,
-        y:
-          direction.y -
-          sample.gradientMetersPerUnit.y /
-            gradientScale,
-        z:
-          direction.z -
-          sample.gradientMetersPerUnit.z /
-            gradientScale,
-      }
-    }
-
   if (terrainStatus) {
     terrainStatus.textContent =
       `authoritative terrain · ${terrain.cells.length.toLocaleString()} cells · ${minimumElevationMeters.toFixed(0)} to ${maximumElevationMeters.toFixed(0)} m`
@@ -409,299 +371,140 @@ if (sessionId) {
     'unit sphere · no simulation session selected'
 }
 
-const segmentsPerPatch = 8
+// One immutable spherical planet.
+//
+// There are no render patches, cube faces, quadtree selections,
+// topology changes, or camera-driven geometry updates here.
+//
+// The icosphere is generated once. Authoritative terrain is sampled
+// once for each spherical vertex and baked into that fixed geometry.
+const sphereSubdivisions = 64
 
-const lodOptions = {
-  minimumLevel: 1,
-  maximumLevel: 5,
-  splitThreshold: 0.28,
-} as const
+const planetVertexData =
+  CreateIcoSphereVertexData({
+    radius: 1,
+    subdivisions: sphereSubdivisions,
+    flat: false,
+  })
 
-const patchMeshes =
-  new Map<string, Mesh>()
+const sourcePositions =
+  planetVertexData.positions
 
-const patchMeshStitches =
-  new Map<string, string>()
+const planetIndices =
+  planetVertexData.indices
 
-const diagnosticMaterials =
-  new Map<
-    string,
-    StandardMaterial
-  >()
-
-function createPatchMaterial(
-  patch: PlanetPatch,
+if (
+  !sourcePositions ||
+  !planetIndices
 ) {
-  if (!showFaceDiagnostics) {
-    return (
-      terrainSurfaceMaterial ??
-      sharedSurface
+  throw new Error(
+    'Babylon did not produce complete icosphere vertex data.',
+  )
+}
+
+const planetPositions =
+  Array.from(sourcePositions)
+
+for (
+  let index = 0;
+  index < planetPositions.length;
+  index += 3
+) {
+  const x =
+    planetPositions[index]
+
+  const y =
+    planetPositions[index + 1]
+
+  const z =
+    planetPositions[index + 2]
+
+  const length =
+    Math.hypot(x, y, z)
+
+  if (
+    !Number.isFinite(length) ||
+    length <= 0
+  ) {
+    throw new Error(
+      'Icosphere contains an invalid vertex direction.',
     )
   }
 
-  const parity =
-    (patch.x + patch.y) % 2
-
-  const materialKey = [
-    patch.face,
-    patch.level,
-    parity,
-  ].join(':')
-
-  const existing =
-    diagnosticMaterials.get(
-      materialKey,
-    )
-
-  if (existing) {
-    return existing
+  const direction: SphereDirection = {
+    x: x / length,
+    y: y / length,
+    z: z / length,
   }
 
-  const base =
-    diagnosticFaceColors[
-      patch.face
-    ]
+  const radialOffset =
+    terrainRadialOffset?.(
+      direction,
+    ) ?? 0
 
-  const levelFactor =
-    0.62 +
-    patch.level * 0.075
+  const radius =
+    1 + radialOffset
 
-  const checkerFactor =
-    parity === 0
-      ? 0.86
-      : 1.08
+  planetPositions[index] =
+    direction.x * radius
 
-  const material =
-    new StandardMaterial(
-      `cube-sphere-${materialKey}-material`,
-      scene,
-    )
+  planetPositions[index + 1] =
+    direction.y * radius
 
-  material.diffuseColor =
-    base.scale(
-      Math.min(
-        1.15,
-        levelFactor *
-          checkerFactor,
-      ),
-    )
-
-  material.emissiveColor =
-    base.scale(0.025)
-
-  material.specularColor =
-    Color3.Black()
-
-  diagnosticMaterials.set(
-    materialKey,
-    material,
-  )
-
-  return material
+  planetPositions[index + 2] =
+    direction.z * radius
 }
 
-function createPatchMesh(
-  patch: PlanetPatch,
-  stitchEdges: Record<
-    'left' | 'right' | 'bottom' | 'top',
-    boolean
-  >,
-): Mesh {
-  const bounds =
-    patchBounds(patch)
+const planetNormals =
+  new Array<number>(
+    planetPositions.length,
+  ).fill(0)
 
-  const geometry =
-    createCubeSpherePatchGeometry(
-      patch.face,
-      segmentsPerPatch,
-      bounds.uMin,
-      bounds.uMax,
-      bounds.vMin,
-      bounds.vMax,
-      stitchEdges,
-      terrainRadialOffset,
-      terrainNormalAtDirection,
-    )
+VertexData.ComputeNormals(
+  planetPositions,
+  planetIndices,
+  planetNormals,
+)
 
-  const mesh =
-    new Mesh(
-      `cube-sphere-${patchKey(patch)}`,
-      scene,
-    )
+planetVertexData.positions =
+  planetPositions
 
-  const vertexData =
-    new VertexData()
+planetVertexData.normals =
+  planetNormals
 
-  vertexData.positions =
-    geometry.positions
-
-  vertexData.indices =
-    geometry.indices
-
-  vertexData.normals =
-    geometry.normals
-
-  vertexData.applyToMesh(
-    mesh,
-    false,
+const planetMesh =
+  new Mesh(
+    'est-planet-sphere',
+    scene,
   )
 
-  mesh.material =
-    createPatchMaterial(patch)
+planetVertexData.applyToMesh(
+  planetMesh,
+  false,
+)
 
-  mesh.isPickable = false
+planetMesh.material =
+  terrainSurfaceMaterial ??
+  sharedSurface
 
-  return mesh
-}
+planetMesh.isPickable = false
 
 const lodStatus =
   document.querySelector<HTMLSpanElement>(
     '#lodStatus',
   )
 
-let previousSelection = ''
-
-let stitchEdgesByPatch =
-  new Map<
-    string,
-    Record<
-      'left' | 'right' | 'bottom' | 'top',
-      boolean
-    >
-  >()
-
-function synchronizePlanetPatches(): void {
-  const cameraPoint = {
-    x: camera.position.x,
-    y: camera.position.y,
-    z: camera.position.z,
-  }
-
-  const selected =
-    selectBalancedPlanetPatches(
-      cameraPoint,
-      lodOptions,
-    )
-
-  const keys =
-    selected.map(patchKey)
-
-  const selectionSignature =
-    keys.join('|')
-
-  const selectionChanged =
-    selectionSignature !==
-    previousSelection
-
-  if (selectionChanged) {
-    previousSelection =
-      selectionSignature
-
-    stitchEdgesByPatch =
-      findPlanetPatchStitchEdges(
-        selected,
-        lodOptions.maximumLevel,
-      )
-  }
-
-  if (!selectionChanged) {
-    return
-  }
-
-  // Babylon performs native per-mesh frustum culling.
-  //
-  // Keep the complete balanced patch selection resident here rather than
-  // deleting patches through renderer-owned visibility approximations.
-  const visible =
-    selected
-
-  const visibleKeys =
-    keys
-
-  const visibleKeySet =
-    new Set(visibleKeys)
-
-  for (
-    const [
-      key,
-      mesh,
-    ] of patchMeshes
-  ) {
-    if (
-      visibleKeySet.has(key)
-    ) {
-      continue
-    }
-
-    mesh.dispose()
-    patchMeshes.delete(key)
-    patchMeshStitches.delete(key)
-  }
-
-  for (const patch of visible) {
-    const key =
-      patchKey(patch)
-
-    const stitchEdges =
-      stitchEdgesByPatch.get(key) ?? {
-        left: false,
-        right: false,
-        bottom: false,
-        top: false,
-      }
-
-    const stitchSignature =
-      `${+stitchEdges.left}${+stitchEdges.right}${+stitchEdges.bottom}${+stitchEdges.top}`
-
-    const existingMesh =
-      patchMeshes.get(key)
-
-    if (
-      existingMesh &&
-      patchMeshStitches.get(key) ===
-        stitchSignature
-    ) {
-      continue
-    }
-
-    existingMesh?.dispose()
-
-    patchMeshes.set(
-      key,
-      createPatchMesh(
-        patch,
-        stitchEdges,
-      ),
-    )
-
-    patchMeshStitches.set(
-      key,
-      stitchSignature,
-    )
-  }
-
-  if (lodStatus) {
-    const levels =
-      selected.map(
-        (patch) =>
-          patch.level,
-      )
-
-    const minimum =
-      Math.min(...levels)
-
-    const maximum =
-      Math.max(...levels)
-
-    lodStatus.textContent =
-      `${selected.length} selected · Babylon native frustum · L${minimum}–L${maximum}`
-  }
+if (lodStatus) {
+  lodStatus.textContent =
+    `1 immutable icosphere · ${sphereSubdivisions} subdivisions · no LOD`
 }
 
-synchronizePlanetPatches()
+// These older diagnostic values no longer affect rendering.
+// Keep them temporarily until the diagnostic UI is cleaned up.
+void showFaceDiagnostics
+void diagnosticFaceColors
 
 engine.runRenderLoop(() => {
-  synchronizePlanetPatches()
   scene.render()
 })
 
