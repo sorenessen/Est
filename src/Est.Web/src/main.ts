@@ -6,7 +6,6 @@ import {
   Color4,
   DirectionalLight,
   Engine,
-  HemisphericLight,
   Mesh,
   Scene,
   StandardMaterial,
@@ -33,6 +32,11 @@ import {
 import {
   createTerrainShaderMaterial,
 } from './surface/terrain-material'
+
+import {
+  defaultPlanetaryLighting,
+  planetaryLightRayDirection,
+} from './planet/planetary-lighting'
 
 import {
   findPlanetPatchStitchEdges,
@@ -120,27 +124,29 @@ camera.panningSensibility = 0
 camera.inertia = 0.82
 camera.minZ = 0.01
 
+const planetaryLighting =
+  defaultPlanetaryLighting
+
+const sunlightRayDirection =
+  planetaryLightRayDirection(
+    planetaryLighting,
+  )
+
 const sunlight =
   new DirectionalLight(
     'sunlight',
     new Vector3(
-      -0.8,
-      -0.35,
-      0.6,
+      sunlightRayDirection.x,
+      sunlightRayDirection.y,
+      sunlightRayDirection.z,
     ),
     scene,
   )
 
-sunlight.intensity = 1.8
-
-const ambient =
-  new HemisphericLight(
-    'ambient',
-    new Vector3(0, 1, 0),
-    scene,
-  )
-
-ambient.intensity = 0.35
+// The production terrain shader uses the same Est-owned
+// planetary light state directly. This Babylon light remains
+// useful for diagnostic StandardMaterials.
+sunlight.intensity = 1.0
 
 const sharedSurface =
   new StandardMaterial(
@@ -309,6 +315,8 @@ if (sessionId) {
         meanRadiusMeters,
         minimumElevationMeters,
         maximumElevationMeters,
+        lighting:
+          planetaryLighting,
       },
     )
 

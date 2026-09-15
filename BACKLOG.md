@@ -252,7 +252,7 @@ Do not connect authoritative terrain yet.
 
 - [x] Compute terrain normals from the rendered terrain surface.
 - [x] Add Est-controlled terrain materials.
-- [ ] Add directional planetary lighting independent of Cesium assumptions.
+- [x] Add directional planetary lighting independent of Cesium assumptions.
 - [ ] Add a continuous ocean representation driven by authoritative water state.
 - [ ] Make visible shorelines emerge from terrain/water intersection rather
       than hydrology-cell polygons.

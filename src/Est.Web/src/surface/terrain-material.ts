@@ -5,10 +5,17 @@ import {
   type Scene,
 } from '@babylonjs/core'
 
+import {
+  defaultPlanetaryLighting,
+  type PlanetaryLightingState,
+} from '../planet/planetary-lighting'
+
 export interface TerrainMaterialOptions {
   readonly meanRadiusMeters: number
   readonly minimumElevationMeters: number
   readonly maximumElevationMeters: number
+  readonly lighting?:
+    PlanetaryLightingState
 }
 
 export const terrainVertexShader = `
@@ -41,7 +48,9 @@ varying vec3 vTerrainNormal;
 uniform float uMeanRadiusMeters;
 uniform float uMinimumElevationMeters;
 uniform float uMaximumElevationMeters;
-uniform vec3 uLightDirection;
+uniform vec3 uSurfaceToLightDirection;
+uniform float uAmbientIntensity;
+uniform float uDiffuseIntensity;
 
 float terrainHash(vec3 p) {
   p = fract(
@@ -373,15 +382,16 @@ void main(void) {
       dot(
         terrainNormal,
         normalize(
-          uLightDirection
+          uSurfaceToLightDirection
         )
       ),
       0.0
     );
 
   float illumination =
-    0.30 +
-    diffuse * 0.70;
+    uAmbientIntensity +
+    diffuse *
+      uDiffuseIntensity;
 
   gl_FragColor =
     vec4(
@@ -459,7 +469,9 @@ export function createTerrainShaderMaterial(
           'uMeanRadiusMeters',
           'uMinimumElevationMeters',
           'uMaximumElevationMeters',
-          'uLightDirection',
+          'uSurfaceToLightDirection',
+          'uAmbientIntensity',
+          'uDiffuseIntensity',
         ],
       },
     )
@@ -479,16 +491,30 @@ export function createTerrainShaderMaterial(
     options.maximumElevationMeters,
   )
 
-  // This is deliberately the inverse of the current Babylon
-  // DirectionalLight ray direction so the new material preserves
-  // the existing visual light orientation during R4.2.
+  const lighting =
+    options.lighting ??
+    defaultPlanetaryLighting
+
   material.setVector3(
-    'uLightDirection',
+    'uSurfaceToLightDirection',
     new Vector3(
-      0.8,
-      0.35,
-      -0.6,
-    ).normalize(),
+      lighting
+        .surfaceToLightDirection.x,
+      lighting
+        .surfaceToLightDirection.y,
+      lighting
+        .surfaceToLightDirection.z,
+    ),
+  )
+
+  material.setFloat(
+    'uAmbientIntensity',
+    lighting.ambientIntensity,
+  )
+
+  material.setFloat(
+    'uDiffuseIntensity',
+    lighting.diffuseIntensity,
   )
 
   material.backFaceCulling = true
