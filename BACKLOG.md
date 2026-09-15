@@ -362,9 +362,20 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Prove renderer access to authoritative surface-liquid state.
   - [x] Reject direct per-cell water polygons as a production representation
         after runtime evaluation exposed simulation-grid coastlines.
-  - [ ] Re-present large standing-water bodies through the R4 continuous-ocean
+  - [x] Re-present large standing-water bodies through the R4 continuous-ocean
         renderer without changing authoritative hydrology ownership.
-- [ ] Build plant biomass on the shared surface substrate.
+- [x] Build plant biomass on the shared surface substrate.
+  - [x] Define durable per-cell live plant biomass on the shared surface grid.
+  - [x] Preserve vegetation through world copy, fork, snapshot, and archive.
+  - [x] Define explicit vegetation model policy in `SimulationDefinition`.
+  - [x] Make terrain, soil-water availability, and climate causal inputs to
+        plant productivity.
+  - [x] Seed deterministic generated vegetation only on dry surface cells.
+  - [x] Execute vegetation after hydrology and before biological consumers.
+  - [x] Expose generated vegetation and vegetation model policy through Est.Api.
+  - [ ] Add explicit plant stress / mortality behavior for conditions such as
+        later inundation, drought, temperature extremes, and other ecological
+        losses when that lifecycle layer is designed.
 - [ ] Replace synthetic food resources only after vegetation can preserve
       the existing population survival vertical slice.
 - [ ] Add aggregate invertebrate / bug populations.
