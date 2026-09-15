@@ -4,6 +4,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Simulation.Tests.Definitions;
@@ -265,6 +266,93 @@ public class SimulationDefinitionTests
                 new HydrologyModelParameters(
                     freezingTemperatureKelvin: 275,
                     meltingTemperatureKelvin: 274));
+    }
+
+    [Fact]
+    public void Empty_HasNoConfiguredVegetationModels()
+    {
+        Assert.Empty(
+            SimulationDefinition.Empty
+                .VegetationModels);
+    }
+
+    [Fact]
+    public void Constructor_PreservesConfiguredVegetationModel()
+    {
+        var planetId =
+            PlanetId.New();
+
+        var model =
+            new VegetationModelDefinition(
+                planetId,
+                new VegetationModelParameters(
+                    maximumIntegrationStepSeconds:
+                        3_600,
+                    carryingCapacityKilogramsPerSquareMeter:
+                        7,
+                    maximumRelativeGrowthRatePerDay:
+                        0.2,
+                    soilWaterForFullProductivityKilogramsPerSquareMeter:
+                        60,
+                    minimumGrowthTemperatureKelvin:
+                        270,
+                    optimumGrowthTemperatureKelvin:
+                        292,
+                    maximumGrowthTemperatureKelvin:
+                        315,
+                    temperatureLapseRateKelvinPerMeter:
+                        0.006));
+
+        var definition =
+            new SimulationDefinition(
+                vegetationModels:
+                [
+                    model
+                ]);
+
+        Assert.Same(
+            model,
+            Assert.Single(
+                definition.VegetationModels));
+    }
+
+    [Fact]
+    public void Constructor_RejectsDuplicateVegetationModelForPlanet()
+    {
+        var planetId =
+            PlanetId.New();
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                new SimulationDefinition(
+                    vegetationModels:
+                    [
+                        new VegetationModelDefinition(
+                            planetId,
+                            new VegetationModelParameters()),
+                        new VegetationModelDefinition(
+                            planetId,
+                            new VegetationModelParameters())
+                    ]));
+    }
+
+    [Fact]
+    public void ValidateFor_RejectsVegetationModelForUnknownPlanet()
+    {
+        var definition =
+            new SimulationDefinition(
+                vegetationModels:
+                [
+                    new VegetationModelDefinition(
+                        PlanetId.New(),
+                        new VegetationModelParameters())
+                ]);
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                definition.ValidateFor(
+                    CreateWorld(
+                        PlanetId.New())));
     }
 
     private static WorldState CreateWorld(PlanetId planetId)

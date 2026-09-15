@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Population;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Simulation.Definitions;
@@ -10,7 +11,8 @@ public sealed record SimulationDefinition
     public SimulationDefinition(
         IEnumerable<PlanetaryEnergyBalanceModelDefinition>? planetaryEnergyBalanceModels = null,
         IEnumerable<PopulationModelDefinition>? populationModels = null,
-        IEnumerable<HydrologyModelDefinition>? hydrologyModels = null)
+        IEnumerable<HydrologyModelDefinition>? hydrologyModels = null,
+        IEnumerable<VegetationModelDefinition>? vegetationModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -23,6 +25,10 @@ public sealed record SimulationDefinition
         var hydrology = hydrologyModels?
             .ToImmutableArray()
             ?? ImmutableArray<HydrologyModelDefinition>.Empty;
+
+        var vegetation = vegetationModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<VegetationModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -43,6 +49,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null hydrology model definitions.",
                 nameof(hydrologyModels));
+        }
+
+        if (vegetation.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null vegetation model definitions.",
+                nameof(vegetationModels));
         }
 
         if (models
@@ -72,9 +85,19 @@ public sealed record SimulationDefinition
                 nameof(hydrologyModels));
         }
 
+        if (vegetation
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one vegetation model definition.",
+                nameof(vegetationModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
+        VegetationModels = vegetation;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -85,6 +108,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<HydrologyModelDefinition>
         HydrologyModels { get; }
+
+    public ImmutableArray<VegetationModelDefinition>
+        VegetationModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -122,6 +148,16 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Hydrology model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in VegetationModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Vegetation model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
                     nameof(world));
             }
         }

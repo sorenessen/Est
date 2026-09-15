@@ -21,7 +21,9 @@ public sealed record PlanetCreationRequest(
     SyntheticAnimalCreationRequest? SyntheticAnimals = null,
     GeneratedTerrainCreationRequest? GeneratedTerrain = null,
     GeneratedHydrologyCreationRequest? GeneratedHydrology = null,
-    HydrologyModelRequest? HydrologyModel = null);
+    HydrologyModelRequest? HydrologyModel = null,
+    GeneratedVegetationCreationRequest? GeneratedVegetation = null,
+    VegetationModelRequest? VegetationModel = null);
 
 public sealed record GeneratedTerrainCreationRequest(
     [property: JsonRequired]
@@ -34,6 +36,59 @@ public sealed record GeneratedTerrainCreationRequest(
 public sealed record GeneratedHydrologyCreationRequest(
     [property: JsonRequired]
     double SurfaceLiquidWaterInventoryKilograms);
+
+public sealed record GeneratedVegetationCreationRequest(
+    [property: JsonRequired]
+    double InitialLiveBiomassKilogramsPerSquareMeter);
+
+public sealed record VegetationModelRequest
+{
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double CarryingCapacityKilogramsPerSquareMeter
+    {
+        get;
+        init;
+    } = 5;
+
+    public double MaximumRelativeGrowthRatePerDay
+    {
+        get;
+        init;
+    } = 0.10;
+
+    public double
+        SoilWaterForFullProductivityKilogramsPerSquareMeter
+    {
+        get;
+        init;
+    } = 50;
+
+    public double MinimumGrowthTemperatureKelvin
+    {
+        get;
+        init;
+    } = 273.15;
+
+    public double OptimumGrowthTemperatureKelvin
+    {
+        get;
+        init;
+    } = 293.15;
+
+    public double MaximumGrowthTemperatureKelvin
+    {
+        get;
+        init;
+    } = 313.15;
+
+    public double TemperatureLapseRateKelvinPerMeter
+    {
+        get;
+        init;
+    } = 0.0065;
+}
 
 public sealed record HydrologyModelRequest
 {

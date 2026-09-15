@@ -7,12 +7,14 @@ using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
+using Est.Simulation.Vegetation;
 
 namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
+    private const int VegetationModelSchemaVersion = 6;
     private const int HydrologyModelSchemaVersion = 5;
     private const int ReproductiveBehaviorSchemaVersion = 4;
     private const int PopulationModelSchemaVersion = 3;
@@ -102,6 +104,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != DefinitionSchemaVersion &&
             archive.SchemaVersion != PopulationModelSchemaVersion &&
             archive.SchemaVersion != ReproductiveBehaviorSchemaVersion &&
+            archive.SchemaVersion != HydrologyModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -404,6 +407,44 @@ public static class TimelineArchiveSerializer
                                                 .MaximumMeltingRateKilogramsPerSquareMeterPerDay
                                     }
                             })
+                    .ToArray(),
+            VegetationModels =
+                definition.VegetationModels
+                    .Select(
+                        model =>
+                            new VegetationModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new VegetationModelParametersSnapshot
+                                    {
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        CarryingCapacityKilogramsPerSquareMeter =
+                                            model.Parameters
+                                                .CarryingCapacityKilogramsPerSquareMeter,
+                                        MaximumRelativeGrowthRatePerDay =
+                                            model.Parameters
+                                                .MaximumRelativeGrowthRatePerDay,
+                                        SoilWaterForFullProductivityKilogramsPerSquareMeter =
+                                            model.Parameters
+                                                .SoilWaterForFullProductivityKilogramsPerSquareMeter,
+                                        MinimumGrowthTemperatureKelvin =
+                                            model.Parameters
+                                                .MinimumGrowthTemperatureKelvin,
+                                        OptimumGrowthTemperatureKelvin =
+                                            model.Parameters
+                                                .OptimumGrowthTemperatureKelvin,
+                                        MaximumGrowthTemperatureKelvin =
+                                            model.Parameters
+                                                .MaximumGrowthTemperatureKelvin,
+                                        TemperatureLapseRateKelvinPerMeter =
+                                            model.Parameters
+                                                .TemperatureLapseRateKelvinPerMeter
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -572,10 +613,61 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        VegetationModelDefinition[] vegetationModels;
+
+        if (schemaVersion <
+            VegetationModelSchemaVersion)
+        {
+            vegetationModels = [];
+        }
+        else
+        {
+            if (snapshot.VegetationModels is null)
+            {
+                throw new JsonException(
+                    "Vegetation model collection is required.");
+            }
+
+            vegetationModels =
+                snapshot.VegetationModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Vegetation model parameters are required.");
+                            }
+
+                            return new VegetationModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new VegetationModelParameters(
+                                    model.Parameters
+                                        .MaximumIntegrationStepSeconds,
+                                    model.Parameters
+                                        .CarryingCapacityKilogramsPerSquareMeter,
+                                    model.Parameters
+                                        .MaximumRelativeGrowthRatePerDay,
+                                    model.Parameters
+                                        .SoilWaterForFullProductivityKilogramsPerSquareMeter,
+                                    model.Parameters
+                                        .MinimumGrowthTemperatureKelvin,
+                                    model.Parameters
+                                        .OptimumGrowthTemperatureKelvin,
+                                    model.Parameters
+                                        .MaximumGrowthTemperatureKelvin,
+                                    model.Parameters
+                                        .TemperatureLapseRateKelvinPerMeter));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
-            hydrologyModels);
+            hydrologyModels,
+            vegetationModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -639,6 +731,73 @@ public static class TimelineArchiveSerializer
         public PopulationModelSnapshot[]? PopulationModels { get; set; }
 
         public HydrologyModelSnapshot[]? HydrologyModels { get; set; }
+
+        public VegetationModelSnapshot[]? VegetationModels { get; set; }
+    }
+
+    private sealed class VegetationModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required VegetationModelParametersSnapshot
+            Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class VegetationModelParametersSnapshot
+    {
+        public required long MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
+
+        public required double
+            CarryingCapacityKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double MaximumRelativeGrowthRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SoilWaterForFullProductivityKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double MinimumGrowthTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double OptimumGrowthTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double MaximumGrowthTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double TemperatureLapseRateKelvinPerMeter
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class HydrologyModelSnapshot

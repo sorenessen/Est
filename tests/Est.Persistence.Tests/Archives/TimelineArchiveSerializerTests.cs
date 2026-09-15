@@ -12,6 +12,7 @@ using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Persistence.Tests.Archives;
@@ -599,6 +600,129 @@ public class TimelineArchiveSerializerTests
         node["definition"]!
             .AsObject()
             .Remove("hydrologyModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesVegetationModelDefinition()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var parameters =
+            new VegetationModelParameters(
+                maximumIntegrationStepSeconds:
+                    3_600,
+                carryingCapacityKilogramsPerSquareMeter:
+                    7,
+                maximumRelativeGrowthRatePerDay:
+                    0.2,
+                soilWaterForFullProductivityKilogramsPerSquareMeter:
+                    60,
+                minimumGrowthTemperatureKelvin:
+                    270,
+                optimumGrowthTemperatureKelvin:
+                    292,
+                maximumGrowthTemperatureKelvin:
+                    315,
+                temperatureLapseRateKelvinPerMeter:
+                    0.006);
+
+        var definition =
+            new SimulationDefinition(
+                vegetationModels:
+                [
+                    new VegetationModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()));
+
+        var model =
+            Assert.Single(
+                restored.Definition.VegetationModels);
+
+        Assert.Equal(
+            planet.Id,
+            model.PlanetId);
+
+        Assert.Equal(
+            parameters,
+            model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFiveDefaultsVegetationModelsToEmpty()
+    {
+        var timeline =
+            CreateTimelineWithHistory();
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["schemaVersion"] = 5;
+
+        node["definition"]!
+            .AsObject()
+            .Remove("vegetationModels");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Definition.VegetationModels);
+    }
+
+    [Fact]
+    public void Deserialize_VersionSixRequiresVegetationModels()
+    {
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                CreateTimelineWithHistory(),
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()
+            .Remove("vegetationModels");
 
         Assert.Throws<JsonException>(
             () =>

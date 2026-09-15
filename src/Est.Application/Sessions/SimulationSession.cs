@@ -9,6 +9,7 @@ using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Application.Sessions;
@@ -69,6 +70,15 @@ public sealed class SimulationSession
                                 model.PlanetId,
                                 model.Parameters));
 
+        var vegetationSystems =
+            definition.VegetationModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new VegetationSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var foragingSystems =
             definition.PopulationModels
                 .Select(
@@ -112,6 +122,7 @@ public sealed class SimulationSession
         _causalSystems =
             energyBalanceSystems
                 .Concat(hydrologySystems)
+                .Concat(vegetationSystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
                 .Concat(reproductionSystems)

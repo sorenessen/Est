@@ -7,6 +7,7 @@ using Est.Application.Worlds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -193,7 +194,12 @@ app.MapPost(
                                         ? null
                                         : new GeneratedHydrologyCreationSpecification(
                                             planet.GeneratedHydrology
-                                                .SurfaceLiquidWaterInventoryKilograms)))
+                                                .SurfaceLiquidWaterInventoryKilograms),
+                                    planet.GeneratedVegetation is null
+                                        ? null
+                                        : new GeneratedVegetationCreationSpecification(
+                                            planet.GeneratedVegetation
+                                                .InitialLiveBiomassKilogramsPerSquareMeter)))
                         .ToArray());
 
             var world =
@@ -279,11 +285,43 @@ app.MapPost(
                     .Cast<HydrologyModelDefinition>()
                     .ToArray();
 
+            var vegetationModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.VegetationModel is null
+                                ? null
+                                : new VegetationModelDefinition(
+                                    world.Planets[index].Id,
+                                    new VegetationModelParameters(
+                                        planet.VegetationModel
+                                            .MaximumIntegrationStepSeconds,
+                                        planet.VegetationModel
+                                            .CarryingCapacityKilogramsPerSquareMeter,
+                                        planet.VegetationModel
+                                            .MaximumRelativeGrowthRatePerDay,
+                                        planet.VegetationModel
+                                            .SoilWaterForFullProductivityKilogramsPerSquareMeter,
+                                        planet.VegetationModel
+                                            .MinimumGrowthTemperatureKelvin,
+                                        planet.VegetationModel
+                                            .OptimumGrowthTemperatureKelvin,
+                                        planet.VegetationModel
+                                            .MaximumGrowthTemperatureKelvin,
+                                        planet.VegetationModel
+                                            .TemperatureLapseRateKelvinPerMeter)))
+                    .Where(
+                        model =>
+                            model is not null)
+                    .Cast<VegetationModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
                     populationModels,
-                    hydrologyModels);
+                    hydrologyModels,
+                    vegetationModels);
 
             var sessionId =
                 manager.Create(
@@ -1180,6 +1218,28 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .LongMigrationProbability,
                         model.Parameters
                             .LongMigrationDegrees))
+            .ToArray(),
+        definition.VegetationModels
+            .Select(
+                model =>
+                    new VegetationModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .MaximumIntegrationStepSeconds,
+                        model.Parameters
+                            .CarryingCapacityKilogramsPerSquareMeter,
+                        model.Parameters
+                            .MaximumRelativeGrowthRatePerDay,
+                        model.Parameters
+                            .SoilWaterForFullProductivityKilogramsPerSquareMeter,
+                        model.Parameters
+                            .MinimumGrowthTemperatureKelvin,
+                        model.Parameters
+                            .OptimumGrowthTemperatureKelvin,
+                        model.Parameters
+                            .MaximumGrowthTemperatureKelvin,
+                        model.Parameters
+                            .TemperatureLapseRateKelvinPerMeter))
             .ToArray());
 }
 

@@ -4,7 +4,9 @@ public sealed record SimulationDefinitionResponse(
     PlanetaryEnergyBalanceModelResponse[]
         PlanetaryEnergyBalanceModels,
     PopulationModelResponse[]
-        PopulationModels);
+        PopulationModels,
+    VegetationModelResponse[]
+        VegetationModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -31,3 +33,15 @@ public sealed record PopulationModelResponse(
     double LocalMigrationDegrees,
     double LongMigrationProbability,
     double LongMigrationDegrees);
+
+
+public sealed record VegetationModelResponse(
+    Guid PlanetId,
+    long MaximumIntegrationStepSeconds,
+    double CarryingCapacityKilogramsPerSquareMeter,
+    double MaximumRelativeGrowthRatePerDay,
+    double SoilWaterForFullProductivityKilogramsPerSquareMeter,
+    double MinimumGrowthTemperatureKelvin,
+    double OptimumGrowthTemperatureKelvin,
+    double MaximumGrowthTemperatureKelvin,
+    double TemperatureLapseRateKelvinPerMeter);

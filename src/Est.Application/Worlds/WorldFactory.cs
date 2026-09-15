@@ -6,6 +6,7 @@ using Est.Simulation.Population;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Application.Worlds;
@@ -93,6 +94,31 @@ public static class WorldFactory
                         item!)
                 .ToArray();
 
+        var hydrologyByPlanetId =
+            hydrology.ToDictionary(
+                item =>
+                    item.PlanetId);
+
+        var vegetation =
+            specification.Planets
+                .Select(
+                    (planetSpecification, index) =>
+                        CreateVegetation(
+                            planets[index],
+                            terrainByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            hydrologyByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedVegetation))
+                .Where(
+                    item =>
+                        item is not null)
+                .Select(
+                    item =>
+                        item!)
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
@@ -101,7 +127,8 @@ public static class WorldFactory
             foodResources,
             animals,
             terrain,
-            hydrology);
+            hydrology,
+            vegetation);
     }
 
     private static PlanetState CreatePlanet(
@@ -192,6 +219,40 @@ public static class WorldFactory
                 terrain,
                 specification
                     .SurfaceLiquidWaterInventoryKilograms);
+    }
+
+    private static PlanetVegetationState? CreateVegetation(
+        PlanetState planet,
+        PlanetTerrainState? terrain,
+        PlanetHydrologyState? hydrology,
+        GeneratedVegetationCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return null;
+        }
+
+        if (terrain is null)
+        {
+            throw new ArgumentException(
+                "Generated vegetation requires generated terrain.",
+                nameof(specification));
+        }
+
+        if (hydrology is null)
+        {
+            throw new ArgumentException(
+                "Generated vegetation requires generated hydrology.",
+                nameof(specification));
+        }
+
+        return PlanetVegetationInitializer
+            .FromDrySurfaceBiomass(
+                planet,
+                terrain,
+                hydrology,
+                specification
+                    .InitialLiveBiomassKilogramsPerSquareMeter);
     }
 
     private static IEnumerable<AnimalState> CreateAnimals(

@@ -9,6 +9,7 @@ using Est.Simulation.Population;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Persistence.Tests.Snapshots;
@@ -866,7 +867,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 9",
+            "\"schemaVersion\": 10",
             json,
             StringComparison.Ordinal);
 
@@ -963,7 +964,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 9",
+            "\"schemaVersion\": 10",
             json,
             StringComparison.Ordinal);
 
@@ -1022,6 +1023,152 @@ public class WorldSnapshotSerializerTests
                 .AsObject();
 
         node.Remove("hydrology");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesVegetation()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Green World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            index * 100 - 1_000)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                2 + index * 0.01,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                0,
+                            soilWaterKilogramsPerSquareMeter:
+                                25 + index * 0.5,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                0)));
+
+        var vegetation =
+            new PlanetVegetationState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new VegetationCellState(
+                            cell.Id,
+                            0.25 +
+                            index * 0.1)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(12_345),
+                [planet],
+                [],
+                [],
+                [],
+                [terrain],
+                [hydrology],
+                [vegetation]);
+
+        var json =
+            WorldSnapshotSerializer.Serialize(
+                world);
+
+        Assert.Contains(
+            "\"schemaVersion\": 10",
+            json,
+            StringComparison.Ordinal);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                json);
+
+        var restoredVegetation =
+            Assert.Single(
+                restored.Vegetation);
+
+        Assert.Equal(
+            vegetation.PlanetId,
+            restoredVegetation.PlanetId);
+
+        Assert.Equal(
+            vegetation.GridDefinition,
+            restoredVegetation.GridDefinition);
+
+        Assert.True(
+            vegetation.Cells.SequenceEqual(
+                restoredVegetation.Cells));
+
+        restoredVegetation.ValidateFor(
+            Assert.Single(
+                restored.Planets));
+    }
+
+    [Fact]
+    public void Deserialize_VersionNineGetsEmptyVegetation()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node["schemaVersion"] = 9;
+        node.Remove("vegetation");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Vegetation);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTenRequiresVegetation()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node.Remove("vegetation");
 
         Assert.Throws<JsonException>(
             () =>
