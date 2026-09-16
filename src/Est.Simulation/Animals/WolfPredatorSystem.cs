@@ -49,8 +49,13 @@ public sealed class WolfPredatorSystem : ICausalSystem
         86_400;
 
     private readonly PlanetId _planetId;
+    private readonly WolfLifecycleParameters
+        _lifecycleParameters;
 
-    public WolfPredatorSystem(PlanetId planetId)
+    public WolfPredatorSystem(
+        PlanetId planetId,
+        WolfLifecycleParameters?
+            lifecycleParameters = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -60,6 +65,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         _planetId = planetId;
+        _lifecycleParameters =
+            lifecycleParameters ??
+            new WolfLifecycleParameters();
     }
 
     public SimulationChange Evaluate(
@@ -197,6 +205,28 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     continue;
                 }
 
+                if (!CanParticipateInHunt(
+                        wolf,
+                        stepEndTimeSeconds,
+                        _lifecycleParameters))
+                {
+                    animals[index] =
+                        wolf.WithState(
+                            wolf.LatitudeDegrees,
+                            wolf.LongitudeDegrees,
+                            wolf.EnergyReserve,
+                            wolf.Health,
+                            wolf.Activity ==
+                                AnimalActivity.Eating
+                                ? AnimalActivity.Eating
+                                : AnimalActivity.Idle);
+
+                    processedWolves.Add(
+                        wolf.Id);
+
+                    continue;
+                }
+
                 if (wolf.EnergyReserve <=
                     HuntEnergyThreshold)
                 {
@@ -210,7 +240,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         var huntingPack =
                             FindNearbyHuntingWolves(
                                 wolf,
-                                animals);
+                                animals,
+                                stepEndTimeSeconds,
+                                _lifecycleParameters);
 
                         foreach (var packWolf in
                                  huntingPack)
@@ -283,19 +315,40 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         {
                             grazerKills++;
 
+                            var assimilated =
+                                ProvisionNearbyJuveniles(
+                                    animals,
+                                    grazerTarget
+                                        .LatitudeDegrees,
+                                    grazerTarget
+                                        .LongitudeDegrees,
+                                    stepEndTimeSeconds,
+                                    consumedGrazerMaterial,
+                                    _lifecycleParameters);
+
                             if (!consumedGrazerMaterial.IsEmpty)
                             {
                                 preyConsumptionEvents.Add(
                                     new OrganismConsumptionEvent(
                                         grazerTarget.LatitudeDegrees,
                                         grazerTarget.LongitudeDegrees,
-                                        consumedGrazerMaterial));
+                                        consumedGrazerMaterial,
+                                        assimilated
+                                            .LiveBiomassKilograms,
+                                        assimilated
+                                            .LiveNitrogenKilograms));
                             }
 
                             FeedPack(
                                 animals,
                                 huntingPack,
-                                EnergyPerGrazerKill);
+                                EnergyPerGrazerKill,
+                                grazerTarget
+                                    .LatitudeDegrees,
+                                grazerTarget
+                                    .LongitudeDegrees,
+                                stepEndTimeSeconds,
+                                _lifecycleParameters);
                         }
 
                         continue;
@@ -358,7 +411,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 var pack =
                     FindNearbyDesperateWolves(
                         wolf,
-                        animals);
+                        animals,
+                        stepEndTimeSeconds,
+                        _lifecycleParameters);
 
                 foreach (var packWolf in pack)
                 {
@@ -539,13 +594,26 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     successfulKills++;
                     predationDeaths++;
 
+                    var assimilated =
+                        ProvisionNearbyJuveniles(
+                            animals,
+                            target.LatitudeDegrees,
+                            target.LongitudeDegrees,
+                            stepEndTimeSeconds,
+                            target.Material,
+                            _lifecycleParameters);
+
                     if (!target.Material.IsEmpty)
                     {
                         preyConsumptionEvents.Add(
                             new OrganismConsumptionEvent(
                                 target.LatitudeDegrees,
                                 target.LongitudeDegrees,
-                                target.Material));
+                                target.Material,
+                                assimilated
+                                    .LiveBiomassKilograms,
+                                assimilated
+                                    .LiveNitrogenKilograms));
                     }
 
                     population.RemoveAll(
@@ -649,7 +717,11 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     FeedPack(
                         animals,
                         pack,
-                        EnergyPerHumanKill);
+                        EnergyPerHumanKill,
+                        target.LatitudeDegrees,
+                        target.LongitudeDegrees,
+                        stepEndTimeSeconds,
+                        _lifecycleParameters);
                 }
                 else
                 {
@@ -728,13 +800,23 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 ["preyBiomassRespiredKilograms"] =
                     preyConsumptionEvents.Sum(
                         consumption =>
-                            consumption.Material
-                                .LiveBiomassKilograms),
+                            consumption
+                                .RespiredBiomassKilograms),
                 ["preyNitrogenReturnedKilograms"] =
                     preyConsumptionEvents.Sum(
                         consumption =>
-                            consumption.Material
-                                .LiveNitrogenKilograms),
+                            consumption
+                                .ReturnedNitrogenKilograms),
+                ["preyBiomassAssimilatedKilograms"] =
+                    preyConsumptionEvents.Sum(
+                        consumption =>
+                            consumption
+                                .AssimilatedBiomassKilograms),
+                ["preyNitrogenAssimilatedKilograms"] =
+                    preyConsumptionEvents.Sum(
+                        consumption =>
+                            consumption
+                                .AssimilatedNitrogenKilograms),
                 ["grazerMembers"] =
                     grazerCohorts.Sum(
                         cohort =>
@@ -960,7 +1042,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private static List<AnimalState>
         FindNearbyHuntingWolves(
             AnimalState wolf,
-            IEnumerable<AnimalState> animals)
+            IEnumerable<AnimalState> animals,
+            long currentTimeSeconds,
+            WolfLifecycleParameters parameters)
     {
         return animals
             .Where(
@@ -968,6 +1052,10 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     candidate.Species ==
                         AnimalSpecies.Wolf &&
                     candidate.Health > 0 &&
+                    CanParticipateInHunt(
+                        candidate,
+                        currentTimeSeconds,
+                        parameters) &&
                     candidate.EnergyReserve <=
                         HuntEnergyThreshold &&
                     DistanceDegrees(
@@ -985,7 +1073,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private static List<AnimalState>
         FindNearbyDesperateWolves(
             AnimalState wolf,
-            IEnumerable<AnimalState> animals)
+            IEnumerable<AnimalState> animals,
+            long currentTimeSeconds,
+            WolfLifecycleParameters parameters)
     {
         return animals
             .Where(
@@ -993,6 +1083,10 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     candidate.Species ==
                         AnimalSpecies.Wolf &&
                     candidate.Health > 0 &&
+                    CanParticipateInHunt(
+                        candidate,
+                        currentTimeSeconds,
+                        parameters) &&
                     candidate.EnergyReserve <=
                         HumanAttackEnergyThreshold &&
                     DistanceDegrees(
@@ -1427,23 +1521,57 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private static void FeedPack(
         List<AnimalState> animals,
         IReadOnlyList<AnimalState> pack,
-        double energyFromKill)
+        double energyFromKill,
+        double killLatitudeDegrees,
+        double killLongitudeDegrees,
+        long currentTimeSeconds,
+        WolfLifecycleParameters parameters)
     {
-        if (pack.Count == 0)
+        var recipientIds =
+            new HashSet<AnimalId>(
+                pack.Select(
+                    member =>
+                        member.Id));
+
+        foreach (var dependent in
+                 animals.Where(
+                     candidate =>
+                         candidate.Species ==
+                             AnimalSpecies.Wolf &&
+                         candidate.Health > 0 &&
+                         !CanParticipateInHunt(
+                             candidate,
+                             currentTimeSeconds,
+                             parameters) &&
+                         DistanceDegrees(
+                             killLatitudeDegrees,
+                             killLongitudeDegrees,
+                             candidate.LatitudeDegrees,
+                             candidate.LongitudeDegrees) <=
+                         PackSupportRadiusDegrees))
+        {
+            recipientIds.Add(
+                dependent.Id);
+        }
+
+        if (recipientIds.Count == 0)
         {
             return;
         }
 
         var energyShare =
             energyFromKill /
-            pack.Count;
+            recipientIds.Count;
 
-        foreach (var member in pack)
+        foreach (var recipientId in
+                 recipientIds.OrderBy(
+                     id =>
+                         id.Value))
         {
             var current =
                 FindAnimal(
                     animals,
-                    member.Id);
+                    recipientId);
 
             if (current is null ||
                 current.Health <= 0)
@@ -1463,6 +1591,120 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     current.Health,
                     AnimalActivity.Eating));
         }
+    }
+
+    private static OrganismMaterialState
+        ProvisionNearbyJuveniles(
+            List<AnimalState> animals,
+            double killLatitudeDegrees,
+            double killLongitudeDegrees,
+            long currentTimeSeconds,
+            OrganismMaterialState consumedMaterial,
+            WolfLifecycleParameters parameters)
+    {
+        if (consumedMaterial.IsEmpty)
+        {
+            return new OrganismMaterialState(
+                0,
+                0);
+        }
+
+        var remaining =
+            consumedMaterial;
+
+        var assimilatedBiomass =
+            0d;
+
+        var assimilatedNitrogen =
+            0d;
+
+        var juveniles =
+            animals
+                .Where(
+                    candidate =>
+                        candidate.Species ==
+                            AnimalSpecies.Wolf &&
+                        candidate.Health > 0 &&
+                        !CanParticipateInHunt(
+                            candidate,
+                            currentTimeSeconds,
+                            parameters) &&
+                        DistanceDegrees(
+                            killLatitudeDegrees,
+                            killLongitudeDegrees,
+                            candidate.LatitudeDegrees,
+                            candidate.LongitudeDegrees) <=
+                        PackSupportRadiusDegrees)
+                .OrderBy(
+                    candidate =>
+                        candidate.Id.Value)
+                .ToArray();
+
+        foreach (var juvenile in juveniles)
+        {
+            if (remaining.IsEmpty)
+            {
+                break;
+            }
+
+            var current =
+                FindAnimal(
+                    animals,
+                    juvenile.Id);
+
+            if (current is null ||
+                current.Health <= 0)
+            {
+                continue;
+            }
+
+            var growth =
+                WolfJuvenileGrowth
+                    .AssimilateTowardAgeTarget(
+                        current,
+                        currentTimeSeconds,
+                        remaining,
+                        parameters);
+
+            if (growth
+                    .AssimilatedMaterial
+                    .IsEmpty)
+            {
+                continue;
+            }
+
+            ReplaceAnimal(
+                animals,
+                growth.Wolf);
+
+            assimilatedBiomass +=
+                growth
+                    .AssimilatedMaterial
+                    .LiveBiomassKilograms;
+
+            assimilatedNitrogen +=
+                growth
+                    .AssimilatedMaterial
+                    .LiveNitrogenKilograms;
+
+            remaining =
+                growth.RemainingFoodMaterial;
+        }
+
+        return new OrganismMaterialState(
+            assimilatedBiomass,
+            assimilatedNitrogen);
+    }
+
+    private static bool CanParticipateInHunt(
+        AnimalState wolf,
+        long currentTimeSeconds,
+        WolfLifecycleParameters parameters)
+    {
+        return OrganismLifecycleClock.AgeSeconds(
+                   wolf.BirthTimeSeconds,
+                   currentTimeSeconds) >=
+               parameters.PackHuntingAgeSeconds;
     }
 
     private static OrganismMaterialState?

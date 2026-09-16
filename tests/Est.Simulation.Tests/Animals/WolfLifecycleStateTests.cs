@@ -102,6 +102,12 @@ public sealed class WolfLifecycleStateTests
                 .MaterialMaturityAgeSeconds);
 
         Assert.Equal(
+            180 *
+            WolfLifecycleParameters.SecondsPerDay,
+            parameters
+                .PackHuntingAgeSeconds);
+
+        Assert.Equal(
             2 *
             WolfLifecycleParameters.SecondsPerYear,
             parameters
@@ -132,6 +138,46 @@ public sealed class WolfLifecycleStateTests
                 .HasFlag(
                     OrganismSeasonalStrategy
                         .Hibernation));
+    }
+
+    [Fact]
+    public void HuntingAge_IsIndependentFromMaterialAndReproductiveMaturity()
+    {
+        var parameters =
+            new WolfLifecycleParameters(
+                maturityAgeSeconds:
+                    2 *
+                    WolfLifecycleParameters
+                        .SecondsPerYear,
+                reproductiveAgeMinimumSeconds:
+                    2 *
+                    WolfLifecycleParameters
+                        .SecondsPerYear,
+                materialMaturityAgeSeconds:
+                    180 *
+                    WolfLifecycleParameters
+                        .SecondsPerDay,
+                packHuntingAgeSeconds:
+                    210 *
+                    WolfLifecycleParameters
+                        .SecondsPerDay);
+
+        Assert.Equal(
+            180 *
+            WolfLifecycleParameters.SecondsPerDay,
+            parameters.MaterialMaturityAgeSeconds);
+
+        Assert.Equal(
+            210 *
+            WolfLifecycleParameters.SecondsPerDay,
+            parameters.PackHuntingAgeSeconds);
+
+        Assert.Equal(
+            2 *
+            WolfLifecycleParameters.SecondsPerYear,
+            parameters
+                .LifecycleTiming
+                .ReproductiveAgeMinimumSeconds);
     }
 
     [Fact]

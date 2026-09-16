@@ -670,6 +670,69 @@ public sealed class WolfPredatorSystemTests
     }
 
     [Fact]
+    public void Step_JuvenileWolfDoesNotHuntGrazer()
+    {
+        var planet =
+            CreatePlanet();
+
+        var juvenile =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0,
+                energyReserve: 0.20,
+                health: 1,
+                activity:
+                    AnimalActivity.Hunting,
+                birthTimeSeconds:
+                    -30 * OneDaySeconds);
+
+        var grazer =
+            CreateGrazer(
+                planet.Id,
+                memberCount: 5,
+                latitude: 0,
+                longitude: 0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [],
+                    [juvenile],
+                    [grazer]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        var changedJuvenile =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            AnimalActivity.Idle,
+            changedJuvenile.Activity);
+
+        Assert.Equal(
+            5,
+            Assert.Single(
+                    result.World.GrazerCohorts)
+                .MemberCount);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "grazerHunts"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "grazerKills"]);
+    }
+
+    [Fact]
     public void Step_NoWolfDoesNotCreatePredator()
     {
         var planet = CreatePlanet();
@@ -825,6 +888,8 @@ public sealed class WolfPredatorSystemTests
             energyReserve,
             health: 1,
             activity:
-                AnimalActivity.Hunting);
+                AnimalActivity.Hunting,
+            birthTimeSeconds:
+                -4 * 31_536_000L);
     }
 }

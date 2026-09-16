@@ -21,6 +21,8 @@ public sealed record WolfLifecycleParameters
         int maximumLitterSize = 6,
         long materialMaturityAgeSeconds =
             180 * SecondsPerDay,
+        long packHuntingAgeSeconds =
+            180 * SecondsPerDay,
         double newbornLiveBiomassKilograms =
             0.45,
         double newbornLiveNitrogenKilograms =
@@ -53,6 +55,12 @@ public sealed record WolfLifecycleParameters
         {
             throw new ArgumentOutOfRangeException(
                 nameof(materialMaturityAgeSeconds));
+        }
+
+        if (packHuntingAgeSeconds <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(packHuntingAgeSeconds));
         }
 
         var newbornMaterial =
@@ -96,6 +104,9 @@ public sealed record WolfLifecycleParameters
         MaterialMaturityAgeSeconds =
             materialMaturityAgeSeconds;
 
+        PackHuntingAgeSeconds =
+            packHuntingAgeSeconds;
+
         NewbornMaterial =
             newbornMaterial;
 
@@ -113,6 +124,11 @@ public sealed record WolfLifecycleParameters
     public int MaximumLitterSize { get; }
 
     public long MaterialMaturityAgeSeconds
+    {
+        get;
+    }
+
+    public long PackHuntingAgeSeconds
     {
         get;
     }

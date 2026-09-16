@@ -120,6 +120,195 @@ public sealed class PredationMaterialAccountingTests
     }
 
     [Fact]
+    public void GrazerPredation_AssimilatesNearbyJuvenileGrowthBeforeReturningRemainder()
+    {
+        var fixture =
+            CreateFixture();
+
+        var parameters =
+            new WolfLifecycleParameters();
+
+        var adult =
+            new AnimalState(
+                new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000301")),
+                fixture.Planet.Id,
+                AnimalSpecies.Wolf,
+                fixture.TargetCell
+                    .CenterLatitudeDegrees,
+                fixture.TargetCell
+                    .CenterLongitudeDegrees,
+                energyReserve: 0.20,
+                health: 1,
+                activity:
+                    AnimalActivity.Hunting,
+                material:
+                    parameters.MatureMaterial
+                        .ForUnits(1),
+                birthTimeSeconds:
+                    -4 *
+                    WolfLifecycleParameters
+                        .SecondsPerYear);
+
+        var juvenileId =
+            new AnimalId(
+                Guid.Parse(
+                    "00000000-0000-0000-0000-000000000302"));
+
+        var juvenileAgeSeconds =
+            30 *
+            WolfLifecycleParameters
+                .SecondsPerDay;
+
+        var juvenile =
+            new AnimalState(
+                juvenileId,
+                fixture.Planet.Id,
+                AnimalSpecies.Wolf,
+                fixture.TargetCell
+                    .CenterLatitudeDegrees,
+                fixture.TargetCell
+                    .CenterLongitudeDegrees,
+                energyReserve: 0.40,
+                health: 1,
+                activity:
+                    AnimalActivity.Idle,
+                material:
+                    parameters
+                        .MaterialTargetAtAgeSeconds(
+                            juvenileAgeSeconds),
+                birthTimeSeconds:
+                    -juvenileAgeSeconds,
+                parentId:
+                    adult.Id);
+
+        var cohort =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
+                fixture.Planet.Id,
+                memberCount: 1,
+                latitudeDegrees:
+                    fixture.TargetCell
+                        .CenterLatitudeDegrees,
+                longitudeDegrees:
+                    fixture.TargetCell
+                        .CenterLongitudeDegrees,
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 250,
+                        liveNitrogenKilograms: 6.25));
+
+        var world =
+            CreateWorld(
+                fixture,
+                animals:
+                [
+                    adult,
+                    juvenile
+                ],
+                grazerCohorts:
+                [
+                    cohort
+                ]);
+
+        var change =
+            new WolfPredatorSystem(
+                    fixture.Planet.Id,
+                    parameters)
+                .Evaluate(
+                    world,
+                    OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        Assert.Empty(
+            changed.GrazerCohorts);
+
+        var grownJuvenile =
+            Assert.Single(
+                changed.Animals.Where(
+                    animal =>
+                        animal.Id ==
+                        juvenileId));
+
+        var expectedTarget =
+            parameters
+                .MaterialTargetAtAgeSeconds(
+                    juvenileAgeSeconds +
+                    OneDaySeconds);
+
+        Assert.Equal(
+            expectedTarget
+                .LiveBiomassKilograms,
+            grownJuvenile.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            expectedTarget
+                .LiveNitrogenKilograms,
+            grownJuvenile.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
+
+        var initialTarget =
+            parameters
+                .MaterialTargetAtAgeSeconds(
+                    juvenileAgeSeconds);
+
+        var expectedAssimilatedBiomass =
+            expectedTarget
+                .LiveBiomassKilograms -
+            initialTarget
+                .LiveBiomassKilograms;
+
+        var expectedAssimilatedNitrogen =
+            expectedTarget
+                .LiveNitrogenKilograms -
+            initialTarget
+                .LiveNitrogenKilograms;
+
+        Assert.Equal(
+            expectedAssimilatedBiomass,
+            change.Metrics[
+                "preyBiomassAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            expectedAssimilatedNitrogen,
+            change.Metrics[
+                "preyNitrogenAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            250 -
+            expectedAssimilatedBiomass,
+            change.Metrics[
+                "preyBiomassRespiredKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            6.25 -
+            expectedAssimilatedNitrogen,
+            change.Metrics[
+                "preyNitrogenReturnedKilograms"],
+            precision: 10);
+
+        AssertBiogeochemistryMass(
+            changed,
+            fixture.Grid,
+            fixture.TargetCell,
+            expectedDetritalBiomassKilograms: 0,
+            expectedDetritalNitrogenKilograms: 0,
+            expectedPlantAvailableNitrogenKilograms:
+                6.25 -
+                expectedAssimilatedNitrogen);
+    }
+
+    [Fact]
     public void HumanPredation_ReturnsConsumedPreyNitrogenWithoutChangingWolfMaterial()
     {
         var fixture =
@@ -155,7 +344,11 @@ public sealed class PredationMaterialAccountingTests
                 material:
                     new OrganismMaterialState(
                         liveBiomassKilograms: 40,
-                        liveNitrogenKilograms: 1));
+                        liveNitrogenKilograms: 1),
+                birthTimeSeconds:
+                    -4 *
+                    WolfLifecycleParameters
+                        .SecondsPerYear);
 
         var world =
             CreateWorld(
@@ -375,7 +568,9 @@ public sealed class PredationMaterialAccountingTests
             longitude,
             energyReserve,
             health: 1,
-            activity: AnimalActivity.Hunting);
+            activity: AnimalActivity.Hunting,
+            birthTimeSeconds:
+                -4 * 31_536_000L);
     }
 
     private static void AssertBiogeochemistryMass(

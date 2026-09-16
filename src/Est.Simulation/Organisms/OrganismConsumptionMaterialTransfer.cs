@@ -7,19 +7,23 @@ namespace Est.Simulation.Organisms;
 /// <summary>
 /// One authoritative consumption of material-bearing organism prey.
 ///
-/// At the current coarse feeding resolution, consumed organic biomass is
-/// treated as metabolized out of the tracked organic-biomass pool. Its
-/// tracked nitrogen is returned to the authoritative plant-available
-/// nitrogen pool of the surface cell where consumption occurred.
+/// Consumed prey material can either be retained as new consumer tissue or
+/// metabolized out of the tracked organic-biomass pool. Consumed nitrogen
+/// retained in consumer tissue is not returned to soil; the remainder returns
+/// to the authoritative plant-available nitrogen pool of the surface cell where
+/// consumption occurred.
 /// </summary>
 public sealed record OrganismConsumptionEvent
 {
     public OrganismConsumptionEvent(
         double latitudeDegrees,
         double longitudeDegrees,
-        OrganismMaterialState material)
+        OrganismMaterialState material,
+        double assimilatedBiomassKilograms = 0,
+        double assimilatedNitrogenKilograms = 0)
     {
-        ArgumentNullException.ThrowIfNull(material);
+        ArgumentNullException.ThrowIfNull(
+            material);
 
         if (!double.IsFinite(latitudeDegrees) ||
             latitudeDegrees < -90 ||
@@ -37,9 +41,46 @@ public sealed record OrganismConsumptionEvent
                 nameof(longitudeDegrees));
         }
 
-        LatitudeDegrees = latitudeDegrees;
-        LongitudeDegrees = longitudeDegrees;
-        Material = material;
+        if (!double.IsFinite(
+                assimilatedBiomassKilograms) ||
+            assimilatedBiomassKilograms < 0 ||
+            assimilatedBiomassKilograms >
+                material.LiveBiomassKilograms)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    assimilatedBiomassKilograms),
+                "Assimilated biomass must be finite, non-negative, and cannot exceed consumed prey biomass.");
+        }
+
+        if (!double.IsFinite(
+                assimilatedNitrogenKilograms) ||
+            assimilatedNitrogenKilograms < 0 ||
+            assimilatedNitrogenKilograms >
+                material.LiveNitrogenKilograms ||
+            assimilatedNitrogenKilograms >
+                assimilatedBiomassKilograms)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    assimilatedNitrogenKilograms),
+                "Assimilated nitrogen must be finite, non-negative, and cannot exceed consumed prey nitrogen or assimilated biomass.");
+        }
+
+        LatitudeDegrees =
+            latitudeDegrees;
+
+        LongitudeDegrees =
+            longitudeDegrees;
+
+        Material =
+            material;
+
+        AssimilatedBiomassKilograms =
+            assimilatedBiomassKilograms;
+
+        AssimilatedNitrogenKilograms =
+            assimilatedNitrogenKilograms;
     }
 
     public double LatitudeDegrees { get; }
@@ -47,6 +88,28 @@ public sealed record OrganismConsumptionEvent
     public double LongitudeDegrees { get; }
 
     public OrganismMaterialState Material { get; }
+
+    public double AssimilatedBiomassKilograms
+    {
+        get;
+    }
+
+    public double AssimilatedNitrogenKilograms
+    {
+        get;
+    }
+
+    public double RespiredBiomassKilograms =>
+        Math.Max(
+            0,
+            Material.LiveBiomassKilograms -
+            AssimilatedBiomassKilograms);
+
+    public double ReturnedNitrogenKilograms =>
+        Math.Max(
+            0,
+            Material.LiveNitrogenKilograms -
+            AssimilatedNitrogenKilograms);
 }
 
 /// <summary>
@@ -58,11 +121,17 @@ public static class OrganismConsumptionMaterialTransfer
         ReturnConsumedNitrogen(
             PlanetState planet,
             PlanetBiogeochemistryState biogeochemistry,
-            IEnumerable<OrganismConsumptionEvent> consumptionEvents)
+            IEnumerable<OrganismConsumptionEvent>
+                consumptionEvents)
     {
-        ArgumentNullException.ThrowIfNull(planet);
-        ArgumentNullException.ThrowIfNull(biogeochemistry);
-        ArgumentNullException.ThrowIfNull(consumptionEvents);
+        ArgumentNullException.ThrowIfNull(
+            planet);
+
+        ArgumentNullException.ThrowIfNull(
+            biogeochemistry);
+
+        ArgumentNullException.ThrowIfNull(
+            consumptionEvents);
 
         biogeochemistry.ValidateFor(
             planet);
@@ -80,7 +149,8 @@ public static class OrganismConsumptionMaterialTransfer
                     cell
                         .PlantAvailableNitrogenKilogramsPerSquareMeter);
 
-        foreach (var consumptionEvent in consumptionEvents)
+        foreach (var consumptionEvent in
+                 consumptionEvents)
         {
             if (consumptionEvent is null)
             {
@@ -102,8 +172,7 @@ public static class OrganismConsumptionMaterialTransfer
             availableNitrogenByCellId[
                 sourceCell.Id] +=
                 consumptionEvent
-                    .Material
-                    .LiveNitrogenKilograms /
+                    .ReturnedNitrogenKilograms /
                 sourceCell.AreaSquareMeters;
         }
 

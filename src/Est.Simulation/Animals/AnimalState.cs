@@ -164,6 +164,27 @@ public sealed record AnimalState
             WolfLifecycle);
     }
 
+    public AnimalState WithMaterial(
+        OrganismMaterialState material)
+    {
+        ArgumentNullException.ThrowIfNull(
+            material);
+
+        return new AnimalState(
+            Id,
+            PlanetId,
+            Species,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            EnergyReserve,
+            Health,
+            Activity,
+            material,
+            BirthTimeSeconds,
+            ParentId,
+            WolfLifecycle);
+    }
+
     public AnimalState WithWolfLifecycle(
         WolfLifecycleState wolfLifecycle)
     {
