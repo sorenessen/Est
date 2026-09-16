@@ -118,4 +118,48 @@ public sealed class OrganismMaterialStateTests
                 material.RetainFraction(
                     retainedFraction));
     }
+
+    [Fact]
+    public void Subtract_RemovesExactAvailableMaterial()
+    {
+        var adult =
+            new OrganismMaterialState(
+                liveBiomassKilograms: 70,
+                liveNitrogenKilograms: 1.75);
+
+        var newborn =
+            new OrganismMaterialState(
+                liveBiomassKilograms: 3.5,
+                liveNitrogenKilograms: 0.0875);
+
+        var remaining =
+            adult.Subtract(newborn);
+
+        Assert.Equal(
+            66.5,
+            remaining.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1.6625,
+            remaining.LiveNitrogenKilograms,
+            precision: 10);
+    }
+
+    [Fact]
+    public void Subtract_RejectsRemovingUnavailableMaterial()
+    {
+        var available =
+            new OrganismMaterialState(
+                liveBiomassKilograms: 1,
+                liveNitrogenKilograms: 0.02);
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+                available.Subtract(
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 1.1,
+                        liveNitrogenKilograms: 0.02)));
+    }
+
 }

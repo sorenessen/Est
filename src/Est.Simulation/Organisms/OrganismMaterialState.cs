@@ -51,6 +51,32 @@ public sealed record OrganismMaterialState
         LiveBiomassKilograms == 0 &&
         LiveNitrogenKilograms == 0;
 
+    public OrganismMaterialState Subtract(
+        OrganismMaterialState removedMaterial)
+    {
+        ArgumentNullException.ThrowIfNull(
+            removedMaterial);
+
+        if (removedMaterial.LiveBiomassKilograms >
+                LiveBiomassKilograms ||
+            removedMaterial.LiveNitrogenKilograms >
+                LiveNitrogenKilograms)
+        {
+            throw new InvalidOperationException(
+                "Cannot remove more live organism material than is available.");
+        }
+
+        return new OrganismMaterialState(
+            Math.Max(
+                0,
+                LiveBiomassKilograms -
+                removedMaterial.LiveBiomassKilograms),
+            Math.Max(
+                0,
+                LiveNitrogenKilograms -
+                removedMaterial.LiveNitrogenKilograms));
+    }
+
     public OrganismMaterialState RetainFraction(
         double retainedFraction)
     {

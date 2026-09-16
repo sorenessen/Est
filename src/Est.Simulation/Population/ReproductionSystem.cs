@@ -1,5 +1,6 @@
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Worlds;
 
@@ -94,6 +95,7 @@ public sealed class ReproductionSystem : ICausalSystem
         var pregnantFemales = 0;
         var eligibleFemales = 0;
         var noPartnerFound = 0;
+        var pregnancyLossesMaterialInsufficient = 0;
 
         foreach (var person in population)
         {
@@ -119,13 +121,33 @@ public sealed class ReproductionSystem : ICausalSystem
                         ClearReproductiveActivity(
                             person.WithoutPregnancy());
 
-                    nextPopulation.Add(mother);
+                    var newbornMaterial =
+                        _parameters.NewbornMaterial
+                            .ForUnits(1);
 
-                    births.Add(
-                        CreateChild(
-                            mother,
-                            dueTimeSeconds,
-                            random));
+                    if (CanProvideMaterial(
+                            mother.Material,
+                            newbornMaterial))
+                    {
+                        mother =
+                            mother.WithMaterial(
+                                mother.Material.Subtract(
+                                    newbornMaterial));
+
+                        nextPopulation.Add(mother);
+
+                        births.Add(
+                            CreateChild(
+                                mother,
+                                dueTimeSeconds,
+                                random,
+                                newbornMaterial));
+                    }
+                    else
+                    {
+                        nextPopulation.Add(mother);
+                        pregnancyLossesMaterialInsufficient++;
+                    }
                 }
                 else
                 {
@@ -235,6 +257,8 @@ public sealed class ReproductionSystem : ICausalSystem
                 ["conceptions"] = conceptions,
                 ["pregnantFemales"] = pregnantFemales,
                 ["noPartnerFound"] = noPartnerFound,
+                ["pregnancyLossesMaterialInsufficient"] =
+                    pregnancyLossesMaterialInsufficient,
                 ["births"] = births.Count
             });
     }
@@ -545,7 +569,8 @@ public sealed class ReproductionSystem : ICausalSystem
     private PersonState CreateChild(
         PersonState mother,
         long birthTimeSeconds,
-        DeterministicRandom random)
+        DeterministicRandom random,
+        OrganismMaterialState newbornMaterial)
     {
         var distance =
             random.NextDouble() *
@@ -579,7 +604,19 @@ public sealed class ReproductionSystem : ICausalSystem
             birthTimeSeconds,
             latitude,
             longitude,
-            mother.Id);
+            mother.Id,
+            material: newbornMaterial);
+    }
+
+    private static bool CanProvideMaterial(
+        OrganismMaterialState availableMaterial,
+        OrganismMaterialState requiredMaterial)
+    {
+        return
+            availableMaterial.LiveBiomassKilograms >=
+                requiredMaterial.LiveBiomassKilograms &&
+            availableMaterial.LiveNitrogenKilograms >=
+                requiredMaterial.LiveNitrogenKilograms;
     }
 
     private static double DistanceDegrees(

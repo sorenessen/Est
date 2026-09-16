@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+
 namespace Est.Simulation.Population;
 
 public sealed record PopulationModelParameters
@@ -15,7 +17,9 @@ public sealed record PopulationModelParameters
         double longMigrationProbability = 0.08,
         double longMigrationDegrees = 15,
         double conceptionProbabilityPerMatingOpportunity = 0.20,
-        double gestationDays = 280)
+        double gestationDays = 280,
+        double newbornLiveBiomassKilograms = 3.5,
+        double newbornLiveNitrogenKilograms = 0.0875)
     {
         ValidateProbability(
             annualAdultMigrationRate,
@@ -94,6 +98,11 @@ public sealed record PopulationModelParameters
                 "Gestation duration must be finite and greater than zero.");
         }
 
+        var newbornMaterial =
+            new OrganismMaterialComposition(
+                newbornLiveBiomassKilograms,
+                newbornLiveNitrogenKilograms);
+
         Seed = seed;
         AnnualBirthRatePerEligibleFemale =
             annualBirthRatePerEligibleFemale;
@@ -115,6 +124,7 @@ public sealed record PopulationModelParameters
         ConceptionProbabilityPerMatingOpportunity =
             conceptionProbabilityPerMatingOpportunity;
         GestationDays = gestationDays;
+        NewbornMaterial = newbornMaterial;
     }
 
     public int Seed { get; }
@@ -142,6 +152,8 @@ public sealed record PopulationModelParameters
     public double ConceptionProbabilityPerMatingOpportunity { get; }
 
     public double GestationDays { get; }
+
+    public OrganismMaterialComposition NewbornMaterial { get; }
 
     private static void ValidateProbability(
         double value,

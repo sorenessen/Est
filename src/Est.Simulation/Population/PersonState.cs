@@ -164,6 +164,25 @@ public sealed record PersonState
             Material);
     }
 
+    public PersonState WithMaterial(
+        OrganismMaterialState material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        return new PersonState(
+            Id,
+            PlanetId,
+            Sex,
+            BirthTimeSeconds,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            ParentId,
+            Needs,
+            Activity,
+            Pregnancy,
+            material);
+    }
+
     public PersonState WithoutPregnancy()
     {
         return new PersonState(

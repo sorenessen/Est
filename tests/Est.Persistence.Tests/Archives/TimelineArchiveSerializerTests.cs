@@ -1411,6 +1411,144 @@ public class TimelineArchiveSerializerTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesHumanLifecycleMaterialPolicy()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        new PopulationModelParameters(
+                            seed: 42,
+                            newbornLiveBiomassKilograms: 4.1,
+                            newbornLiveNitrogenKilograms: 0.11))
+                ]);
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()));
+
+        var restoredParameters =
+            Assert.Single(
+                restored.Definition.PopulationModels)
+                .Parameters;
+
+        Assert.Equal(
+            4.1,
+            restoredParameters.NewbornMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            0.11,
+            restoredParameters.NewbornMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+    }
+
+    [Fact]
+    public void Deserialize_Version16ArchiveUsesDefaultHumanLifecycleMaterial()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        new PopulationModelParameters(
+                            seed: 42,
+                            newbornLiveBiomassKilograms: 4.1,
+                            newbornLiveNitrogenKilograms: 0.11))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] = 16;
+
+        var parameters =
+            node["definition"]!
+                ["populationModels"]!
+                .AsArray()[0]!
+                ["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "newbornLiveBiomassKilograms");
+
+        parameters.Remove(
+            "newbornLiveNitrogenKilograms");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                restored.Definition.PopulationModels)
+                .Parameters;
+
+        Assert.Equal(
+            3.5,
+            restoredParameters.NewbornMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            0.0875,
+            restoredParameters.NewbornMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+    }
+
+    [Fact]
     public void Deserialize_Version3ArchiveUsesDefaultReproductiveBehavior()
     {
         var planet =

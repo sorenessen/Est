@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 16;
+    public const int CurrentSchemaVersion = 17;
+    private const int HumanLifecycleMaterialSchemaVersion = 17;
     private const int OrganismMaterialPolicySchemaVersion = 16;
     private const int VegetationMortalitySchemaVersion = 15;
     private const int VegetationNitrogenCouplingSchemaVersion = 14;
@@ -130,6 +131,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != BiogeochemistryModelSchemaVersion &&
             archive.SchemaVersion != VegetationNitrogenCouplingSchemaVersion &&
             archive.SchemaVersion != VegetationMortalitySchemaVersion &&
+            archive.SchemaVersion != OrganismMaterialPolicySchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -383,7 +385,15 @@ public static class TimelineArchiveSerializer
 
                                         GestationDays =
 
-                                            model.Parameters.GestationDays
+                                            model.Parameters.GestationDays,
+                                        NewbornLiveBiomassKilograms =
+                                            model.Parameters
+                                                .NewbornMaterial
+                                                .LiveBiomassKilogramsPerUnit,
+                                        NewbornLiveNitrogenKilograms =
+                                            model.Parameters
+                                                .NewbornMaterial
+                                                .LiveNitrogenKilogramsPerUnit
                                     },
                                 VegetationForaging =
                                     model.VegetationForaging is null
@@ -762,7 +772,23 @@ public static class TimelineArchiveSerializer
                                                 .GestationDays
                                                 ?? throw new JsonException(
                                                     "Gestation duration is required.")
-                                            : 280),
+                                            : 280,
+                                    newbornLiveBiomassKilograms:
+                                        schemaVersion >=
+                                            HumanLifecycleMaterialSchemaVersion
+                                            ? model.Parameters
+                                                .NewbornLiveBiomassKilograms
+                                                ?? throw new JsonException(
+                                                    "Human newborn live biomass is required.")
+                                            : 3.5,
+                                    newbornLiveNitrogenKilograms:
+                                        schemaVersion >=
+                                            HumanLifecycleMaterialSchemaVersion
+                                            ? model.Parameters
+                                                .NewbornLiveNitrogenKilograms
+                                                ?? throw new JsonException(
+                                                    "Human newborn live nitrogen is required.")
+                                            : 0.0875),
                                     vegetationForaging:
                                         schemaVersion >=
                                             VegetationForagingSchemaVersion &&
@@ -1781,6 +1807,10 @@ public static class TimelineArchiveSerializer
         }
 
         public double? GestationDays { get; set; }
+
+        public double? NewbornLiveBiomassKilograms { get; set; }
+
+        public double? NewbornLiveNitrogenKilograms { get; set; }
     }
 
     private sealed class PlanetaryEnergyBalanceModelSnapshot

@@ -1,4 +1,5 @@
 using Est.Simulation.Causality;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -281,8 +282,115 @@ public sealed class ReproductionSystemTests
             child.BirthTimeSeconds);
 
         Assert.Equal(
+            3.5,
+            child.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0.0875,
+            child.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            66.5,
+            restoredMother.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1.6625,
+            restoredMother.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            70,
+            restoredMother.Material.LiveBiomassKilograms +
+            child.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1.75,
+            restoredMother.Material.LiveNitrogenKilograms +
+            child.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "pregnancyLossesMaterialInsufficient"]);
+
+        Assert.Equal(
             1,
             result.Change.Metrics["births"]);
+    }
+
+    [Fact]
+    public void Step_DuePregnancyWithoutEnoughMaterialDoesNotCreateChild()
+    {
+        var planet = CreateEarth();
+
+        var father =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                0.05);
+
+        var mother =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0)
+            .WithMaterial(
+                new OrganismMaterialState(
+                    liveBiomassKilograms: 1,
+                    liveNitrogenKilograms: 0.02))
+            .WithPregnancy(
+                new PregnancyState(
+                    conceptionTimeSeconds: 0,
+                    father.Id));
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    mother,
+                    father),
+                280 * OneDaySeconds,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 1));
+
+        Assert.Equal(
+            2,
+            result.World.Population.Length);
+
+        var restoredMother =
+            result.World.Population.Single(
+                person =>
+                    person.Id == mother.Id);
+
+        Assert.Null(
+            restoredMother.Pregnancy);
+
+        Assert.Equal(
+            1,
+            restoredMother.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0.02,
+            restoredMother.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["births"]);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "pregnancyLossesMaterialInsufficient"]);
     }
 
     [Fact]
@@ -492,7 +600,11 @@ public sealed class ReproductionSystemTests
             sex,
             -25 * OneYearSeconds,
             latitude,
-            longitude);
+            longitude,
+            material:
+                new OrganismMaterialState(
+                    liveBiomassKilograms: 70,
+                    liveNitrogenKilograms: 1.75));
     }
 
     private static PlanetState CreateEarth()
