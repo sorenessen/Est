@@ -26,6 +26,26 @@ public sealed class BirdModelParametersTests
         Assert.Equal(
             64,
             parameters.MaximumInitialFlockCount);
+
+        Assert.Equal(
+            21_600,
+            parameters.MaximumIntegrationStepSeconds);
+
+        Assert.Equal(
+            250_000,
+            parameters.MaximumTravelMetersPerDay);
+
+        Assert.Equal(
+            0.05,
+            parameters.FoodShortageMortalityRatePerDay);
+
+        Assert.Equal(
+            0.20,
+            parameters.WaterAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            0.02,
+            parameters.HabitatAbsenceMortalityRatePerDay);
     }
 
     [Theory]
@@ -71,6 +91,50 @@ public sealed class BirdModelParametersTests
             () =>
                 new BirdModelParameters(
                     maximumInitialFlockCount:
+                        value));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_RejectsNonpositiveIntegrationStep(
+        long value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    maximumIntegrationStepSeconds:
+                        value));
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    public void Constructor_RejectsInvalidBehaviorRates(
+        double value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    maximumTravelMetersPerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    foodShortageMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    waterAbsenceMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    habitatAbsenceMortalityRatePerDay:
                         value));
     }
 }

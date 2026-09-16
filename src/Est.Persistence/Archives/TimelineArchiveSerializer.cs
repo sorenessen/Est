@@ -16,7 +16,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 9;
+    public const int CurrentSchemaVersion = 10;
+    private const int BirdBehaviorSchemaVersion = 10;
     private const int BirdModelSchemaVersion = 9;
     private const int InvertebrateModelSchemaVersion = 8;
     private const int VegetationForagingSchemaVersion = 7;
@@ -114,6 +115,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != VegetationModelSchemaVersion &&
             archive.SchemaVersion != VegetationForagingSchemaVersion &&
             archive.SchemaVersion != InvertebrateModelSchemaVersion &&
+            archive.SchemaVersion != BirdModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -519,7 +521,22 @@ public static class TimelineArchiveSerializer
                                                 .MinimumInitialFlockMemberCount,
                                         MaximumInitialFlockCount =
                                             model.Parameters
-                                                .MaximumInitialFlockCount
+                                                .MaximumInitialFlockCount,
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        MaximumTravelMetersPerDay =
+                                            model.Parameters
+                                                .MaximumTravelMetersPerDay,
+                                        FoodShortageMortalityRatePerDay =
+                                            model.Parameters
+                                                .FoodShortageMortalityRatePerDay,
+                                        WaterAbsenceMortalityRatePerDay =
+                                            model.Parameters
+                                                .WaterAbsenceMortalityRatePerDay,
+                                        HabitatAbsenceMortalityRatePerDay =
+                                            model.Parameters
+                                                .HabitatAbsenceMortalityRatePerDay
                                     }
                             })
                     .ToArray()
@@ -820,6 +837,9 @@ public static class TimelineArchiveSerializer
                                     "Bird model parameters are required.");
                             }
 
+                            var behaviorDefaults =
+                                new BirdModelParameters();
+
                             return new BirdModelDefinition(
                                 new PlanetId(
                                     model.PlanetId),
@@ -831,7 +851,47 @@ public static class TimelineArchiveSerializer
                                     model.Parameters
                                         .MinimumInitialFlockMemberCount,
                                     model.Parameters
-                                        .MaximumInitialFlockCount));
+                                        .MaximumInitialFlockCount,
+                                    schemaVersion <
+                                        BirdBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .MaximumIntegrationStepSeconds
+                                        : model.Parameters
+                                            .MaximumIntegrationStepSeconds
+                                            ?? throw new JsonException(
+                                                "Bird maximum integration step is required."),
+                                    schemaVersion <
+                                        BirdBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .MaximumTravelMetersPerDay
+                                        : model.Parameters
+                                            .MaximumTravelMetersPerDay
+                                            ?? throw new JsonException(
+                                                "Bird maximum travel distance is required."),
+                                    schemaVersion <
+                                        BirdBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .FoodShortageMortalityRatePerDay
+                                        : model.Parameters
+                                            .FoodShortageMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Bird food-shortage mortality rate is required."),
+                                    schemaVersion <
+                                        BirdBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .WaterAbsenceMortalityRatePerDay
+                                        : model.Parameters
+                                            .WaterAbsenceMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Bird water-absence mortality rate is required."),
+                                    schemaVersion <
+                                        BirdBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .HabitatAbsenceMortalityRatePerDay
+                                        : model.Parameters
+                                            .HabitatAbsenceMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Bird habitat-absence mortality rate is required.")));
                         })
                     .ToArray();
         }
@@ -948,6 +1008,36 @@ public static class TimelineArchiveSerializer
         }
 
         public required int MaximumInitialFlockCount
+        {
+            get;
+            set;
+        }
+
+        public long? MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumTravelMetersPerDay
+        {
+            get;
+            set;
+        }
+
+        public double? FoodShortageMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double? WaterAbsenceMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double? HabitatAbsenceMortalityRatePerDay
         {
             get;
             set;

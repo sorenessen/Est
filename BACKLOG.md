@@ -409,7 +409,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         snapshot/timeline persistence.
   - [x] Add explicit per-planet bird model policy and deterministic flock
         initialization from authoritative ecological state.
-  - [ ] Add causal flock movement and survival behavior supported by
+  - [x] Add causal flock movement and survival behavior supported by
         authoritative habitat, prey, and water without prematurely
         materializing individual birds.
   - [ ] Wire bird dynamics into the causal session order after invertebrates,

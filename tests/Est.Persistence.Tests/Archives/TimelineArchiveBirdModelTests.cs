@@ -32,7 +32,17 @@ public sealed class TimelineArchiveBirdModelTests
                 minimumInitialFlockMemberCount:
                     25,
                 maximumInitialFlockCount:
-                    12);
+                    12,
+                maximumIntegrationStepSeconds:
+                    3_600,
+                maximumTravelMetersPerDay:
+                    123_456,
+                foodShortageMortalityRatePerDay:
+                    0.07,
+                waterAbsenceMortalityRatePerDay:
+                    0.31,
+                habitatAbsenceMortalityRatePerDay:
+                    0.04);
 
         var definition =
             new SimulationDefinition(
@@ -106,10 +116,165 @@ public sealed class TimelineArchiveBirdModelTests
                     CreateProvenance()))!
                 .AsObject();
 
+        node["schemaVersion"] = 9;
+
         node["definition"]!
             .AsObject()
             .Remove(
                 "birdModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
+    public void Deserialize_VersionNineDefaultsBirdBehaviorPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var definition =
+            new SimulationDefinition(
+                birdModels:
+                [
+                    new BirdModelDefinition(
+                        fixture.Planet.Id,
+                        new BirdModelParameters(
+                            carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                                0.000003,
+                            initialFractionOfLocalCarryingCapacity:
+                                0.40,
+                            minimumInitialFlockMemberCount:
+                                15,
+                            maximumInitialFlockCount:
+                                20,
+                            maximumIntegrationStepSeconds:
+                                1_800,
+                            maximumTravelMetersPerDay:
+                                999_999,
+                            foodShortageMortalityRatePerDay:
+                                0.11,
+                            waterAbsenceMortalityRatePerDay:
+                                0.22,
+                            habitatAbsenceMortalityRatePerDay:
+                                0.33))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] = 9;
+
+        var parametersNode =
+            node["definition"]!
+                .AsObject()["birdModels"]!
+                .AsArray()[0]!["parameters"]!
+                .AsObject();
+
+        parametersNode.Remove(
+            "maximumIntegrationStepSeconds");
+
+        parametersNode.Remove(
+            "maximumTravelMetersPerDay");
+
+        parametersNode.Remove(
+            "foodShortageMortalityRatePerDay");
+
+        parametersNode.Remove(
+            "waterAbsenceMortalityRatePerDay");
+
+        parametersNode.Remove(
+            "habitatAbsenceMortalityRatePerDay");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.BirdModels)
+                .Parameters;
+
+        var defaults =
+            new BirdModelParameters();
+
+        Assert.Equal(
+            0.000003,
+            restoredParameters
+                .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass);
+
+        Assert.Equal(
+            0.40,
+            restoredParameters
+                .InitialFractionOfLocalCarryingCapacity);
+
+        Assert.Equal(
+            15,
+            restoredParameters
+                .MinimumInitialFlockMemberCount);
+
+        Assert.Equal(
+            20,
+            restoredParameters
+                .MaximumInitialFlockCount);
+
+        Assert.Equal(
+            defaults.MaximumIntegrationStepSeconds,
+            restoredParameters.MaximumIntegrationStepSeconds);
+
+        Assert.Equal(
+            defaults.MaximumTravelMetersPerDay,
+            restoredParameters.MaximumTravelMetersPerDay);
+
+        Assert.Equal(
+            defaults.FoodShortageMortalityRatePerDay,
+            restoredParameters.FoodShortageMortalityRatePerDay);
+
+        Assert.Equal(
+            defaults.WaterAbsenceMortalityRatePerDay,
+            restoredParameters.WaterAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            defaults.HabitatAbsenceMortalityRatePerDay,
+            restoredParameters.HabitatAbsenceMortalityRatePerDay);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTenRequiresBirdBehaviorPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var definition =
+            new SimulationDefinition(
+                birdModels:
+                [
+                    new BirdModelDefinition(
+                        fixture.Planet.Id,
+                        new BirdModelParameters())
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()["birdModels"]!
+            .AsArray()[0]!["parameters"]!
+            .AsObject()
+            .Remove(
+                "maximumTravelMetersPerDay");
 
         Assert.Throws<JsonException>(
             () =>
