@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
@@ -16,7 +17,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 10;
+    public const int CurrentSchemaVersion = 11;
+    private const int GrazerModelSchemaVersion = 11;
     private const int BirdBehaviorSchemaVersion = 10;
     private const int BirdModelSchemaVersion = 9;
     private const int InvertebrateModelSchemaVersion = 8;
@@ -116,6 +118,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != VegetationForagingSchemaVersion &&
             archive.SchemaVersion != InvertebrateModelSchemaVersion &&
             archive.SchemaVersion != BirdModelSchemaVersion &&
+            archive.SchemaVersion != BirdBehaviorSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -539,6 +542,32 @@ public static class TimelineArchiveSerializer
                                                 .HabitatAbsenceMortalityRatePerDay
                                     }
                             })
+                    .ToArray(),
+            GrazerModels =
+                definition.GrazerModels
+                    .Select(
+                        model =>
+                            new GrazerModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new GrazerModelParametersSnapshot
+                                    {
+                                        CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
+                                            model.Parameters
+                                                .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                                        InitialFractionOfLocalCarryingCapacity =
+                                            model.Parameters
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                        MinimumInitialCohortMemberCount =
+                                            model.Parameters
+                                                .MinimumInitialCohortMemberCount,
+                                        MaximumInitialCohortCount =
+                                            model.Parameters
+                                                .MaximumInitialCohortCount
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -896,13 +925,56 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        GrazerModelDefinition[] grazerModels;
+
+        if (schemaVersion <
+            GrazerModelSchemaVersion)
+        {
+            grazerModels = [];
+        }
+        else
+        {
+            if (snapshot.GrazerModels is null)
+            {
+                throw new JsonException(
+                    "Grazer model collection is required.");
+            }
+
+            grazerModels =
+                snapshot.GrazerModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Grazer model parameters are required.");
+                            }
+
+                            return new GrazerModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new GrazerModelParameters(
+                                    model.Parameters
+                                        .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                                    model.Parameters
+                                        .InitialFractionOfLocalCarryingCapacity,
+                                    model.Parameters
+                                        .MinimumInitialCohortMemberCount,
+                                    model.Parameters
+                                        .MaximumInitialCohortCount));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
             hydrologyModels,
             vegetationModels,
             invertebrateModels,
-            birdModels);
+            birdModels,
+            grazerModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -972,6 +1044,48 @@ public static class TimelineArchiveSerializer
         public InvertebrateModelSnapshot[]? InvertebrateModels { get; set; }
 
         public BirdModelSnapshot[]? BirdModels { get; set; }
+
+        public GrazerModelSnapshot[]? GrazerModels { get; set; }
+    }
+
+    private sealed class GrazerModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required GrazerModelParametersSnapshot Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class GrazerModelParametersSnapshot
+    {
+        public required double
+            CarryingCapacityGrazersPerKilogramLiveVegetationBiomass
+        {
+            get;
+            set;
+        }
+
+        public required double
+            InitialFractionOfLocalCarryingCapacity
+        {
+            get;
+            set;
+        }
+
+        public required int MinimumInitialCohortMemberCount
+        {
+            get;
+            set;
+        }
+
+        public required int MaximumInitialCohortCount
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class BirdModelSnapshot

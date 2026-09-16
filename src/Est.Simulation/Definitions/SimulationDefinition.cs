@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Population;
@@ -16,7 +17,8 @@ public sealed record SimulationDefinition
         IEnumerable<HydrologyModelDefinition>? hydrologyModels = null,
         IEnumerable<VegetationModelDefinition>? vegetationModels = null,
         IEnumerable<InvertebrateModelDefinition>? invertebrateModels = null,
-        IEnumerable<BirdModelDefinition>? birdModels = null)
+        IEnumerable<BirdModelDefinition>? birdModels = null,
+        IEnumerable<GrazerModelDefinition>? grazerModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -41,6 +43,10 @@ public sealed record SimulationDefinition
         var birds = birdModels?
             .ToImmutableArray()
             ?? ImmutableArray<BirdModelDefinition>.Empty;
+
+        var grazers = grazerModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<GrazerModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -82,6 +88,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null bird model definitions.",
                 nameof(birdModels));
+        }
+
+        if (grazers.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null grazer model definitions.",
+                nameof(grazerModels));
         }
 
         if (models
@@ -138,12 +151,22 @@ public sealed record SimulationDefinition
                 nameof(birdModels));
         }
 
+        if (grazers
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one grazer model definition.",
+                nameof(grazerModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
         VegetationModels = vegetation;
         InvertebrateModels = invertebrates;
         BirdModels = birds;
+        GrazerModels = grazers;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -163,6 +186,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<BirdModelDefinition>
         BirdModels { get; }
+
+    public ImmutableArray<GrazerModelDefinition>
+        GrazerModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -261,6 +287,26 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Bird model for planet '{model.PlanetId.Value}' requires authoritative invertebrate state for that planet.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in GrazerModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Grazer model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+
+            if (!world.Vegetation.Any(
+                    vegetation =>
+                        vegetation.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Grazer model for planet '{model.PlanetId.Value}' requires authoritative vegetation state for that planet.",
                     nameof(world));
             }
         }

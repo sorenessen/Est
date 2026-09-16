@@ -419,7 +419,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Add durable authoritative grazer-cohort state with stable identity,
         planet, member count, and geographic center, including world invariants
         and snapshot/timeline persistence.
-  - [ ] Add explicit per-planet grazer model policy and deterministic cohort
+  - [x] Add explicit per-planet grazer model policy and deterministic cohort
         initialization from authoritative vegetation support.
   - [ ] Add causal grazing, movement, and survival behavior supported by
         authoritative vegetation, water, and habitat.

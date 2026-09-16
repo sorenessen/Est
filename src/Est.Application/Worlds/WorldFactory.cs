@@ -1,5 +1,6 @@
 using Est.Simulation.Animals;
 using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -115,6 +116,18 @@ public static class WorldFactory
                 item =>
                     item.PlanetId);
 
+        var grazerCohorts =
+            specification.Planets
+                .SelectMany(
+                    (planetSpecification, index) =>
+                        CreateGrazerCohorts(
+                            planets[index],
+                            vegetationByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedGrazers))
+                .ToArray();
+
         var invertebrates =
             specification.Planets
                 .Select(
@@ -160,7 +173,8 @@ public static class WorldFactory
             hydrology,
             vegetation,
             invertebrates,
-            birdFlocks);
+            birdFlocks,
+            grazerCohorts);
     }
 
     private static PlanetState CreatePlanet(
@@ -285,6 +299,45 @@ public static class WorldFactory
                 hydrology,
                 specification
                     .InitialLiveBiomassKilogramsPerSquareMeter);
+    }
+
+    private static IEnumerable<GrazerCohortState> CreateGrazerCohorts(
+        PlanetState planet,
+        PlanetVegetationState? vegetation,
+        GeneratedGrazerCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return [];
+        }
+
+        if (vegetation is null)
+        {
+            throw new ArgumentException(
+                "Generated grazers require generated vegetation.",
+                nameof(specification));
+        }
+
+        var parameters =
+            new GrazerModelParameters(
+                carryingCapacityGrazersPerKilogramLiveVegetationBiomass:
+                    specification
+                        .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                initialFractionOfLocalCarryingCapacity:
+                    specification
+                        .InitialFractionOfLocalCarryingCapacity,
+                minimumInitialCohortMemberCount:
+                    specification
+                        .MinimumInitialCohortMemberCount,
+                maximumInitialCohortCount:
+                    specification
+                        .MaximumInitialCohortCount);
+
+        return PlanetGrazerCohortInitializer
+            .FromVegetationSupport(
+                planet,
+                vegetation,
+                parameters);
     }
 
     private static PlanetInvertebrateState? CreateInvertebrates(

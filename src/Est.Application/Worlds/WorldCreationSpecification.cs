@@ -14,7 +14,8 @@ public sealed record PlanetCreationSpecification(
     GeneratedHydrologyCreationSpecification? GeneratedHydrology = null,
     GeneratedVegetationCreationSpecification? GeneratedVegetation = null,
     GeneratedInvertebrateCreationSpecification? GeneratedInvertebrates = null,
-    GeneratedBirdCreationSpecification? GeneratedBirds = null);
+    GeneratedBirdCreationSpecification? GeneratedBirds = null,
+    GeneratedGrazerCreationSpecification? GeneratedGrazers = null);
 
 public sealed record GeneratedTerrainCreationSpecification(
     int Seed,
@@ -39,6 +40,13 @@ public sealed record GeneratedBirdCreationSpecification(
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialFlockMemberCount = 10,
     int MaximumInitialFlockCount = 64);
+
+public sealed record GeneratedGrazerCreationSpecification(
+    double CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
+        0.000001,
+    double InitialFractionOfLocalCarryingCapacity = 0.25,
+    int MinimumInitialCohortMemberCount = 10,
+    int MaximumInitialCohortCount = 64);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,
