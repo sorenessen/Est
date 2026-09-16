@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Est.Simulation.Animals;
+using Est.Simulation.Birds;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -39,6 +40,7 @@ public sealed record WorldState
             null,
             null,
             null,
+            null,
             null)
     {
     }
@@ -52,7 +54,8 @@ public sealed record WorldState
         IEnumerable<PlanetTerrainState>? terrain = null,
         IEnumerable<PlanetHydrologyState>? hydrology = null,
         IEnumerable<PlanetVegetationState>? vegetation = null,
-        IEnumerable<PlanetInvertebrateState>? invertebrates = null)
+        IEnumerable<PlanetInvertebrateState>? invertebrates = null,
+        IEnumerable<BirdFlockState>? birdFlocks = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -79,6 +82,9 @@ public sealed record WorldState
 
         var invertebrateArray =
             (invertebrates ?? []).ToImmutableArray();
+
+        var birdFlockArray =
+            (birdFlocks ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -186,6 +192,28 @@ public sealed record WorldState
                 nameof(invertebrates));
         }
 
+        if (birdFlockArray.Any(
+                flock =>
+                    flock is null))
+        {
+            throw new ArgumentException(
+                "World bird flocks cannot contain null entries.",
+                nameof(birdFlocks));
+        }
+
+        if (birdFlockArray
+            .GroupBy(
+                flock =>
+                    flock.Id)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain duplicate bird flock identities.",
+                nameof(birdFlocks));
+        }
+
         if (animalArray
             .GroupBy(animal => animal.Id)
             .Any(group => group.Count() > 1))
@@ -224,6 +252,16 @@ public sealed record WorldState
             throw new ArgumentException(
                 "Every animal must belong to a planet in the world.",
                 nameof(animals));
+        }
+
+        if (birdFlockArray.Any(
+                flock =>
+                    !planetIds.Contains(
+                        flock.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every bird flock must belong to a planet in the world.",
+                nameof(birdFlocks));
         }
 
         foreach (var terrainState in terrainArray)
@@ -390,6 +428,7 @@ public sealed record WorldState
         Hydrology = hydrologyArray;
         Vegetation = vegetationArray;
         Invertebrates = invertebrateArray;
+        BirdFlocks = birdFlockArray;
     }
 
     public WorldId Id { get; private init; }
@@ -430,6 +469,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<BirdFlockState> BirdFlocks
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -449,7 +494,8 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState Fork()
@@ -463,7 +509,8 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplacePopulation(
@@ -480,7 +527,8 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplaceAnimals(
@@ -497,7 +545,8 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplaceTerrain(
@@ -514,7 +563,8 @@ public sealed record WorldState
             terrain,
             Hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplaceHydrology(
@@ -532,7 +582,8 @@ public sealed record WorldState
             Terrain,
             hydrology,
             Vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplaceVegetation(
@@ -550,7 +601,8 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             vegetation,
-            Invertebrates);
+            Invertebrates,
+            BirdFlocks);
     }
 
     public WorldState ReplaceInvertebrates(
@@ -568,7 +620,27 @@ public sealed record WorldState
             Terrain,
             Hydrology,
             Vegetation,
-            invertebrates);
+            invertebrates,
+            BirdFlocks);
+    }
+
+    public WorldState ReplaceBirdFlocks(
+        IEnumerable<BirdFlockState> birdFlocks)
+    {
+        ArgumentNullException.ThrowIfNull(
+            birdFlocks);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            Invertebrates,
+            birdFlocks);
     }
 
     public WorldState AddPlanet(PlanetState planet)

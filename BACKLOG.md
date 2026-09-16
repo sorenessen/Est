@@ -404,6 +404,17 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         after vegetation and validate configuration, persistence, and runtime
         behavior.
 - [ ] Add bird population / flock representation.
+  - [x] Add durable authoritative flock state with stable identity, planet,
+        member count, and geographic center, including world invariants and
+        snapshot/timeline persistence.
+  - [ ] Add explicit per-planet bird model policy and deterministic flock
+        initialization from authoritative ecological state.
+  - [ ] Add causal flock movement and survival behavior supported by
+        authoritative habitat, prey, and water without prematurely
+        materializing individual birds.
+  - [ ] Wire bird dynamics into the causal session order after invertebrates,
+        expose current flock state through the session/API boundary, and
+        validate configuration, persistence, and runtime behavior.
 - [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
 - [ ] Add decomposition and nutrient cycling.
 - [ ] Explore evolutionary population dynamics above the mature biosphere

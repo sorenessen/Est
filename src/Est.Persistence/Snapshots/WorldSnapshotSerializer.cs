@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
+using Est.Simulation.Birds;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -14,7 +15,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 12;
+    public const int CurrentSchemaVersion = 13;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -27,6 +28,7 @@ public static class WorldSnapshotSerializer
     private const int VegetationSchemaVersion = 10;
     private const int FoodRetirementSchemaVersion = 11;
     private const int InvertebrateSchemaVersion = 12;
+    private const int BirdFlockSchemaVersion = 13;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -66,6 +68,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             Invertebrates = world.Invertebrates
                 .Select(ToSnapshot)
+                .ToArray(),
+            BirdFlocks = world.BirdFlocks
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -100,6 +105,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != HydrologySchemaVersion &&
             snapshot.SchemaVersion != VegetationSchemaVersion &&
             snapshot.SchemaVersion != FoodRetirementSchemaVersion &&
+            snapshot.SchemaVersion != InvertebrateSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -290,6 +296,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        BirdFlockState[] birdFlocks;
+
+        if (snapshot.SchemaVersion <
+            BirdFlockSchemaVersion)
+        {
+            birdFlocks = [];
+        }
+        else
+        {
+            if (snapshot.BirdFlocks is null)
+            {
+                throw new JsonException(
+                    "Snapshot bird flock collection is required.");
+            }
+
+            birdFlocks = snapshot.BirdFlocks
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -299,7 +325,39 @@ public static class WorldSnapshotSerializer
             terrain,
             hydrology,
             vegetation,
-            invertebrates);
+            invertebrates,
+            birdFlocks);
+    }
+
+    private static BirdFlockSnapshot ToSnapshot(
+        BirdFlockState flock)
+    {
+        return new BirdFlockSnapshot
+        {
+            BirdFlockId =
+                flock.Id.Value,
+            PlanetId =
+                flock.PlanetId.Value,
+            MemberCount =
+                flock.MemberCount,
+            LatitudeDegrees =
+                flock.LatitudeDegrees,
+            LongitudeDegrees =
+                flock.LongitudeDegrees
+        };
+    }
+
+    private static BirdFlockState FromSnapshot(
+        BirdFlockSnapshot snapshot)
+    {
+        return new BirdFlockState(
+            new BirdFlockId(
+                snapshot.BirdFlockId),
+            new PlanetId(
+                snapshot.PlanetId),
+            snapshot.MemberCount,
+            snapshot.LatitudeDegrees,
+            snapshot.LongitudeDegrees);
     }
 
     private static PlanetInvertebrateSnapshot ToSnapshot(
@@ -865,6 +923,20 @@ public static class WorldSnapshotSerializer
         public PlanetHydrologySnapshot[]? Hydrology { get; set; }
         public PlanetVegetationSnapshot[]? Vegetation { get; set; }
         public PlanetInvertebrateSnapshot[]? Invertebrates { get; set; }
+        public BirdFlockSnapshot[]? BirdFlocks { get; set; }
+    }
+
+    private sealed class BirdFlockSnapshot
+    {
+        public required Guid BirdFlockId { get; set; }
+
+        public required Guid PlanetId { get; set; }
+
+        public required int MemberCount { get; set; }
+
+        public required double LatitudeDegrees { get; set; }
+
+        public required double LongitudeDegrees { get; set; }
     }
 
     private sealed class PlanetInvertebrateSnapshot
