@@ -1,5 +1,6 @@
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -171,6 +172,33 @@ public class SimulationDefinitionTests
         Assert.Throws<ArgumentException>(
             () => definition.ValidateFor(
                 CreateWorld(PlanetId.New())));
+    }
+
+    [Fact]
+    public void ValidateFor_RejectsVegetationForagingWithoutVegetationState()
+    {
+        var planetId =
+            PlanetId.New();
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planetId,
+                        new PopulationModelParameters(),
+                        new VegetationForagingParameters(
+                            kilogramsLiveBiomassPerEnergyReserveUnit:
+                                1,
+                            maximumHarvestKilogramsPerPersonPerDay:
+                                1))
+                ]);
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                definition.ValidateFor(
+                    CreateWorld(
+                        planetId)));
     }
 
     [Fact]

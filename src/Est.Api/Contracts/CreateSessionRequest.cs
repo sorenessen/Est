@@ -170,7 +170,14 @@ public sealed record SyntheticPopulationCreationRequest(
     [property: JsonRequired]
     double SpreadDegrees,
     double MinimumAgeYears = 18,
-    double MaximumAgeYears = 35);
+    double MaximumAgeYears = 35,
+    VegetationForagingRequest? VegetationForaging = null);
+
+public sealed record VegetationForagingRequest(
+    [property: JsonRequired]
+    double KilogramsLiveBiomassPerEnergyReserveUnit,
+    [property: JsonRequired]
+    double MaximumHarvestKilogramsPerPersonPerDay);
 
 public sealed record SyntheticFoodCreationRequest(
     [property: JsonRequired]

@@ -140,6 +140,17 @@ public sealed record SimulationDefinition
                     $"Population model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
                     nameof(world));
             }
+
+            if (model.VegetationForaging is not null &&
+                !world.Vegetation.Any(
+                    vegetation =>
+                        vegetation.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Population model for planet '{model.PlanetId.Value}' enables vegetation foraging, but the world does not contain authoritative vegetation state for that planet.",
+                    nameof(world));
+            }
         }
 
         foreach (var model in HydrologyModels)

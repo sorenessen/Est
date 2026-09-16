@@ -6,6 +6,7 @@ using Est.Application.Sessions;
 using Est.Application.Worlds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Planets;
@@ -245,7 +246,18 @@ app.MapPost(
                                     new PopulationModelParameters(
                                         seed:
                                             planet.SyntheticPopulation
-                                                .Seed)))
+                                                .Seed),
+                                    vegetationForaging:
+                                        planet.SyntheticPopulation
+                                            .VegetationForaging is null
+                                            ? null
+                                            : new VegetationForagingParameters(
+                                                planet.SyntheticPopulation
+                                                    .VegetationForaging
+                                                    .KilogramsLiveBiomassPerEnergyReserveUnit,
+                                                planet.SyntheticPopulation
+                                                    .VegetationForaging
+                                                    .MaximumHarvestKilogramsPerPersonPerDay)))
                     .Where(model => model is not null)
                     .Cast<PopulationModelDefinition>()
                     .ToArray();
@@ -1217,7 +1229,14 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                         model.Parameters
                             .LongMigrationProbability,
                         model.Parameters
-                            .LongMigrationDegrees))
+                            .LongMigrationDegrees,
+                        model.VegetationForaging is null
+                            ? null
+                            : new VegetationForagingResponse(
+                                model.VegetationForaging
+                                    .KilogramsLiveBiomassPerEnergyReserveUnit,
+                                model.VegetationForaging
+                                    .MaximumHarvestKilogramsPerPersonPerDay)))
             .ToArray(),
         definition.VegetationModels
             .Select(

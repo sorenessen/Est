@@ -170,4 +170,192 @@ public sealed class VegetationEndpointTests
             vegetationEvent.Metrics.ContainsKey(
                 "biomassGrowthKilograms"));
     }
+
+    [Fact]
+    public async Task CreateSession_WithVegetationForaging_ExposesAndRunsPolicy()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Vegetation Foraging World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0.60,
+                        0.05,
+                        new AtmosphereCreationRequest(
+                            100_000,
+                            new Dictionary<string, double>
+                            {
+                                ["N2"] = 1
+                            })),
+                    SyntheticPopulation:
+                        new SyntheticPopulationCreationRequest(
+                            FounderCount: 1,
+                            Seed: 42,
+                            CenterLatitudeDegrees: 0,
+                            CenterLongitudeDegrees: 0,
+                            SpreadDegrees: 0,
+                            VegetationForaging:
+                                new VegetationForagingRequest(
+                                    KilogramsLiveBiomassPerEnergyReserveUnit:
+                                        0.8,
+                                    MaximumHarvestKilogramsPerPersonPerDay:
+                                        1.25)),
+                    GeneratedTerrain:
+                        new GeneratedTerrainCreationRequest(
+                            Seed: 42,
+                            LatitudeBandCount: 4,
+                            LongitudeBandCount: 8,
+                            PlateCount: 4,
+                            ContinentalPlateFraction: 0.45),
+                    GeneratedHydrology:
+                        new GeneratedHydrologyCreationRequest(
+                            1.0e19),
+                    GeneratedVegetation:
+                        new GeneratedVegetationCreationRequest(
+                            1))
+            ]);
+
+        var createResponse =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        var createBody =
+            await createResponse.Content.ReadAsStringAsync();
+
+        Assert.True(
+            createResponse.StatusCode ==
+            HttpStatusCode.Created,
+            $"Expected Created but received " +
+            $"{createResponse.StatusCode}: {createBody}");
+
+        var created =
+            await createResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(
+            created);
+
+        var definition =
+            await client.GetFromJsonAsync<
+                SimulationDefinitionResponse>(
+                $"/sessions/{created.SessionId}/definition");
+
+        Assert.NotNull(
+            definition);
+
+        var populationModel =
+            Assert.Single(
+                definition.PopulationModels);
+
+        Assert.NotNull(
+            populationModel.VegetationForaging);
+
+        Assert.Equal(
+            0.8,
+            populationModel.VegetationForaging
+                .KilogramsLiveBiomassPerEnergyReserveUnit);
+
+        Assert.Equal(
+            1.25,
+            populationModel.VegetationForaging
+                .MaximumHarvestKilogramsPerPersonPerDay);
+
+        var advanceResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/advance",
+                new AdvanceTimeRequest(
+                    15 * 86_400L));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            advanceResponse.StatusCode);
+
+        var timeline =
+            await client.GetFromJsonAsync<TimelineResponse>(
+                $"/sessions/{created.SessionId}/timeline");
+
+        Assert.NotNull(
+            timeline);
+
+        var foragingEvent =
+            Assert.Single(
+                timeline.Events,
+                timelineEvent =>
+                    timelineEvent.Cause ==
+                    "vegetation-foraging");
+
+        Assert.True(
+            foragingEvent.Metrics[
+                "biomassHarvestedKilograms"] >
+            0);
+
+        Assert.True(
+            foragingEvent.Metrics[
+                "energyConsumed"] >
+            0);
+    }
+
+
+    [Fact]
+    public async Task CreateSession_WithVegetationForagingButNoVegetation_ReturnsBadRequest()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var request =
+            new CreateSessionRequest(
+            [
+                new PlanetCreationRequest(
+                    "Invalid Vegetation Foraging World",
+                    5.0e24,
+                    6_000_000,
+                    new PlanetEnvironmentCreationRequest(
+                        288,
+                        0.60,
+                        0.05,
+                        new AtmosphereCreationRequest(
+                            100_000,
+                            new Dictionary<string, double>
+                            {
+                                ["N2"] = 1
+                            })),
+                    SyntheticPopulation:
+                        new SyntheticPopulationCreationRequest(
+                            FounderCount: 1,
+                            Seed: 42,
+                            CenterLatitudeDegrees: 0,
+                            CenterLongitudeDegrees: 0,
+                            SpreadDegrees: 0,
+                            VegetationForaging:
+                                new VegetationForagingRequest(
+                                    KilogramsLiveBiomassPerEnergyReserveUnit:
+                                        0.8,
+                                    MaximumHarvestKilogramsPerPersonPerDay:
+                                        1.25)))
+            ]);
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/sessions",
+                request);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
 }

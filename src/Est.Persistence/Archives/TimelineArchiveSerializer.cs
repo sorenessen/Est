@@ -2,6 +2,7 @@ using System.Text.Json;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -13,7 +14,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
+    private const int VegetationForagingSchemaVersion = 7;
     private const int VegetationModelSchemaVersion = 6;
     private const int HydrologyModelSchemaVersion = 5;
     private const int ReproductiveBehaviorSchemaVersion = 4;
@@ -105,6 +107,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != PopulationModelSchemaVersion &&
             archive.SchemaVersion != ReproductiveBehaviorSchemaVersion &&
             archive.SchemaVersion != HydrologyModelSchemaVersion &&
+            archive.SchemaVersion != VegetationModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -359,7 +362,20 @@ public static class TimelineArchiveSerializer
                                         GestationDays =
 
                                             model.Parameters.GestationDays
-                                    }
+                                    },
+                                VegetationForaging =
+                                    model.VegetationForaging is null
+                                        ? null
+                                        : new VegetationForagingSnapshot
+                                        {
+                                            KilogramsLiveBiomassPerEnergyReserveUnit =
+                                                model.VegetationForaging
+                                                    .KilogramsLiveBiomassPerEnergyReserveUnit,
+                                            MaximumHarvestKilogramsPerPersonPerDay =
+                                                model.VegetationForaging
+                                                    .MaximumHarvestKilogramsPerPersonPerDay
+                                        }
+
                             })
                     .ToArray(),
             HydrologyModels =
@@ -553,7 +569,17 @@ public static class TimelineArchiveSerializer
                                                 .GestationDays
                                                 ?? throw new JsonException(
                                                     "Gestation duration is required.")
-                                            : 280));
+                                            : 280),
+                                    vegetationForaging:
+                                        schemaVersion >=
+                                            VegetationForagingSchemaVersion &&
+                                        model.VegetationForaging is not null
+                                            ? new VegetationForagingParameters(
+                                                model.VegetationForaging
+                                                    .KilogramsLiveBiomassPerEnergyReserveUnit,
+                                                model.VegetationForaging
+                                                    .MaximumHarvestKilogramsPerPersonPerDay)
+                                            : null);
                         })
                     .ToArray();
         }
@@ -883,6 +909,29 @@ public static class TimelineArchiveSerializer
 
         public required PopulationModelParametersSnapshot
             Parameters { get; set; }
+
+        public VegetationForagingSnapshot? VegetationForaging
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class VegetationForagingSnapshot
+    {
+        public required double
+            KilogramsLiveBiomassPerEnergyReserveUnit
+        {
+            get;
+            set;
+        }
+
+        public required double
+            MaximumHarvestKilogramsPerPersonPerDay
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class PopulationModelParametersSnapshot

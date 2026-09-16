@@ -85,7 +85,9 @@ public sealed class SimulationSession
                     model =>
                         (ICausalSystem)
                             new ForagingSystem(
-                                model.PlanetId));
+                                model.PlanetId,
+                                vegetationForaging:
+                                    model.VegetationForaging));
 
         var predatorSystems =
             timeline.CurrentWorld.Animals

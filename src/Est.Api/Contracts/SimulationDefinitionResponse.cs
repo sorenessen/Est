@@ -32,7 +32,12 @@ public sealed record PopulationModelResponse(
     double ElderAgeYears,
     double LocalMigrationDegrees,
     double LongMigrationProbability,
-    double LongMigrationDegrees);
+    double LongMigrationDegrees,
+    VegetationForagingResponse? VegetationForaging);
+
+public sealed record VegetationForagingResponse(
+    double KilogramsLiveBiomassPerEnergyReserveUnit,
+    double MaximumHarvestKilogramsPerPersonPerDay);
 
 
 public sealed record VegetationModelResponse(

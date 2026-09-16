@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Est.Persistence.Archives;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
+using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -425,11 +426,8 @@ public class TimelineArchiveSerializerTests
                     AtmosphereState.Vacuum));
 
         var timeline =
-            SimulationTimeline.Create(
-                new WorldState(
-                    WorldId.New(),
-                    SimulationTime.Zero,
-                    [planet]));
+            CreateTimelineWithVegetation(
+                planet);
 
         var parameters =
             new PopulationModelParameters(
@@ -447,13 +445,21 @@ public class TimelineArchiveSerializerTests
                 conceptionProbabilityPerMatingOpportunity: 0.37,
                 gestationDays: 266);
 
+        var vegetationForaging =
+            new VegetationForagingParameters(
+                kilogramsLiveBiomassPerEnergyReserveUnit:
+                    0.8,
+                maximumHarvestKilogramsPerPersonPerDay:
+                    1.25);
+
         var definition =
             new SimulationDefinition(
                 populationModels:
                 [
                     new PopulationModelDefinition(
                         planet.Id,
-                        parameters)
+                        parameters,
+                        vegetationForaging)
                 ]);
 
         var json =
@@ -471,6 +477,9 @@ public class TimelineArchiveSerializerTests
 
         Assert.Equal(planet.Id, model.PlanetId);
         Assert.Equal(parameters, model.Parameters);
+        Assert.Equal(
+            vegetationForaging,
+            model.VegetationForaging);
     }
 
     [Fact]
@@ -675,6 +684,71 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionSixDefaultsVegetationForagingToNull()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            CreateTimelineWithVegetation(
+                planet);
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        new PopulationModelParameters(
+                            seed: 42),
+                        new VegetationForagingParameters(
+                            kilogramsLiveBiomassPerEnergyReserveUnit:
+                                0.8,
+                            maximumHarvestKilogramsPerPersonPerDay:
+                                1.25))
+                ]);
+
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                timeline,
+                definition,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["schemaVersion"] = 6;
+
+        node["definition"]!
+            ["populationModels"]!
+            .AsArray()[0]!
+            .AsObject()
+            .Remove(
+                "vegetationForaging");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var model =
+            Assert.Single(
+                restored.Definition.PopulationModels);
+
+        Assert.Null(
+            model.VegetationForaging);
     }
 
     [Fact]
@@ -1030,6 +1104,72 @@ public class TimelineArchiveSerializerTests
         Assert.Throws<ArgumentException>(
             () => TimelineArchiveSerializer.Deserialize(
                 node.ToJsonString()));
+    }
+
+    private static SimulationTimeline
+        CreateTimelineWithVegetation(
+            PlanetState planet)
+    {
+        var definition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                definition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters:
+                                0)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                0,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                0,
+                            soilWaterKilogramsPerSquareMeter:
+                                100,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                0)));
+
+        var vegetation =
+            new PlanetVegetationState(
+                planet.Id,
+                definition,
+                grid.Cells.Select(
+                    cell =>
+                        new VegetationCellState(
+                            cell.Id,
+                            liveBiomassKilogramsPerSquareMeter:
+                                1)));
+
+        return SimulationTimeline.Create(
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                [],
+                [],
+                [terrain],
+                [hydrology],
+                [vegetation]));
     }
 
     private static TimelineArchive RoundTrip(
