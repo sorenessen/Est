@@ -5,6 +5,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Causality;
@@ -271,6 +272,156 @@ public class TimelineArchiveSerializerTests
                 Assert.True(
                     hydrology.Cells.SequenceEqual(
                         restoredCheckpointHydrology.Cells));
+            });
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesInvertebratesInCurrentWorldAndCheckpoints()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Invertebrate World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters:
+                                index * 100 - 1_500)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                2,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                0,
+                            soilWaterKilogramsPerSquareMeter:
+                                50,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                0)));
+
+        var vegetation =
+            new PlanetVegetationState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new VegetationCellState(
+                            cell.Id,
+                            1 +
+                            index * 0.1)));
+
+        var invertebrates =
+            new PlanetInvertebrateState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new InvertebrateCellState(
+                            cell.Id,
+                            0.05 +
+                            index * 0.01)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(100),
+                [planet],
+                [],
+                [],
+                [terrain],
+                [hydrology],
+                [vegetation],
+                [invertebrates]);
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var step =
+            new SimulationStepResult(
+                world.AdvanceBy(60),
+                new SimulationChange(
+                    new AdvanceTimeOperation(0),
+                    "invertebrate-test-step",
+                    "Invertebrate persistence test.",
+                    planet.Id,
+                    60));
+
+        timeline =
+            timeline
+                .RecordStep(step)
+                .CreateCheckpoint();
+
+        var restored =
+            RoundTrip(
+                timeline);
+
+        var restoredCurrent =
+            Assert.Single(
+                restored.Timeline
+                    .CurrentWorld
+                    .Invertebrates);
+
+        Assert.Equal(
+            invertebrates.PlanetId,
+            restoredCurrent.PlanetId);
+
+        Assert.Equal(
+            invertebrates.GridDefinition,
+            restoredCurrent.GridDefinition);
+
+        Assert.True(
+            invertebrates.Cells.SequenceEqual(
+                restoredCurrent.Cells));
+
+        Assert.All(
+            restored.Timeline.Checkpoints,
+            checkpoint =>
+            {
+                var restoredCheckpoint =
+                    Assert.Single(
+                        checkpoint.World.Invertebrates);
+
+                Assert.Equal(
+                    invertebrates.PlanetId,
+                    restoredCheckpoint.PlanetId);
+
+                Assert.Equal(
+                    invertebrates.GridDefinition,
+                    restoredCheckpoint.GridDefinition);
+
+                Assert.True(
+                    invertebrates.Cells.SequenceEqual(
+                        restoredCheckpoint.Cells));
             });
     }
 

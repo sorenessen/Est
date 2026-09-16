@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Est.Simulation.Animals;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -37,6 +38,7 @@ public sealed record WorldState
             null,
             null,
             null,
+            null,
             null)
     {
     }
@@ -49,7 +51,8 @@ public sealed record WorldState
         IEnumerable<AnimalState>? animals = null,
         IEnumerable<PlanetTerrainState>? terrain = null,
         IEnumerable<PlanetHydrologyState>? hydrology = null,
-        IEnumerable<PlanetVegetationState>? vegetation = null)
+        IEnumerable<PlanetVegetationState>? vegetation = null,
+        IEnumerable<PlanetInvertebrateState>? invertebrates = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -73,6 +76,9 @@ public sealed record WorldState
 
         var vegetationArray =
             (vegetation ?? []).ToImmutableArray();
+
+        var invertebrateArray =
+            (invertebrates ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -156,6 +162,28 @@ public sealed record WorldState
             throw new ArgumentException(
                 "World cannot contain more than one vegetation state for a planet.",
                 nameof(vegetation));
+        }
+
+        if (invertebrateArray.Any(
+                item =>
+                    item is null))
+        {
+            throw new ArgumentException(
+                "World invertebrates cannot contain null entries.",
+                nameof(invertebrates));
+        }
+
+        if (invertebrateArray
+            .GroupBy(
+                item =>
+                    item.PlanetId)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain more than one invertebrate state for a planet.",
+                nameof(invertebrates));
         }
 
         if (animalArray
@@ -312,6 +340,47 @@ public sealed record WorldState
                 planet);
         }
 
+
+        foreach (var invertebrateState in invertebrateArray)
+        {
+            var planet =
+                planetArray.SingleOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        invertebrateState.PlanetId);
+
+            if (planet is null)
+            {
+                throw new ArgumentException(
+                    "Every invertebrate state must belong to a planet in the world.",
+                    nameof(invertebrates));
+            }
+
+            var vegetationState =
+                vegetationArray.SingleOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        invertebrateState.PlanetId);
+
+            if (vegetationState is null)
+            {
+                throw new ArgumentException(
+                    "Invertebrates require vegetation for the same planet.",
+                    nameof(invertebrates));
+            }
+
+            if (invertebrateState.GridDefinition !=
+                vegetationState.GridDefinition)
+            {
+                throw new ArgumentException(
+                    "Invertebrates and vegetation must use the same surface-grid definition.",
+                    nameof(invertebrates));
+            }
+
+            invertebrateState.ValidateFor(
+                planet);
+        }
+
         Id = id;
         CurrentTime = currentTime;
         Planets = planetArray;
@@ -320,6 +389,7 @@ public sealed record WorldState
         Terrain = terrainArray;
         Hydrology = hydrologyArray;
         Vegetation = vegetationArray;
+        Invertebrates = invertebrateArray;
     }
 
     public WorldId Id { get; private init; }
@@ -354,6 +424,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<PlanetInvertebrateState> Invertebrates
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -372,7 +448,8 @@ public sealed record WorldState
             Animals,
             Terrain,
             Hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState Fork()
@@ -385,7 +462,8 @@ public sealed record WorldState
             Animals,
             Terrain,
             Hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState ReplacePopulation(
@@ -401,7 +479,8 @@ public sealed record WorldState
             Animals,
             Terrain,
             Hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState ReplaceAnimals(
@@ -417,7 +496,8 @@ public sealed record WorldState
             animals,
             Terrain,
             Hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState ReplaceTerrain(
@@ -433,7 +513,8 @@ public sealed record WorldState
             Animals,
             terrain,
             Hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState ReplaceHydrology(
@@ -450,7 +531,8 @@ public sealed record WorldState
             Animals,
             Terrain,
             hydrology,
-            Vegetation);
+            Vegetation,
+            Invertebrates);
     }
 
     public WorldState ReplaceVegetation(
@@ -467,7 +549,26 @@ public sealed record WorldState
             Animals,
             Terrain,
             Hydrology,
-            vegetation);
+            vegetation,
+            Invertebrates);
+    }
+
+    public WorldState ReplaceInvertebrates(
+        IEnumerable<PlanetInvertebrateState> invertebrates)
+    {
+        ArgumentNullException.ThrowIfNull(
+            invertebrates);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            invertebrates);
     }
 
     public WorldState AddPlanet(PlanetState planet)

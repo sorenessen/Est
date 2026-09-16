@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -13,7 +14,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 11;
+    public const int CurrentSchemaVersion = 12;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -25,6 +26,7 @@ public static class WorldSnapshotSerializer
     private const int HydrologySchemaVersion = 9;
     private const int VegetationSchemaVersion = 10;
     private const int FoodRetirementSchemaVersion = 11;
+    private const int InvertebrateSchemaVersion = 12;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -61,6 +63,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             Vegetation = world.Vegetation
                 .Select(ToSnapshot)
+                .ToArray(),
+            Invertebrates = world.Invertebrates
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -94,6 +99,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != TerrainSchemaVersion &&
             snapshot.SchemaVersion != HydrologySchemaVersion &&
             snapshot.SchemaVersion != VegetationSchemaVersion &&
+            snapshot.SchemaVersion != FoodRetirementSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -264,6 +270,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetInvertebrateState[] invertebrates;
+
+        if (snapshot.SchemaVersion <
+            InvertebrateSchemaVersion)
+        {
+            invertebrates = [];
+        }
+        else
+        {
+            if (snapshot.Invertebrates is null)
+            {
+                throw new JsonException(
+                    "Snapshot invertebrate collection is required.");
+            }
+
+            invertebrates = snapshot.Invertebrates
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -272,7 +298,73 @@ public static class WorldSnapshotSerializer
             animals,
             terrain,
             hydrology,
-            vegetation);
+            vegetation,
+            invertebrates);
+    }
+
+    private static PlanetInvertebrateSnapshot ToSnapshot(
+        PlanetInvertebrateState invertebrates)
+    {
+        return new PlanetInvertebrateSnapshot
+        {
+            PlanetId = invertebrates.PlanetId.Value,
+            GridDefinition =
+                new SurfaceGridDefinitionSnapshot
+                {
+                    Kind =
+                        invertebrates.GridDefinition.Kind,
+                    IdentityVersion =
+                        invertebrates.GridDefinition.IdentityVersion,
+                    LatitudeBandCount =
+                        invertebrates.GridDefinition.LatitudeBandCount,
+                    LongitudeBandCount =
+                        invertebrates.GridDefinition.LongitudeBandCount
+                },
+            Cells = invertebrates.Cells
+                .Select(
+                    cell =>
+                        new InvertebrateCellSnapshot
+                        {
+                            SurfaceCellId =
+                                cell.CellId.Value,
+                            LiveBiomassKilogramsPerSquareMeter =
+                                cell.LiveBiomassKilogramsPerSquareMeter
+                        })
+                .ToArray()
+        };
+    }
+
+    private static PlanetInvertebrateState FromSnapshot(
+        PlanetInvertebrateSnapshot snapshot)
+    {
+        if (snapshot.GridDefinition is null)
+        {
+            throw new JsonException(
+                "Invertebrate surface-grid definition is required.");
+        }
+
+        if (snapshot.Cells is null)
+        {
+            throw new JsonException(
+                "Invertebrate cells collection is required.");
+        }
+
+        var gridDefinition =
+            new SurfaceGridDefinition(
+                snapshot.GridDefinition.Kind,
+                snapshot.GridDefinition.IdentityVersion,
+                snapshot.GridDefinition.LatitudeBandCount,
+                snapshot.GridDefinition.LongitudeBandCount);
+
+        return new PlanetInvertebrateState(
+            new PlanetId(snapshot.PlanetId),
+            gridDefinition,
+            snapshot.Cells.Select(
+                cell =>
+                    new InvertebrateCellState(
+                        new SurfaceCellId(
+                            cell.SurfaceCellId),
+                        cell.LiveBiomassKilogramsPerSquareMeter)));
     }
 
     private static PlanetVegetationSnapshot ToSnapshot(
@@ -772,6 +864,37 @@ public static class WorldSnapshotSerializer
         public PlanetTerrainSnapshot[]? Terrain { get; set; }
         public PlanetHydrologySnapshot[]? Hydrology { get; set; }
         public PlanetVegetationSnapshot[]? Vegetation { get; set; }
+        public PlanetInvertebrateSnapshot[]? Invertebrates { get; set; }
+    }
+
+    private sealed class PlanetInvertebrateSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SurfaceGridDefinitionSnapshot
+            GridDefinition
+        {
+            get;
+            set;
+        }
+
+        public required InvertebrateCellSnapshot[] Cells
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class InvertebrateCellSnapshot
+    {
+        public required Guid SurfaceCellId { get; set; }
+
+        public required double
+            LiveBiomassKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class PlanetVegetationSnapshot
