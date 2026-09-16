@@ -72,7 +72,6 @@ public sealed class PlanetTerrainStateTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain]);
 
         Assert.Equal(
@@ -115,7 +114,6 @@ public sealed class PlanetTerrainStateTests
                     [planet],
                     [],
                     [],
-                    [],
                     [terrain]));
     }
 
@@ -132,7 +130,6 @@ public sealed class PlanetTerrainStateTests
                     WorldId.New(),
                     SimulationTime.Zero,
                     [planet],
-                    [],
                     [],
                     [],
                     [first, second]));
@@ -164,7 +161,6 @@ public sealed class PlanetTerrainStateTests
                 WorldId.New(),
                 SimulationTime.Zero,
                 [firstPlanet, secondPlanet],
-                [],
                 [],
                 [],
                 [firstTerrain, secondTerrain]);

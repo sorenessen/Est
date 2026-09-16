@@ -17,7 +17,6 @@ public sealed record PlanetCreationRequest(
     PlanetEnvironmentCreationRequest Environment,
     PlanetaryEnergyBalanceModelRequest? EnergyBalanceModel = null,
     SyntheticPopulationCreationRequest? SyntheticPopulation = null,
-    SyntheticFoodCreationRequest? SyntheticFood = null,
     SyntheticAnimalCreationRequest? SyntheticAnimals = null,
     GeneratedTerrainCreationRequest? GeneratedTerrain = null,
     GeneratedHydrologyCreationRequest? GeneratedHydrology = null,
@@ -178,21 +177,6 @@ public sealed record VegetationForagingRequest(
     double KilogramsLiveBiomassPerEnergyReserveUnit,
     [property: JsonRequired]
     double MaximumHarvestKilogramsPerPersonPerDay);
-
-public sealed record SyntheticFoodCreationRequest(
-    [property: JsonRequired]
-    int PatchCount,
-    [property: JsonRequired]
-    int Seed,
-    [property: JsonRequired]
-    double CenterLatitudeDegrees,
-    [property: JsonRequired]
-    double CenterLongitudeDegrees,
-    [property: JsonRequired]
-    double SpreadDegrees,
-    [property: JsonRequired]
-    double EnergyPerPatch,
-    double RecoveryEnergyPerDay = 0);
 
 public sealed record SyntheticAnimalCreationRequest(
     [property: JsonRequired]

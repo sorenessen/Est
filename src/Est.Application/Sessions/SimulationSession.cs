@@ -81,13 +81,15 @@ public sealed class SimulationSession
 
         var foragingSystems =
             definition.PopulationModels
+                .Where(
+                    model =>
+                        model.VegetationForaging is not null)
                 .Select(
                     model =>
                         (ICausalSystem)
                             new ForagingSystem(
                                 model.PlanetId,
-                                vegetationForaging:
-                                    model.VegetationForaging));
+                                model.VegetationForaging!));
 
         var predatorSystems =
             timeline.CurrentWorld.Animals

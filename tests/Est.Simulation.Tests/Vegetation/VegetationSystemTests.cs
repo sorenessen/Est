@@ -284,7 +284,6 @@ public sealed class VegetationSystemTests
                 setup.World.Planets,
                 [],
                 [],
-                [],
                 setup.World.Terrain,
                 setup.World.Hydrology);
 
@@ -394,7 +393,6 @@ public sealed class VegetationSystemTests
                 WorldId.New(),
                 SimulationTime.Zero,
                 [planet],
-                [],
                 [],
                 [],
                 [terrain],

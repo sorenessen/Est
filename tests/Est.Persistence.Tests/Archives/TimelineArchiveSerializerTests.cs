@@ -83,7 +83,6 @@ public class TimelineArchiveSerializerTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain]);
 
         var timeline =
@@ -207,7 +206,6 @@ public class TimelineArchiveSerializerTests
                 WorldId.New(),
                 new SimulationTime(100),
                 [planet],
-                [],
                 [],
                 [],
                 [terrain],
@@ -1164,7 +1162,6 @@ public class TimelineArchiveSerializerTests
                 WorldId.New(),
                 SimulationTime.Zero,
                 [planet],
-                [],
                 [],
                 [],
                 [terrain],

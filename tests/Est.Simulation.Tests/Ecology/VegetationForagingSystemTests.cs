@@ -43,10 +43,7 @@ public sealed class VegetationForagingSystemTests
         var setup =
             CreateWorld(
                 personEnergy: 0.25,
-                targetBiomass:
-                    1,
-                syntheticFoodEnergy:
-                    10);
+                targetBiomass: 1);
 
         var result =
             SimulationStepRunner.Step(
@@ -54,12 +51,11 @@ public sealed class VegetationForagingSystemTests
                 OneDaySeconds,
                 new ForagingSystem(
                     setup.Planet.Id,
-                    vegetationForaging:
-                        new VegetationForagingParameters(
-                            kilogramsLiveBiomassPerEnergyReserveUnit:
-                                1,
-                            maximumHarvestKilogramsPerPersonPerDay:
-                                1)));
+                    new VegetationForagingParameters(
+                        kilogramsLiveBiomassPerEnergyReserveUnit:
+                            1,
+                        maximumHarvestKilogramsPerPersonPerDay:
+                            1)));
 
         Assert.IsType<
             ReplacePlanetVegetationForagingStateOperation>(
@@ -72,10 +68,6 @@ public sealed class VegetationForagingSystemTests
         var changedVegetation =
             Assert.Single(
                 result.World.Vegetation);
-
-        var changedFood =
-            Assert.Single(
-                result.World.FoodResources);
 
         var beforeDensity =
             setup.World.Vegetation
@@ -124,17 +116,6 @@ public sealed class VegetationForagingSystemTests
             12);
 
         Assert.Equal(
-            10,
-            changedFood.AvailableEnergy,
-            10);
-
-        Assert.Equal(
-            10,
-            setup.World.FoodResources[0]
-                .AvailableEnergy,
-            10);
-
-        Assert.Equal(
             0.75,
             result.Change.Metrics[
                 "biomassHarvestedKilograms"],
@@ -157,10 +138,7 @@ public sealed class VegetationForagingSystemTests
         var setup =
             CreateWorld(
                 personEnergy: 0.25,
-                targetBiomass:
-                    1,
-                syntheticFoodEnergy:
-                    10);
+                targetBiomass: 1);
 
         var result =
             SimulationStepRunner.Step(
@@ -168,12 +146,11 @@ public sealed class VegetationForagingSystemTests
                 OneDaySeconds,
                 new ForagingSystem(
                     setup.Planet.Id,
-                    vegetationForaging:
-                        new VegetationForagingParameters(
-                            kilogramsLiveBiomassPerEnergyReserveUnit:
-                                1,
-                            maximumHarvestKilogramsPerPersonPerDay:
-                                0.1)));
+                    new VegetationForagingParameters(
+                        kilogramsLiveBiomassPerEnergyReserveUnit:
+                            1,
+                        maximumHarvestKilogramsPerPersonPerDay:
+                            0.1)));
 
         var changedPerson =
             Assert.Single(
@@ -200,17 +177,13 @@ public sealed class VegetationForagingSystemTests
     }
 
     [Fact]
-    public void Step_VegetationPolicyDoesNotFallbackToSyntheticFood()
+    public void Step_RequiresAuthoritativeVegetation()
     {
         var setup =
             CreateWorld(
                 personEnergy: 0.25,
-                targetBiomass:
-                    1,
-                syntheticFoodEnergy:
-                    10,
-                includeVegetation:
-                    false);
+                targetBiomass: 1,
+                includeVegetation: false);
 
         Assert.Throws<InvalidOperationException>(
             () =>
@@ -219,24 +192,16 @@ public sealed class VegetationForagingSystemTests
                     OneDaySeconds,
                     new ForagingSystem(
                         setup.Planet.Id,
-                        vegetationForaging:
-                            new VegetationForagingParameters(
-                                kilogramsLiveBiomassPerEnergyReserveUnit:
-                                    1,
-                                maximumHarvestKilogramsPerPersonPerDay:
-                                    1))));
-
-        Assert.Equal(
-            10,
-            setup.World.FoodResources[0]
-                .AvailableEnergy,
-            10);
+                        new VegetationForagingParameters(
+                            kilogramsLiveBiomassPerEnergyReserveUnit:
+                                1,
+                            maximumHarvestKilogramsPerPersonPerDay:
+                                1))));
     }
 
     private static TestWorld CreateWorld(
         double personEnergy,
         double targetBiomass,
-        double syntheticFoodEnergy,
         bool includeVegetation = true)
     {
         var planet =
@@ -263,10 +228,8 @@ public sealed class VegetationForagingSystemTests
 
         var targetCell =
             grid.LocateCell(
-                latitudeDegrees:
-                    0,
-                longitudeDegrees:
-                    0);
+                latitudeDegrees: 0,
+                longitudeDegrees: 0);
 
         var terrain =
             new PlanetTerrainState(
@@ -276,8 +239,7 @@ public sealed class VegetationForagingSystemTests
                     cell =>
                         new TerrainCellState(
                             cell.Id,
-                            elevationMeters:
-                                0)));
+                            elevationMeters: 0)));
 
         var hydrology =
             new PlanetHydrologyState(
@@ -314,27 +276,13 @@ public sealed class VegetationForagingSystemTests
                 PersonId.New(),
                 planet.Id,
                 PersonSex.Male,
-                birthTimeSeconds:
-                    0,
-                latitudeDegrees:
-                    0,
-                longitudeDegrees:
-                    0,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0,
                 needs:
                     new PersonNeedsState(
                         energyReserve:
                             personEnergy));
-
-        var food =
-            new FoodResourceState(
-                FoodResourceId.New(),
-                planet.Id,
-                latitudeDegrees:
-                    0,
-                longitudeDegrees:
-                    0,
-                availableEnergy:
-                    syntheticFoodEnergy);
 
         var vegetationStates =
             includeVegetation
@@ -351,7 +299,6 @@ public sealed class VegetationForagingSystemTests
                 SimulationTime.Zero,
                 [planet],
                 [person],
-                [food],
                 [],
                 [terrain],
                 [hydrology],

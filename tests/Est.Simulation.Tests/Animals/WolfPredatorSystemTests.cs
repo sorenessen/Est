@@ -504,7 +504,6 @@ public sealed class WolfPredatorSystemTests
             SimulationTime.Zero,
             [planet],
             people,
-            [],
             animals);
     }
 

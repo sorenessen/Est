@@ -85,8 +85,15 @@ public sealed class SimulationSessionPopulationTests
         Assert.All(
             session.CurrentWorld.Population,
             person =>
-                Assert.True(
-                    person.Needs.EnergyReserve < 1));
+                Assert.Equal(
+                    1,
+                    person.Needs.EnergyReserve));
+
+        Assert.DoesNotContain(
+            session.Timeline.Events,
+            timelineEvent =>
+                timelineEvent.Cause ==
+                    "vegetation-foraging");
 
         Assert.Equal(
             oneDaySeconds,

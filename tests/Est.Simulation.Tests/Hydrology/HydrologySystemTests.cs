@@ -944,7 +944,6 @@ public sealed class HydrologySystemTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain]);
 
         var system =
@@ -1032,7 +1031,6 @@ public sealed class HydrologySystemTests
             WorldId.New(),
             SimulationTime.Zero,
             [planet],
-            [],
             [],
             [],
             [terrain],

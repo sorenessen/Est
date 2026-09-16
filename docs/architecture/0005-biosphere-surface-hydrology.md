@@ -6,12 +6,34 @@ Accepted for implementation.
 
 ## Context
 
-Est now has causal planetary climate, durable population state,
-synthetic food resources, individual animals, reproduction, and
-predator interactions.
+At the time this ADR was adopted, Est had causal planetary climate,
+durable population state, synthetic food resources, individual animals,
+reproduction, and predator interactions.
 
-Those systems are sufficient for a vertical simulation slice, but they
-do not yet form a self-sustaining biosphere.
+Those systems were sufficient for a vertical simulation slice, but they
+did not yet form a self-sustaining biosphere.
+
+## Implementation update - 2026-09-16
+
+Authoritative live plant biomass now exists on the shared surface substrate,
+and configured population foraging consumes that vegetation directly.
+
+The temporary synthetic food-resource model has been retired from:
+
+- authoritative `WorldState`;
+- current world creation;
+- Est.Api creation and world-response contracts;
+- causal foraging behavior.
+
+Vegetation-backed harvesting now owns the biological food-consumption path.
+Consumer reserve gain remains causally tied to removal of authoritative plant
+biomass.
+
+World snapshot schema 11 no longer serializes synthetic food resources.
+Snapshots from schemas 4 through 10 remain readable: their legacy
+`foodResources` payloads are validated by the persistence compatibility layer
+and then discarded rather than restored into current authoritative world
+state.
 
 The next biological layers require shared environmental state:
 

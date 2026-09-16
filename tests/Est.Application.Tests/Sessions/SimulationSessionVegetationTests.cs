@@ -81,7 +81,6 @@ public sealed class SimulationSessionVegetationTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain],
                 [hydrology],
                 [vegetation]);

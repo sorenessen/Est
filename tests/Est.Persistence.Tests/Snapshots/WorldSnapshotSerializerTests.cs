@@ -256,6 +256,9 @@ public class WorldSnapshotSerializerTests
 
         node["schemaVersion"] = 6;
 
+        node["foodResources"] ??=
+            new System.Text.Json.Nodes.JsonArray();
+
         foreach (var entry in
                  node["population"]!.AsArray())
         {
@@ -368,7 +371,6 @@ public class WorldSnapshotSerializerTests
                 new SimulationTime(123_456),
                 [planet],
                 [],
-                [],
                 [wolf]);
 
         var restored =
@@ -427,7 +429,7 @@ public class WorldSnapshotSerializerTests
     }
 
     [Fact]
-    public void RoundTrip_PreservesFoodResources()
+    public void Serialize_CurrentSchemaOmitsLegacyFoodResources()
     {
         var planet =
             new PlanetState(
@@ -441,38 +443,39 @@ public class WorldSnapshotSerializerTests
                     0.03,
                     AtmosphereState.Vacuum));
 
-        var food =
-            new FoodResourceState(
-                new FoodResourceId(
-                    Guid.Parse(
-                        "00000000-0000-0000-0000-000000000101")),
-                planet.Id,
-                12.5,
-                -45.25,
-                availableEnergy: 37.75,
-                capacityEnergy: 50,
-                recoveryEnergyPerDay: 2);
-
         var world =
             new WorldState(
                 WorldId.New(),
                 new SimulationTime(123_456),
                 [planet],
-                [],
-                [food]);
+                []);
+
+        var json =
+            WorldSnapshotSerializer.Serialize(
+                world);
+
+        Assert.DoesNotContain(
+            "\"foodResources\"",
+            json);
 
         var restored =
             WorldSnapshotSerializer.Deserialize(
-                WorldSnapshotSerializer.Serialize(world));
+                json);
 
         Assert.Equal(
-            food,
-            Assert.Single(
-                restored.FoodResources));
+            world.Id,
+            restored.Id);
+
+        Assert.Equal(
+            world.CurrentTime,
+            restored.CurrentTime);
+
+        Assert.Single(
+            restored.Planets);
     }
 
     [Fact]
-    public void Deserialize_VersionThreeGetsEmptyFoodResources()
+    public void Deserialize_VersionThreeLoadsWithoutLegacyFoodResources()
     {
         var worldId = WorldId.New().Value;
 
@@ -488,13 +491,22 @@ public class WorldSnapshotSerializerTests
             """;
 
         var restored =
-            WorldSnapshotSerializer.Deserialize(json);
+            WorldSnapshotSerializer.Deserialize(
+                json);
 
-        Assert.Empty(restored.FoodResources);
+        Assert.Equal(
+            worldId,
+            restored.Id.Value);
+
+        Assert.Empty(
+            restored.Planets);
+
+        Assert.Empty(
+            restored.Population);
     }
 
     [Fact]
-    public void Deserialize_VersionFourFoodDefaultsToFiniteNonRenewingState()
+    public void Deserialize_VersionFourAcceptsAndDiscardsLegacyFood()
     {
         var planet =
             new PlanetState(
@@ -508,23 +520,12 @@ public class WorldSnapshotSerializerTests
                     0.03,
                     AtmosphereState.Vacuum));
 
-        var food =
-            new FoodResourceState(
-                FoodResourceId.New(),
-                planet.Id,
-                12.5,
-                -45.25,
-                availableEnergy: 37.75,
-                capacityEnergy: 50,
-                recoveryEnergyPerDay: 2);
-
         var world =
             new WorldState(
                 WorldId.New(),
                 SimulationTime.Zero,
                 [planet],
-                [],
-                [food]);
+                []);
 
         var node =
             System.Text.Json.Nodes.JsonNode.Parse(
@@ -534,38 +535,44 @@ public class WorldSnapshotSerializerTests
 
         node["schemaVersion"] = 4;
 
-        foreach (var entry in
-                 node["foodResources"]!.AsArray())
-        {
-            var resource =
-                entry!.AsObject();
+        node["foodResources"] ??=
+            new System.Text.Json.Nodes.JsonArray();
 
-            resource.Remove(
-                "capacityEnergy");
-
-            resource.Remove(
-                "recoveryEnergyPerDay");
-        }
+        node["foodResources"] =
+            System.Text.Json.Nodes.JsonNode.Parse(
+                $$"""
+                [
+                  {
+                    "foodResourceId":
+                      "00000000-0000-0000-0000-000000000101",
+                    "planetId": "{{planet.Id.Value}}",
+                    "latitudeDegrees": 12.5,
+                    "longitudeDegrees": -45.25,
+                    "availableEnergy": 37.75
+                  }
+                ]
+                """);
 
         var restored =
             WorldSnapshotSerializer.Deserialize(
                 node.ToJsonString());
 
-        var restoredFood =
+        Assert.Equal(
+            world.Id,
+            restored.Id);
+
+        Assert.Equal(
+            planet.Id,
             Assert.Single(
-                restored.FoodResources);
+                restored.Planets).Id);
 
-        Assert.Equal(
-            37.75,
-            restoredFood.AvailableEnergy);
+        var currentJson =
+            WorldSnapshotSerializer.Serialize(
+                restored);
 
-        Assert.Equal(
-            37.75,
-            restoredFood.CapacityEnergy);
-
-        Assert.Equal(
-            0,
-            restoredFood.RecoveryEnergyPerDay);
+        Assert.DoesNotContain(
+            "\"foodResources\"",
+            currentJson);
     }
 
     [Fact]
@@ -859,7 +866,6 @@ public class WorldSnapshotSerializerTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain]);
 
         var json =
@@ -867,7 +873,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 10",
+            "\"schemaVersion\": 11",
             json,
             StringComparison.Ordinal);
 
@@ -955,7 +961,6 @@ public class WorldSnapshotSerializerTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain],
                 [hydrology]);
 
@@ -964,7 +969,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 10",
+            "\"schemaVersion\": 11",
             json,
             StringComparison.Ordinal);
 
@@ -1003,6 +1008,9 @@ public class WorldSnapshotSerializerTests
                 .AsObject();
 
         node["schemaVersion"] = 8;
+
+        node["foodResources"] ??=
+            new System.Text.Json.Nodes.JsonArray();
         node.Remove("hydrology");
 
         var restored =
@@ -1100,7 +1108,6 @@ public class WorldSnapshotSerializerTests
                 [planet],
                 [],
                 [],
-                [],
                 [terrain],
                 [hydrology],
                 [vegetation]);
@@ -1110,7 +1117,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 10",
+            "\"schemaVersion\": 11",
             json,
             StringComparison.Ordinal);
 
@@ -1149,6 +1156,9 @@ public class WorldSnapshotSerializerTests
                 .AsObject();
 
         node["schemaVersion"] = 9;
+
+        node["foodResources"] ??=
+            new System.Text.Json.Nodes.JsonArray();
         node.Remove("vegetation");
 
         var restored =
@@ -1189,6 +1199,9 @@ public class WorldSnapshotSerializerTests
                 .AsObject();
 
         node["schemaVersion"] = 7;
+
+        node["foodResources"] ??=
+            new System.Text.Json.Nodes.JsonArray();
         node.Remove("terrain");
 
         var restored =

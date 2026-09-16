@@ -32,8 +32,8 @@ public sealed record PopulationModelDefinition
     /// Optional explicit policy enabling consumption of authoritative
     /// vegetation by this population model.
     ///
-    /// When absent, the existing synthetic food-resource foraging path remains
-    /// active for backward compatibility.
+    /// When absent, no plant-foraging system is configured for this
+    /// population model.
     /// </summary>
     public VegetationForagingParameters? VegetationForaging { get; }
 }

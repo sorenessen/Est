@@ -170,7 +170,6 @@ public sealed class PlanetHydrologyStateTests
                     [],
                     [],
                     [],
-                    [],
                     [hydrology]));
     }
 
@@ -230,7 +229,6 @@ public sealed class PlanetHydrologyStateTests
                     [planet],
                     [],
                     [],
-                    [],
                     [terrain],
                     [first, second]));
     }
@@ -277,7 +275,6 @@ public sealed class PlanetHydrologyStateTests
                 [firstPlanet, secondPlanet],
                 [],
                 [],
-                [],
                 [firstTerrain, secondTerrain],
                 [firstHydrology, secondHydrology]);
 
@@ -318,7 +315,6 @@ public sealed class PlanetHydrologyStateTests
             WorldId.New(),
             SimulationTime.Zero,
             [planet],
-            [],
             [],
             [],
             [terrain],

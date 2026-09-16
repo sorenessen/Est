@@ -9,7 +9,6 @@ public sealed record PlanetCreationSpecification(
     double MeanRadiusMeters,
     PlanetEnvironmentCreationSpecification Environment,
     SyntheticPopulationCreationSpecification? SyntheticPopulation = null,
-    SyntheticFoodCreationSpecification? SyntheticFood = null,
     SyntheticAnimalCreationSpecification? SyntheticAnimals = null,
     GeneratedTerrainCreationSpecification? GeneratedTerrain = null,
     GeneratedHydrologyCreationSpecification? GeneratedHydrology = null,
@@ -36,15 +35,6 @@ public sealed record SyntheticPopulationCreationSpecification(
     double SpreadDegrees,
     double MinimumAgeYears = 18,
     double MaximumAgeYears = 35);
-
-public sealed record SyntheticFoodCreationSpecification(
-    int PatchCount,
-    int Seed,
-    double CenterLatitudeDegrees,
-    double CenterLongitudeDegrees,
-    double SpreadDegrees,
-    double EnergyPerPatch,
-    double RecoveryEnergyPerDay = 0);
 
 public sealed record SyntheticAnimalCreationSpecification(
     int WolfCount,

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
-using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -14,7 +13,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 10;
+    public const int CurrentSchemaVersion = 11;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -25,6 +24,7 @@ public static class WorldSnapshotSerializer
     private const int TerrainSchemaVersion = 8;
     private const int HydrologySchemaVersion = 9;
     private const int VegetationSchemaVersion = 10;
+    private const int FoodRetirementSchemaVersion = 11;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -48,9 +48,6 @@ public static class WorldSnapshotSerializer
                 .Select(ToSnapshot)
                 .ToArray(),
             Population = world.Population
-                .Select(ToSnapshot)
-                .ToArray(),
-            FoodResources = world.FoodResources
                 .Select(ToSnapshot)
                 .ToArray(),
             Animals = world.Animals
@@ -96,6 +93,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != PregnancySchemaVersion &&
             snapshot.SchemaVersion != TerrainSchemaVersion &&
             snapshot.SchemaVersion != HydrologySchemaVersion &&
+            snapshot.SchemaVersion != VegetationSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -135,14 +133,10 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
-        FoodResourceState[] foodResources;
-
-        if (snapshot.SchemaVersion <
-            FoodSchemaVersion)
-        {
-            foodResources = [];
-        }
-        else
+        if (snapshot.SchemaVersion >=
+                FoodSchemaVersion &&
+            snapshot.SchemaVersion <
+                FoodRetirementSchemaVersion)
         {
             if (snapshot.FoodResources is null)
             {
@@ -150,13 +144,44 @@ public static class WorldSnapshotSerializer
                     "Snapshot food resources collection is required.");
             }
 
-            foodResources = snapshot.FoodResources
-                .Select(
-                    resource =>
-                        FromSnapshot(
-                            resource,
-                            snapshot.SchemaVersion))
-                .ToArray();
+            var legacyPlanetIds =
+                planets
+                    .Select(
+                        planet =>
+                            planet.Id.Value)
+                    .ToHashSet();
+
+            var legacyFoodResourceIds =
+                new HashSet<Guid>();
+
+            foreach (var resource in
+                     snapshot.FoodResources)
+            {
+                if (resource is null)
+                {
+                    throw new JsonException(
+                        "Legacy food resources cannot contain null entries.");
+                }
+
+                if (!legacyFoodResourceIds.Add(
+                        resource.FoodResourceId))
+                {
+                    throw new JsonException(
+                        "Legacy food resources cannot contain duplicate identities.");
+                }
+
+                ValidateLegacyFoodResource(
+                    resource,
+                    snapshot.SchemaVersion,
+                    legacyPlanetIds);
+            }
+        }
+        else if (snapshot.SchemaVersion >=
+                     FoodRetirementSchemaVersion &&
+                 snapshot.FoodResources is not null)
+        {
+            throw new JsonException(
+                "Current world snapshots cannot contain legacy food resources.");
         }
 
         AnimalState[] animals;
@@ -244,7 +269,6 @@ public static class WorldSnapshotSerializer
             new SimulationTime(snapshot.CurrentTimeSeconds),
             planets,
             population,
-            foodResources,
             animals,
             terrain,
             hydrology,
@@ -485,32 +509,46 @@ public static class WorldSnapshotSerializer
             snapshot.Activity);
     }
 
-    private static FoodResourceSnapshot ToSnapshot(
-        FoodResourceState resource)
-    {
-        return new FoodResourceSnapshot
-        {
-            FoodResourceId = resource.Id.Value,
-            PlanetId = resource.PlanetId.Value,
-            LatitudeDegrees =
-                resource.LatitudeDegrees,
-            LongitudeDegrees =
-                resource.LongitudeDegrees,
-            AvailableEnergy =
-                resource.AvailableEnergy,
-            CapacityEnergy =
-                resource.CapacityEnergy,
-            RecoveryEnergyPerDay =
-                resource.RecoveryEnergyPerDay
-        };
-    }
-
-    private static FoodResourceState FromSnapshot(
+    private static void ValidateLegacyFoodResource(
         FoodResourceSnapshot snapshot,
-        int schemaVersion)
+        int schemaVersion,
+        IReadOnlySet<Guid> planetIds)
     {
-        double capacityEnergy;
-        double recoveryEnergyPerDay;
+        if (snapshot.FoodResourceId == Guid.Empty)
+        {
+            throw new JsonException(
+                "Legacy food resource identity cannot be empty.");
+        }
+
+        if (snapshot.PlanetId == Guid.Empty ||
+            !planetIds.Contains(snapshot.PlanetId))
+        {
+            throw new JsonException(
+                "Legacy food resource planet is invalid.");
+        }
+
+        if (!double.IsFinite(snapshot.LatitudeDegrees) ||
+            snapshot.LatitudeDegrees < -90 ||
+            snapshot.LatitudeDegrees > 90)
+        {
+            throw new JsonException(
+                "Legacy food resource latitude is invalid.");
+        }
+
+        if (!double.IsFinite(snapshot.LongitudeDegrees) ||
+            snapshot.LongitudeDegrees < -180 ||
+            snapshot.LongitudeDegrees > 180)
+        {
+            throw new JsonException(
+                "Legacy food resource longitude is invalid.");
+        }
+
+        if (!double.IsFinite(snapshot.AvailableEnergy) ||
+            snapshot.AvailableEnergy < 0)
+        {
+            throw new JsonException(
+                "Legacy food resource available energy is invalid.");
+        }
 
         if (schemaVersion >=
             RenewableFoodSchemaVersion)
@@ -527,29 +565,23 @@ public static class WorldSnapshotSerializer
                     "Food resource recovery energy per day is required.");
             }
 
-            capacityEnergy =
-                snapshot.CapacityEnergy.Value;
+            if (!double.IsFinite(
+                    snapshot.CapacityEnergy.Value) ||
+                snapshot.CapacityEnergy.Value <
+                    snapshot.AvailableEnergy)
+            {
+                throw new JsonException(
+                    "Legacy food resource capacity energy is invalid.");
+            }
 
-            recoveryEnergyPerDay =
-                snapshot.RecoveryEnergyPerDay.Value;
+            if (!double.IsFinite(
+                    snapshot.RecoveryEnergyPerDay.Value) ||
+                snapshot.RecoveryEnergyPerDay.Value < 0)
+            {
+                throw new JsonException(
+                    "Legacy food resource recovery rate is invalid.");
+            }
         }
-        else
-        {
-            capacityEnergy =
-                snapshot.AvailableEnergy;
-
-            recoveryEnergyPerDay = 0;
-        }
-
-        return new FoodResourceState(
-            new FoodResourceId(
-                snapshot.FoodResourceId),
-            new PlanetId(snapshot.PlanetId),
-            snapshot.LatitudeDegrees,
-            snapshot.LongitudeDegrees,
-            snapshot.AvailableEnergy,
-            capacityEnergy,
-            recoveryEnergyPerDay);
     }
 
     private static PersonSnapshot ToSnapshot(PersonState person)
@@ -730,7 +762,12 @@ public static class WorldSnapshotSerializer
         public required long CurrentTimeSeconds { get; set; }
         public required PlanetSnapshot[] Planets { get; set; }
         public PersonSnapshot[]? Population { get; set; }
+
+        [System.Text.Json.Serialization.JsonIgnore(
+            Condition =
+                System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
         public FoodResourceSnapshot[]? FoodResources { get; set; }
+
         public AnimalSnapshot[]? Animals { get; set; }
         public PlanetTerrainSnapshot[]? Terrain { get; set; }
         public PlanetHydrologySnapshot[]? Hydrology { get; set; }

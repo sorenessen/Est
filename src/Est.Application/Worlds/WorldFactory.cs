@@ -1,5 +1,4 @@
 using Est.Simulation.Animals;
-using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -33,16 +32,6 @@ public static class WorldFactory
                             planets[index],
                             planetSpecification
                                 .SyntheticPopulation))
-                .ToArray();
-
-        var foodResources =
-            specification.Planets
-                .SelectMany(
-                    (planetSpecification, index) =>
-                        CreateFoodResources(
-                            planets[index],
-                            planetSpecification
-                                .SyntheticFood))
                 .ToArray();
 
         var animals =
@@ -124,7 +113,6 @@ public static class WorldFactory
             SimulationTime.Zero,
             planets,
             population,
-            foodResources,
             animals,
             terrain,
             hydrology,
@@ -316,66 +304,6 @@ public static class WorldFactory
         return animals;
     }
 
-    private static IEnumerable<FoodResourceState>
-        CreateFoodResources(
-            PlanetState planet,
-            SyntheticFoodCreationSpecification? specification)
-    {
-        if (specification is null)
-        {
-            return [];
-        }
-
-        ValidateFoodSpecification(specification);
-
-        var random =
-            new Random(specification.Seed);
-
-        var resources =
-            new FoodResourceState[
-                specification.PatchCount];
-
-        for (var index = 0;
-             index < resources.Length;
-             index++)
-        {
-            var radius =
-                Math.Sqrt(random.NextDouble()) *
-                specification.SpreadDegrees;
-
-            var angle =
-                random.NextDouble() *
-                Math.PI *
-                2;
-
-            var latitude =
-                Math.Clamp(
-                    specification.CenterLatitudeDegrees +
-                    Math.Sin(angle) * radius,
-                    -90,
-                    90);
-
-            var longitude =
-                NormalizeLongitude(
-                    specification.CenterLongitudeDegrees +
-                    Math.Cos(angle) * radius);
-
-            resources[index] =
-                new FoodResourceState(
-                    FoodResourceId.New(),
-                    planet.Id,
-                    latitude,
-                    longitude,
-                    specification.EnergyPerPatch,
-                    capacityEnergy:
-                        specification.EnergyPerPatch,
-                    recoveryEnergyPerDay:
-                        specification.RecoveryEnergyPerDay);
-        }
-
-        return resources;
-    }
-
     private static IEnumerable<PersonState> CreatePopulation(
         PlanetState planet,
         SyntheticPopulationCreationSpecification? specification)
@@ -479,61 +407,6 @@ public static class WorldFactory
         {
             throw new ArgumentOutOfRangeException(
                 nameof(specification.SpreadDegrees));
-        }
-    }
-
-    private static void ValidateFoodSpecification(
-        SyntheticFoodCreationSpecification specification)
-    {
-        if (specification.PatchCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(specification.PatchCount));
-        }
-
-        if (!double.IsFinite(
-                specification.CenterLatitudeDegrees) ||
-            specification.CenterLatitudeDegrees < -90 ||
-            specification.CenterLatitudeDegrees > 90)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(
-                    specification.CenterLatitudeDegrees));
-        }
-
-        if (!double.IsFinite(
-                specification.CenterLongitudeDegrees) ||
-            specification.CenterLongitudeDegrees < -180 ||
-            specification.CenterLongitudeDegrees > 180)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(
-                    specification.CenterLongitudeDegrees));
-        }
-
-        if (!double.IsFinite(
-                specification.SpreadDegrees) ||
-            specification.SpreadDegrees < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(specification.SpreadDegrees));
-        }
-
-        if (!double.IsFinite(
-                specification.EnergyPerPatch) ||
-            specification.EnergyPerPatch < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(specification.EnergyPerPatch));
-        }
-
-        if (!double.IsFinite(
-                specification.RecoveryEnergyPerDay) ||
-            specification.RecoveryEnergyPerDay < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(
-                    specification.RecoveryEnergyPerDay));
         }
     }
 

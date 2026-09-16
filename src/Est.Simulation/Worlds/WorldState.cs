@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Est.Simulation.Animals;
-using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -35,7 +34,10 @@ public sealed record WorldState
             currentTime,
             planets,
             population,
-            [])
+            null,
+            null,
+            null,
+            null)
     {
     }
 
@@ -44,7 +46,6 @@ public sealed record WorldState
         SimulationTime currentTime,
         IEnumerable<PlanetState> planets,
         IEnumerable<PersonState> population,
-        IEnumerable<FoodResourceState> foodResources,
         IEnumerable<AnimalState>? animals = null,
         IEnumerable<PlanetTerrainState>? terrain = null,
         IEnumerable<PlanetHydrologyState>? hydrology = null,
@@ -59,12 +60,9 @@ public sealed record WorldState
 
         ArgumentNullException.ThrowIfNull(planets);
         ArgumentNullException.ThrowIfNull(population);
-        ArgumentNullException.ThrowIfNull(foodResources);
 
         var planetArray = planets.ToImmutableArray();
         var populationArray = population.ToImmutableArray();
-        var foodResourceArray =
-            foodResources.ToImmutableArray();
         var animalArray =
             (animals ?? []).ToImmutableArray();
         var terrainArray =
@@ -97,13 +95,6 @@ public sealed record WorldState
             throw new ArgumentException(
                 "World population cannot contain null entries.",
                 nameof(population));
-        }
-
-        if (foodResourceArray.Any(resource => resource is null))
-        {
-            throw new ArgumentException(
-                "World food resources cannot contain null entries.",
-                nameof(foodResources));
         }
 
         if (animalArray.Any(animal => animal is null))
@@ -176,15 +167,6 @@ public sealed record WorldState
                 nameof(animals));
         }
 
-        if (foodResourceArray
-            .GroupBy(resource => resource.Id)
-            .Any(group => group.Count() > 1))
-        {
-            throw new ArgumentException(
-                "World cannot contain duplicate food resource identities.",
-                nameof(foodResources));
-        }
-
         if (populationArray
             .GroupBy(person => person.Id)
             .Any(group => group.Count() > 1))
@@ -214,15 +196,6 @@ public sealed record WorldState
             throw new ArgumentException(
                 "Every animal must belong to a planet in the world.",
                 nameof(animals));
-        }
-
-        if (foodResourceArray.Any(
-                resource =>
-                    !planetIds.Contains(resource.PlanetId)))
-        {
-            throw new ArgumentException(
-                "Every food resource must belong to a planet in the world.",
-                nameof(foodResources));
         }
 
         foreach (var terrainState in terrainArray)
@@ -343,7 +316,6 @@ public sealed record WorldState
         CurrentTime = currentTime;
         Planets = planetArray;
         Population = populationArray;
-        FoodResources = foodResourceArray;
         Animals = animalArray;
         Terrain = terrainArray;
         Hydrology = hydrologyArray;
@@ -357,12 +329,6 @@ public sealed record WorldState
     public ImmutableArray<PlanetState> Planets { get; private init; }
 
     public ImmutableArray<PersonState> Population { get; private init; }
-
-    public ImmutableArray<FoodResourceState> FoodResources
-    {
-        get;
-        private init;
-    }
 
     public ImmutableArray<AnimalState> Animals
     {
@@ -403,7 +369,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             Animals,
             Terrain,
             Hydrology,
@@ -417,7 +382,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             Animals,
             Terrain,
             Hydrology,
@@ -434,24 +398,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             population,
-            FoodResources,
-            Animals,
-            Terrain,
-            Hydrology,
-            Vegetation);
-    }
-
-    public WorldState ReplaceFoodResources(
-        IEnumerable<FoodResourceState> foodResources)
-    {
-        ArgumentNullException.ThrowIfNull(foodResources);
-
-        return new WorldState(
-            Id,
-            CurrentTime,
-            Planets,
-            Population,
-            foodResources,
             Animals,
             Terrain,
             Hydrology,
@@ -468,7 +414,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             animals,
             Terrain,
             Hydrology,
@@ -485,7 +430,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             Animals,
             terrain,
             Hydrology,
@@ -503,7 +447,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             Animals,
             Terrain,
             hydrology,
@@ -521,7 +464,6 @@ public sealed record WorldState
             CurrentTime,
             Planets,
             Population,
-            FoodResources,
             Animals,
             Terrain,
             Hydrology,

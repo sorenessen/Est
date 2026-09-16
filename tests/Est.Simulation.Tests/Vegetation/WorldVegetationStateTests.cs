@@ -88,7 +88,6 @@ public sealed class WorldVegetationStateTests
                     [planet],
                     [],
                     [],
-                    [],
                     [terrain],
                     [],
                     [vegetation]));
@@ -175,7 +174,6 @@ public sealed class WorldVegetationStateTests
                     [planet],
                     [],
                     [],
-                    [],
                     [terrain],
                     [hydrology],
                     [first, second]));
@@ -240,7 +238,6 @@ public sealed class WorldVegetationStateTests
                 [firstPlanet, secondPlanet],
                 [],
                 [],
-                [],
                 [firstTerrain, secondTerrain],
                 [firstHydrology, secondHydrology],
                 [firstVegetation, secondVegetation]);
@@ -283,7 +280,6 @@ public sealed class WorldVegetationStateTests
             WorldId.New(),
             SimulationTime.Zero,
             [planet],
-            [],
             [],
             [],
             [terrain],

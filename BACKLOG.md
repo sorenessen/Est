@@ -382,8 +382,15 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [ ] Add explicit plant stress / mortality behavior for conditions such as
         later inundation, drought, temperature extremes, and other ecological
         losses when that lifecycle layer is designed.
-- [ ] Remove the synthetic food-resource scaffolding now that authoritative
+- [x] Remove the synthetic food-resource scaffolding now that authoritative
       vegetation preserves the population survival vertical slice.
+  - [x] Remove synthetic food from authoritative world state, current world
+        creation, and Est.Api contracts.
+  - [x] Make vegetation-backed foraging the only configured biological
+        food-consumption path.
+  - [x] Advance world snapshot schema to 11 without serializing synthetic food.
+  - [x] Preserve read compatibility for snapshot schemas 4-10 by validating
+        and discarding legacy food-resource payloads.
 - [ ] Add aggregate invertebrate / bug populations.
 - [ ] Add bird population / flock representation.
 - [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
