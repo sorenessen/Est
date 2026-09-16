@@ -423,7 +423,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         initialization from authoritative vegetation support.
   - [x] Add causal grazing, movement, and survival behavior supported by
         authoritative vegetation, water, and habitat.
-  - [ ] Wire grazer dynamics through the session/API boundary and validate
+  - [x] Wire grazer dynamics through the session/API boundary and validate
         configuration, persistence, and runtime behavior end to end.
   - [ ] Connect wolves to ecologically appropriate terrestrial prey without
         collapsing cohort fauna into the existing wolf-specific individual

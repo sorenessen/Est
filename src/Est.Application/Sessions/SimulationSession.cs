@@ -4,6 +4,7 @@ using Est.Simulation.Causality;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
+using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Operations;
@@ -99,6 +100,15 @@ public sealed class SimulationSession
                                 model.PlanetId,
                                 model.Parameters));
 
+        var grazerSystems =
+            definition.GrazerModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new GrazerCohortSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var foragingSystems =
             definition.PopulationModels
                 .Where(
@@ -149,6 +159,7 @@ public sealed class SimulationSession
                 .Concat(vegetationSystems)
                 .Concat(invertebrateSystems)
                 .Concat(birdSystems)
+                .Concat(grazerSystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
                 .Concat(reproductionSystems)

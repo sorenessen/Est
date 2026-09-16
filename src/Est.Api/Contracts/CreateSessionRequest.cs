@@ -26,7 +26,9 @@ public sealed record PlanetCreationRequest(
     GeneratedInvertebrateCreationRequest? GeneratedInvertebrates = null,
     InvertebrateModelRequest? InvertebrateModel = null,
     GeneratedBirdCreationRequest? GeneratedBirds = null,
-    BirdModelRequest? BirdModel = null);
+    BirdModelRequest? BirdModel = null,
+    GeneratedGrazerCreationRequest? GeneratedGrazers = null,
+    GrazerModelRequest? GrazerModel = null);
 
 public sealed record GeneratedTerrainCreationRequest(
     [property: JsonRequired]
@@ -55,6 +57,13 @@ public sealed record GeneratedBirdCreationRequest(
     int MinimumInitialFlockMemberCount = 10,
     int MaximumInitialFlockCount = 64);
 
+public sealed record GeneratedGrazerCreationRequest(
+    double CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
+        0.000001,
+    double InitialFractionOfLocalCarryingCapacity = 0.25,
+    int MinimumInitialCohortMemberCount = 10,
+    int MaximumInitialCohortCount = 64);
+
 public sealed record BirdModelRequest
 {
     public double
@@ -81,6 +90,49 @@ public sealed record BirdModelRequest
 
     public double MaximumTravelMetersPerDay { get; init; } =
         250_000;
+
+    public double FoodShortageMortalityRatePerDay { get; init; } =
+        0.05;
+
+    public double WaterAbsenceMortalityRatePerDay { get; init; } =
+        0.20;
+
+    public double HabitatAbsenceMortalityRatePerDay { get; init; } =
+        0.02;
+}
+
+public sealed record GrazerModelRequest
+{
+    public double
+        CarryingCapacityGrazersPerKilogramLiveVegetationBiomass
+    {
+        get;
+        init;
+    } = 0.000001;
+
+    public double InitialFractionOfLocalCarryingCapacity
+    {
+        get;
+        init;
+    } = 0.25;
+
+    public int MinimumInitialCohortMemberCount { get; init; } =
+        10;
+
+    public int MaximumInitialCohortCount { get; init; } =
+        64;
+
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double MaximumTravelMetersPerDay { get; init; } =
+        50_000;
+
+    public double MaximumGrazeKilogramsPerGrazerPerDay
+    {
+        get;
+        init;
+    } = 10;
 
     public double FoodShortageMortalityRatePerDay { get; init; } =
         0.05;

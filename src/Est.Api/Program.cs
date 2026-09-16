@@ -6,6 +6,7 @@ using Est.Application.Sessions;
 using Est.Application.Worlds;
 using Est.Simulation.Birds;
 using Est.Simulation.Climate;
+using Est.Simulation.Grazers;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
@@ -203,7 +204,18 @@ app.MapPost(
                                             planet.GeneratedBirds
                                                 .MinimumInitialFlockMemberCount,
                                             planet.GeneratedBirds
-                                                .MaximumInitialFlockCount)))
+                                                .MaximumInitialFlockCount),
+                                    planet.GeneratedGrazers is null
+                                        ? null
+                                        : new GeneratedGrazerCreationSpecification(
+                                            planet.GeneratedGrazers
+                                                .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                                            planet.GeneratedGrazers
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                            planet.GeneratedGrazers
+                                                .MinimumInitialCohortMemberCount,
+                                            planet.GeneratedGrazers
+                                                .MaximumInitialCohortCount)))
                         .ToArray());
 
             var world =
@@ -398,6 +410,51 @@ app.MapPost(
                     .Cast<BirdModelDefinition>()
                     .ToArray();
 
+            var grazerModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.GrazerModel is null
+                                ? null
+                                : new GrazerModelDefinition(
+                                    world.Planets[index].Id,
+                                    new GrazerModelParameters(
+                                        carryingCapacityGrazersPerKilogramLiveVegetationBiomass:
+                                            planet.GrazerModel
+                                                .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                                        initialFractionOfLocalCarryingCapacity:
+                                            planet.GrazerModel
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                        minimumInitialCohortMemberCount:
+                                            planet.GrazerModel
+                                                .MinimumInitialCohortMemberCount,
+                                        maximumInitialCohortCount:
+                                            planet.GrazerModel
+                                                .MaximumInitialCohortCount,
+                                        maximumIntegrationStepSeconds:
+                                            planet.GrazerModel
+                                                .MaximumIntegrationStepSeconds,
+                                        maximumTravelMetersPerDay:
+                                            planet.GrazerModel
+                                                .MaximumTravelMetersPerDay,
+                                        maximumGrazeKilogramsPerGrazerPerDay:
+                                            planet.GrazerModel
+                                                .MaximumGrazeKilogramsPerGrazerPerDay,
+                                        foodShortageMortalityRatePerDay:
+                                            planet.GrazerModel
+                                                .FoodShortageMortalityRatePerDay,
+                                        waterAbsenceMortalityRatePerDay:
+                                            planet.GrazerModel
+                                                .WaterAbsenceMortalityRatePerDay,
+                                        habitatAbsenceMortalityRatePerDay:
+                                            planet.GrazerModel
+                                                .HabitatAbsenceMortalityRatePerDay)))
+                    .Where(
+                        model =>
+                            model is not null)
+                    .Cast<GrazerModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
@@ -405,7 +462,8 @@ app.MapPost(
                     hydrologyModels,
                     vegetationModels,
                     invertebrateModels,
-                    birdModels);
+                    birdModels,
+                    grazerModels);
 
             var sessionId =
                 manager.Create(
@@ -808,6 +866,71 @@ app.MapGet(
             new BirdFlocksResponse(
                 planetIdentity.Value,
                 flocks));
+    });
+
+app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/grazer-cohorts",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(
+                id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var cohorts =
+            session.CurrentWorld.GrazerCohorts
+                .Where(
+                    cohort =>
+                        cohort.PlanetId ==
+                        planetIdentity)
+                .OrderBy(
+                    cohort =>
+                        cohort.Id.Value)
+                .Select(
+                    cohort =>
+                        new GrazerCohortResponse(
+                            cohort.Id.Value,
+                            cohort.MemberCount,
+                            cohort.LatitudeDegrees,
+                            cohort.LongitudeDegrees))
+                .ToArray();
+
+        return Results.Ok(
+            new GrazerCohortsResponse(
+                planetIdentity.Value,
+                cohorts));
     });
 
 app.MapGet(
@@ -1499,6 +1622,32 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .MaximumIntegrationStepSeconds,
                         model.Parameters
                             .MaximumTravelMetersPerDay,
+                        model.Parameters
+                            .FoodShortageMortalityRatePerDay,
+                        model.Parameters
+                            .WaterAbsenceMortalityRatePerDay,
+                        model.Parameters
+                            .HabitatAbsenceMortalityRatePerDay))
+            .ToArray(),
+        definition.GrazerModels
+            .Select(
+                model =>
+                    new GrazerModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+                        model.Parameters
+                            .InitialFractionOfLocalCarryingCapacity,
+                        model.Parameters
+                            .MinimumInitialCohortMemberCount,
+                        model.Parameters
+                            .MaximumInitialCohortCount,
+                        model.Parameters
+                            .MaximumIntegrationStepSeconds,
+                        model.Parameters
+                            .MaximumTravelMetersPerDay,
+                        model.Parameters
+                            .MaximumGrazeKilogramsPerGrazerPerDay,
                         model.Parameters
                             .FoodShortageMortalityRatePerDay,
                         model.Parameters

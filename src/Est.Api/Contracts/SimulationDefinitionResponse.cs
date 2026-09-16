@@ -10,7 +10,9 @@ public sealed record SimulationDefinitionResponse(
     InvertebrateModelResponse[]
         InvertebrateModels,
     BirdModelResponse[]
-        BirdModels);
+        BirdModels,
+    GrazerModelResponse[]
+        GrazerModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -72,6 +74,19 @@ public sealed record BirdModelResponse(
     int MaximumInitialFlockCount,
     long MaximumIntegrationStepSeconds,
     double MaximumTravelMetersPerDay,
+    double FoodShortageMortalityRatePerDay,
+    double WaterAbsenceMortalityRatePerDay,
+    double HabitatAbsenceMortalityRatePerDay);
+
+public sealed record GrazerModelResponse(
+    Guid PlanetId,
+    double CarryingCapacityGrazersPerKilogramLiveVegetationBiomass,
+    double InitialFractionOfLocalCarryingCapacity,
+    int MinimumInitialCohortMemberCount,
+    int MaximumInitialCohortCount,
+    long MaximumIntegrationStepSeconds,
+    double MaximumTravelMetersPerDay,
+    double MaximumGrazeKilogramsPerGrazerPerDay,
     double FoodShortageMortalityRatePerDay,
     double WaterAbsenceMortalityRatePerDay,
     double HabitatAbsenceMortalityRatePerDay);
