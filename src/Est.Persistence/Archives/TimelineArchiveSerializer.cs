@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
+using Est.Simulation.Birds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
@@ -15,7 +16,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
+    private const int BirdModelSchemaVersion = 9;
     private const int InvertebrateModelSchemaVersion = 8;
     private const int VegetationForagingSchemaVersion = 7;
     private const int VegetationModelSchemaVersion = 6;
@@ -111,6 +113,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != HydrologyModelSchemaVersion &&
             archive.SchemaVersion != VegetationModelSchemaVersion &&
             archive.SchemaVersion != VegetationForagingSchemaVersion &&
+            archive.SchemaVersion != InvertebrateModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -493,6 +496,32 @@ public static class TimelineArchiveSerializer
                                                 .BaselineMortalityRatePerDay
                                     }
                             })
+                    .ToArray(),
+            BirdModels =
+                definition.BirdModels
+                    .Select(
+                        model =>
+                            new BirdModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new BirdModelParametersSnapshot
+                                    {
+                                        CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass =
+                                            model.Parameters
+                                                .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                                        InitialFractionOfLocalCarryingCapacity =
+                                            model.Parameters
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                        MinimumInitialFlockMemberCount =
+                                            model.Parameters
+                                                .MinimumInitialFlockMemberCount,
+                                        MaximumInitialFlockCount =
+                                            model.Parameters
+                                                .MaximumInitialFlockCount
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -765,12 +794,55 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        BirdModelDefinition[] birdModels;
+
+        if (schemaVersion <
+            BirdModelSchemaVersion)
+        {
+            birdModels = [];
+        }
+        else
+        {
+            if (snapshot.BirdModels is null)
+            {
+                throw new JsonException(
+                    "Bird model collection is required.");
+            }
+
+            birdModels =
+                snapshot.BirdModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Bird model parameters are required.");
+                            }
+
+                            return new BirdModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new BirdModelParameters(
+                                    model.Parameters
+                                        .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                                    model.Parameters
+                                        .InitialFractionOfLocalCarryingCapacity,
+                                    model.Parameters
+                                        .MinimumInitialFlockMemberCount,
+                                    model.Parameters
+                                        .MaximumInitialFlockCount));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
             hydrologyModels,
             vegetationModels,
-            invertebrateModels);
+            invertebrateModels,
+            birdModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -838,6 +910,48 @@ public static class TimelineArchiveSerializer
         public VegetationModelSnapshot[]? VegetationModels { get; set; }
 
         public InvertebrateModelSnapshot[]? InvertebrateModels { get; set; }
+
+        public BirdModelSnapshot[]? BirdModels { get; set; }
+    }
+
+    private sealed class BirdModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required BirdModelParametersSnapshot Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class BirdModelParametersSnapshot
+    {
+        public required double
+            CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass
+        {
+            get;
+            set;
+        }
+
+        public required double
+            InitialFractionOfLocalCarryingCapacity
+        {
+            get;
+            set;
+        }
+
+        public required int MinimumInitialFlockMemberCount
+        {
+            get;
+            set;
+        }
+
+        public required int MaximumInitialFlockCount
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class InvertebrateModelSnapshot

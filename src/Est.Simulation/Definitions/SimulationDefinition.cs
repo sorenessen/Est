@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Est.Simulation.Birds;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Population;
@@ -14,7 +15,8 @@ public sealed record SimulationDefinition
         IEnumerable<PopulationModelDefinition>? populationModels = null,
         IEnumerable<HydrologyModelDefinition>? hydrologyModels = null,
         IEnumerable<VegetationModelDefinition>? vegetationModels = null,
-        IEnumerable<InvertebrateModelDefinition>? invertebrateModels = null)
+        IEnumerable<InvertebrateModelDefinition>? invertebrateModels = null,
+        IEnumerable<BirdModelDefinition>? birdModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -35,6 +37,10 @@ public sealed record SimulationDefinition
         var invertebrates = invertebrateModels?
             .ToImmutableArray()
             ?? ImmutableArray<InvertebrateModelDefinition>.Empty;
+
+        var birds = birdModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<BirdModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -69,6 +75,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null invertebrate model definitions.",
                 nameof(invertebrateModels));
+        }
+
+        if (birds.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null bird model definitions.",
+                nameof(birdModels));
         }
 
         if (models
@@ -116,11 +129,21 @@ public sealed record SimulationDefinition
                 nameof(invertebrateModels));
         }
 
+        if (birds
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one bird model definition.",
+                nameof(birdModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
         VegetationModels = vegetation;
         InvertebrateModels = invertebrates;
+        BirdModels = birds;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -137,6 +160,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<InvertebrateModelDefinition>
         InvertebrateModels { get; }
+
+    public ImmutableArray<BirdModelDefinition>
+        BirdModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -215,6 +241,26 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Invertebrate model for planet '{model.PlanetId.Value}' requires authoritative invertebrate state for that planet.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in BirdModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Bird model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+
+            if (!world.Invertebrates.Any(
+                    invertebrates =>
+                        invertebrates.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Bird model for planet '{model.PlanetId.Value}' requires authoritative invertebrate state for that planet.",
                     nameof(world));
             }
         }

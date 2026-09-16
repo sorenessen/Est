@@ -1,4 +1,5 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Birds;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -132,6 +133,23 @@ public static class WorldFactory
                         item!)
                 .ToArray();
 
+        var invertebratesByPlanetId =
+            invertebrates.ToDictionary(
+                item =>
+                    item.PlanetId);
+
+        var birdFlocks =
+            specification.Planets
+                .SelectMany(
+                    (planetSpecification, index) =>
+                        CreateBirdFlocks(
+                            planets[index],
+                            invertebratesByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedBirds))
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
@@ -141,7 +159,8 @@ public static class WorldFactory
             terrain,
             hydrology,
             vegetation,
-            invertebrates);
+            invertebrates,
+            birdFlocks);
     }
 
     private static PlanetState CreatePlanet(
@@ -298,6 +317,45 @@ public static class WorldFactory
             .FromVegetationSupport(
                 planet,
                 vegetation,
+                parameters);
+    }
+
+    private static IEnumerable<BirdFlockState> CreateBirdFlocks(
+        PlanetState planet,
+        PlanetInvertebrateState? invertebrates,
+        GeneratedBirdCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return [];
+        }
+
+        if (invertebrates is null)
+        {
+            throw new ArgumentException(
+                "Generated birds require generated invertebrates.",
+                nameof(specification));
+        }
+
+        var parameters =
+            new BirdModelParameters(
+                carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                    specification
+                        .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                initialFractionOfLocalCarryingCapacity:
+                    specification
+                        .InitialFractionOfLocalCarryingCapacity,
+                minimumInitialFlockMemberCount:
+                    specification
+                        .MinimumInitialFlockMemberCount,
+                maximumInitialFlockCount:
+                    specification
+                        .MaximumInitialFlockCount);
+
+        return PlanetBirdFlockInitializer
+            .FromInvertebrateSupport(
+                planet,
+                invertebrates,
                 parameters);
     }
 
