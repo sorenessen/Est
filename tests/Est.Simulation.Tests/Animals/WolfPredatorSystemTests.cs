@@ -1,5 +1,6 @@
 using Est.Simulation.Animals;
 using Est.Simulation.Causality;
+using Est.Simulation.Grazers;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -420,6 +421,255 @@ public sealed class WolfPredatorSystemTests
     }
 
     [Fact]
+    public void Step_HungryWolfConsumesNearbyGrazerBeforeConsideringHuman()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            CreatePerson(
+                planet.Id,
+                latitude: 0,
+                longitude: 0.05);
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.20);
+
+        var grazer =
+            CreateGrazer(
+                planet.Id,
+                memberCount: 5,
+                latitude: 0,
+                longitude: 0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [person],
+                    [wolf],
+                    [grazer]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Single(
+            result.World.Population);
+
+        var remainingCohort =
+            Assert.Single(
+                result.World.GrazerCohorts);
+
+        Assert.Equal(
+            4,
+            remainingCohort.MemberCount);
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.True(
+            changedWolf.EnergyReserve >
+            0.12);
+
+        Assert.Equal(
+            AnimalActivity.Eating,
+            changedWolf.Activity);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerKills"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "wolfAttacks"]);
+    }
+
+    [Fact]
+    public void Step_HungryWolfMovesTowardDetectedGrazer()
+    {
+        var planet = CreatePlanet();
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.30);
+
+        var grazer =
+            CreateGrazer(
+                planet.Id,
+                memberCount: 5,
+                latitude: 0,
+                longitude: 1);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [],
+                    [wolf],
+                    [grazer]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            0.75,
+            changedWolf.LongitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            AnimalActivity.Traveling,
+            changedWolf.Activity);
+
+        Assert.Equal(
+            5,
+            Assert.Single(
+                    result.World.GrazerCohorts)
+                .MemberCount);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerChaseSteps"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "grazerKills"]);
+    }
+
+    [Fact]
+    public void Step_GrazerPredationRemovesExtinctCohort()
+    {
+        var planet = CreatePlanet();
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.20);
+
+        var grazer =
+            CreateGrazer(
+                planet.Id,
+                memberCount: 1,
+                latitude: 0,
+                longitude: 0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [],
+                    [wolf],
+                    [grazer]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Empty(
+            result.World.GrazerCohorts);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerKills"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "grazerMembers"]);
+    }
+
+    [Fact]
+    public void Step_GrazerPredationPreservesOtherPlanetCohort()
+    {
+        var huntedPlanet =
+            CreatePlanet();
+
+        var otherPlanet =
+            CreatePlanet();
+
+        var wolf =
+            CreateWolf(
+                huntedPlanet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.20);
+
+        var huntedGrazer =
+            CreateGrazer(
+                huntedPlanet.Id,
+                memberCount: 1,
+                latitude: 0,
+                longitude: 0.05);
+
+        var preservedGrazer =
+            CreateGrazer(
+                otherPlanet.Id,
+                memberCount: 7,
+                latitude: 10,
+                longitude: 10);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [
+                    huntedPlanet,
+                    otherPlanet
+                ],
+                [],
+                [wolf],
+                grazerCohorts:
+                [
+                    huntedGrazer,
+                    preservedGrazer
+                ]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    huntedPlanet.Id));
+
+        var remaining =
+            Assert.Single(
+                result.World.GrazerCohorts);
+
+        Assert.Equal(
+            preservedGrazer.Id,
+            remaining.Id);
+
+        Assert.Equal(
+            7,
+            remaining.MemberCount);
+
+        Assert.Equal(
+            otherPlanet.Id,
+            remaining.PlanetId);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerKills"]);
+    }
+
+    [Fact]
     public void Step_NoWolfDoesNotCreatePredator()
     {
         var planet = CreatePlanet();
@@ -497,14 +747,18 @@ public sealed class WolfPredatorSystemTests
     private static WorldState CreateWorld(
         PlanetState planet,
         PersonState[] people,
-        AnimalState[] animals)
+        AnimalState[] animals,
+        GrazerCohortState[]? grazerCohorts = null)
     {
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
             [planet],
             people,
-            animals);
+            animals,
+            grazerCohorts:
+                grazerCohorts ??
+                []);
     }
 
     private static PlanetState CreatePlanet()
@@ -534,6 +788,20 @@ public sealed class WolfPredatorSystemTests
             planetId,
             PersonSex.Female,
             -800_000_000,
+            latitude,
+            longitude);
+    }
+
+    private static GrazerCohortState CreateGrazer(
+        PlanetId planetId,
+        int memberCount,
+        double latitude,
+        double longitude)
+    {
+        return new GrazerCohortState(
+            GrazerCohortId.New(),
+            planetId,
+            memberCount,
             latitude,
             longitude);
     }

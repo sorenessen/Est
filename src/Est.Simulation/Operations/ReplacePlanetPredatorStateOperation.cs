@@ -1,4 +1,5 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Grazers;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Worlds;
@@ -11,7 +12,8 @@ public sealed record ReplacePlanetPredatorStateOperation
     public ReplacePlanetPredatorStateOperation(
         PlanetId planetId,
         IEnumerable<PersonState> population,
-        IEnumerable<AnimalState> animals)
+        IEnumerable<AnimalState> animals,
+        IEnumerable<GrazerCohortState> grazerCohorts)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -22,10 +24,12 @@ public sealed record ReplacePlanetPredatorStateOperation
 
         ArgumentNullException.ThrowIfNull(population);
         ArgumentNullException.ThrowIfNull(animals);
+        ArgumentNullException.ThrowIfNull(grazerCohorts);
 
         PlanetId = planetId;
         Population = population.ToArray();
         Animals = animals.ToArray();
+        GrazerCohorts = grazerCohorts.ToArray();
 
         if (Population.Any(
                 person => person.PlanetId != planetId))
@@ -42,6 +46,15 @@ public sealed record ReplacePlanetPredatorStateOperation
                 "Animals contain an animal assigned to another planet.",
                 nameof(animals));
         }
+
+        if (GrazerCohorts.Any(
+                cohort =>
+                    cohort.PlanetId != planetId))
+        {
+            throw new ArgumentException(
+                "Grazer cohorts contain a cohort assigned to another planet.",
+                nameof(grazerCohorts));
+        }
     }
 
     public PlanetId PlanetId { get; }
@@ -49,6 +62,9 @@ public sealed record ReplacePlanetPredatorStateOperation
     public IReadOnlyList<PersonState> Population { get; }
 
     public IReadOnlyList<AnimalState> Animals { get; }
+
+    public IReadOnlyList<GrazerCohortState>
+        GrazerCohorts { get; }
 
     public WorldState Apply(WorldState world)
     {
@@ -68,10 +84,18 @@ public sealed record ReplacePlanetPredatorStateOperation
             world.Animals.Where(
                 animal => animal.PlanetId != PlanetId);
 
+        var preservedGrazerCohorts =
+            world.GrazerCohorts.Where(
+                cohort =>
+                    cohort.PlanetId != PlanetId);
+
         return world
             .ReplacePopulation(
                 preservedPopulation.Concat(Population))
             .ReplaceAnimals(
-                preservedAnimals.Concat(Animals));
+                preservedAnimals.Concat(Animals))
+            .ReplaceGrazerCohorts(
+                preservedGrazerCohorts.Concat(
+                    GrazerCohorts));
     }
 }

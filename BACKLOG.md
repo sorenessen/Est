@@ -415,7 +415,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Wire bird dynamics into the causal session order after invertebrates,
         expose current flock state through the session/API boundary, and
         validate configuration, persistence, and runtime behavior.
-- [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
+- [x] Generalize terrestrial fauna beyond the current wolf-specific slice.
   - [x] Add durable authoritative grazer-cohort state with stable identity,
         planet, member count, and geographic center, including world invariants
         and snapshot/timeline persistence.
@@ -425,7 +425,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         authoritative vegetation, water, and habitat.
   - [x] Wire grazer dynamics through the session/API boundary and validate
         configuration, persistence, and runtime behavior end to end.
-  - [ ] Connect wolves to ecologically appropriate terrestrial prey without
+  - [x] Connect wolves to ecologically appropriate terrestrial prey without
         collapsing cohort fauna into the existing wolf-specific individual
         `AnimalState` representation.
 - [ ] Add decomposition and nutrient cycling.

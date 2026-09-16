@@ -1,4 +1,5 @@
 using Est.Simulation.Causality;
+using Est.Simulation.Grazers;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -12,6 +13,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private const double HumanFleeDegreesPerDay = 0.25;
 
     private const double HumanDetectionRadiusDegrees = 1;
+    private const double GrazerDetectionRadiusDegrees = 2;
     private const double HumanDefenseRadiusDegrees = 0.35;
     private const double PackSupportRadiusDegrees = 0.75;
     private const double AttackRadiusDegrees = 0.12;
@@ -22,11 +24,12 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private const double HumanAttackEnergyThreshold = 0.12;
 
     private const double EnergyUsePerDay = 0.08;
+    private const double EnergyPerGrazerKill = 0.45;
     private const double EnergyPerHumanKill = 0.65;
 
-    // Temporary no-prey ecology behavior:
-    // a wolf can survive for a while after exhausting
-    // its stored energy, but it cannot live indefinitely.
+    // Starvation remains gradual when neither normal grazer prey
+    // nor emergency human prey is available. A wolf can survive
+    // for a while after exhausting stored energy, but not indefinitely.
     private const double StarvationHealthLossPerDay =
         1d / 21d;
 
@@ -94,6 +97,16 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     animal => animal.Id.Value)
                 .ToList();
 
+        var grazerCohorts =
+            world.GrazerCohorts
+                .Where(
+                    cohort =>
+                        cohort.PlanetId == _planetId)
+                .OrderBy(
+                    cohort =>
+                        cohort.Id.Value)
+                .ToList();
+
         var wolfAttacks = 0;
         var successfulKills = 0;
         var failedAttacks = 0;
@@ -109,6 +122,11 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var wolfDeaths = 0;
         var wolfStarvationDeaths = 0;
         var packEncounters = 0;
+
+        var grazerHunts = 0;
+        var grazerKills = 0;
+        var grazerChaseSteps = 0;
+        var grazerPackHunts = 0;
 
         double? lastAttackLatitude = null;
         double? lastAttackLongitude = null;
@@ -164,6 +182,99 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         wolf.Id))
                 {
                     continue;
+                }
+
+                if (wolf.EnergyReserve <=
+                    HuntEnergyThreshold)
+                {
+                    var grazerTarget =
+                        FindNearestDetectedGrazer(
+                            wolf,
+                            grazerCohorts);
+
+                    if (grazerTarget is not null)
+                    {
+                        var huntingPack =
+                            FindNearbyHuntingWolves(
+                                wolf,
+                                animals);
+
+                        foreach (var packWolf in
+                                 huntingPack)
+                        {
+                            processedWolves.Add(
+                                packWolf.Id);
+                        }
+
+                        if (huntingPack.Count > 1)
+                        {
+                            grazerPackHunts++;
+                        }
+
+                        var grazerDistance =
+                            DistanceDegrees(
+                                wolf.LatitudeDegrees,
+                                wolf.LongitudeDegrees,
+                                grazerTarget
+                                    .LatitudeDegrees,
+                                grazerTarget
+                                    .LongitudeDegrees);
+
+                        if (grazerDistance >
+                            AttackRadiusDegrees)
+                        {
+                            PursueGrazerWithPack(
+                                animals,
+                                huntingPack,
+                                grazerTarget,
+                                elapsedDays);
+
+                            grazerChaseSteps++;
+
+                            var leadWolf =
+                                FindAnimal(
+                                    animals,
+                                    wolf.Id);
+
+                            if (leadWolf is null)
+                            {
+                                continue;
+                            }
+
+                            grazerDistance =
+                                DistanceDegrees(
+                                    leadWolf
+                                        .LatitudeDegrees,
+                                    leadWolf
+                                        .LongitudeDegrees,
+                                    grazerTarget
+                                        .LatitudeDegrees,
+                                    grazerTarget
+                                        .LongitudeDegrees);
+
+                            if (grazerDistance >
+                                AttackRadiusDegrees)
+                            {
+                                continue;
+                            }
+                        }
+
+                        grazerHunts++;
+
+                        if (ConsumeOneGrazer(
+                                grazerCohorts,
+                                grazerTarget.Id))
+                        {
+                            grazerKills++;
+
+                            FeedPack(
+                                animals,
+                                huntingPack,
+                                EnergyPerGrazerKill);
+                        }
+
+                        continue;
+                    }
                 }
 
                 if (wolf.EnergyReserve >
@@ -503,7 +614,8 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 {
                     FeedPack(
                         animals,
-                        pack);
+                        pack,
+                        EnergyPerHumanKill);
                 }
                 else
                 {
@@ -554,6 +666,18 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     wolfStarvationDeaths,
                 ["packEncounters"] =
                     packEncounters,
+                ["grazerHunts"] =
+                    grazerHunts,
+                ["grazerKills"] =
+                    grazerKills,
+                ["grazerChaseSteps"] =
+                    grazerChaseSteps,
+                ["grazerPackHunts"] =
+                    grazerPackHunts,
+                ["grazerMembers"] =
+                    grazerCohorts.Sum(
+                        cohort =>
+                            cohort.MemberCount),
                 ["wolves"] =
                     animals.Count(
                         animal =>
@@ -576,21 +700,24 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var summary =
             predationDeaths > 0
                 ? "A wolf-human encounter caused a human death."
-                : wolfDeaths > 0
-                    ? "Humans killed a wolf during a defensive encounter."
-                    : wolfStarvationDeaths > 0
-                        ? "A wolf died from starvation."
-                        : wolfAttacks > 0
-                            ? "Humans survived and repelled a wolf attack."
-                            : avoidedEncounters > 0
-                                ? "Wolves avoided a risky human encounter."
-                                : "Wolf activity changed.";
+                : grazerKills > 0
+                    ? "Wolves killed terrestrial grazer prey."
+                    : wolfDeaths > 0
+                        ? "Humans killed a wolf during a defensive encounter."
+                        : wolfStarvationDeaths > 0
+                            ? "A wolf died from starvation."
+                            : wolfAttacks > 0
+                                ? "Humans survived and repelled a wolf attack."
+                                : avoidedEncounters > 0
+                                    ? "Wolves avoided a risky human encounter."
+                                    : "Wolf activity changed.";
 
         return new SimulationChange(
             new ReplacePlanetPredatorStateOperation(
                 _planetId,
                 population,
-                animals),
+                animals,
+                grazerCohorts),
             "predation",
             summary,
             _planetId,
@@ -696,6 +823,67 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         return nearest;
+    }
+
+    private static GrazerCohortState?
+        FindNearestDetectedGrazer(
+            AnimalState wolf,
+            IEnumerable<GrazerCohortState>
+                grazerCohorts)
+    {
+        GrazerCohortState? nearest = null;
+
+        var nearestDistance =
+            GrazerDetectionRadiusDegrees;
+
+        foreach (var cohort in grazerCohorts)
+        {
+            var distance =
+                DistanceDegrees(
+                    wolf.LatitudeDegrees,
+                    wolf.LongitudeDegrees,
+                    cohort.LatitudeDegrees,
+                    cohort.LongitudeDegrees);
+
+            if (distance >=
+                nearestDistance)
+            {
+                continue;
+            }
+
+            nearest =
+                cohort;
+
+            nearestDistance =
+                distance;
+        }
+
+        return nearest;
+    }
+
+    private static List<AnimalState>
+        FindNearbyHuntingWolves(
+            AnimalState wolf,
+            IEnumerable<AnimalState> animals)
+    {
+        return animals
+            .Where(
+                candidate =>
+                    candidate.Species ==
+                        AnimalSpecies.Wolf &&
+                    candidate.Health > 0 &&
+                    candidate.EnergyReserve <=
+                        HuntEnergyThreshold &&
+                    DistanceDegrees(
+                        wolf.LatitudeDegrees,
+                        wolf.LongitudeDegrees,
+                        candidate.LatitudeDegrees,
+                        candidate.LongitudeDegrees) <=
+                        PackSupportRadiusDegrees)
+            .OrderBy(
+                candidate =>
+                    candidate.Id.Value)
+            .ToList();
     }
 
     private static List<AnimalState>
@@ -1032,6 +1220,42 @@ public sealed class WolfPredatorSystem : ICausalSystem
             (1d / (1UL << 53));
     }
 
+    private static void PursueGrazerWithPack(
+        List<AnimalState> animals,
+        IEnumerable<AnimalState> pack,
+        GrazerCohortState target,
+        double elapsedDays)
+    {
+        foreach (var member in pack)
+        {
+            var current =
+                FindAnimal(
+                    animals,
+                    member.Id);
+
+            if (current is null ||
+                current.Health <= 0)
+            {
+                continue;
+            }
+
+            var moved =
+                MoveTowardGrazer(
+                    current,
+                    target,
+                    elapsedDays);
+
+            ReplaceAnimal(
+                animals,
+                moved.WithState(
+                    moved.LatitudeDegrees,
+                    moved.LongitudeDegrees,
+                    current.EnergyReserve,
+                    current.Health,
+                    AnimalActivity.Traveling));
+        }
+    }
+
     private static void PursueWithPack(
         List<AnimalState> animals,
         IEnumerable<AnimalState> pack,
@@ -1106,7 +1330,8 @@ public sealed class WolfPredatorSystem : ICausalSystem
 
     private static void FeedPack(
         List<AnimalState> animals,
-        IReadOnlyList<AnimalState> pack)
+        IReadOnlyList<AnimalState> pack,
+        double energyFromKill)
     {
         if (pack.Count == 0)
         {
@@ -1114,7 +1339,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         var energyShare =
-            EnergyPerHumanKill /
+            energyFromKill /
             pack.Count;
 
         foreach (var member in pack)
@@ -1142,6 +1367,42 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     current.Health,
                     AnimalActivity.Eating));
         }
+    }
+
+    private static bool ConsumeOneGrazer(
+        List<GrazerCohortState> grazerCohorts,
+        GrazerCohortId id)
+    {
+        var index =
+            grazerCohorts.FindIndex(
+                cohort =>
+                    cohort.Id == id);
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var cohort =
+            grazerCohorts[index];
+
+        if (cohort.MemberCount == 1)
+        {
+            grazerCohorts.RemoveAt(
+                index);
+
+            return true;
+        }
+
+        grazerCohorts[index] =
+            new GrazerCohortState(
+                cohort.Id,
+                cohort.PlanetId,
+                cohort.MemberCount - 1,
+                cohort.LatitudeDegrees,
+                cohort.LongitudeDegrees);
+
+        return true;
     }
 
     private static AnimalState?
@@ -1297,6 +1558,58 @@ public sealed class WolfPredatorSystem : ICausalSystem
             wolf.EnergyReserve,
             wolf.Health,
             AnimalActivity.Traveling);
+    }
+
+    private static AnimalState MoveTowardGrazer(
+        AnimalState wolf,
+        GrazerCohortState target,
+        double elapsedDays)
+    {
+        var latitudeDelta =
+            target.LatitudeDegrees -
+            wolf.LatitudeDegrees;
+
+        var longitudeDelta =
+            SignedLongitudeDelta(
+                target.LongitudeDegrees,
+                wolf.LongitudeDegrees);
+
+        var distance =
+            Math.Sqrt(
+                latitudeDelta *
+                latitudeDelta +
+                longitudeDelta *
+                longitudeDelta);
+
+        if (distance <= 0)
+        {
+            return wolf;
+        }
+
+        var travelDistance =
+            Math.Min(
+                distance,
+                TravelDegreesPerDay *
+                elapsedDays);
+
+        var fraction =
+            travelDistance /
+            distance;
+
+        return wolf.WithState(
+            Math.Clamp(
+                wolf.LatitudeDegrees +
+                latitudeDelta *
+                fraction,
+                -89.999,
+                89.999),
+            WrapLongitude(
+                wolf.LongitudeDegrees +
+                longitudeDelta *
+                fraction),
+            wolf.EnergyReserve,
+            wolf.Health,
+            AnimalActivity.Hunting);
     }
 
     private static AnimalState MoveToward(
