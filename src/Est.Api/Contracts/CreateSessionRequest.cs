@@ -28,7 +28,9 @@ public sealed record PlanetCreationRequest(
     GeneratedBirdCreationRequest? GeneratedBirds = null,
     BirdModelRequest? BirdModel = null,
     GeneratedGrazerCreationRequest? GeneratedGrazers = null,
-    GrazerModelRequest? GrazerModel = null);
+    GrazerModelRequest? GrazerModel = null,
+    GeneratedBiogeochemistryCreationRequest? GeneratedBiogeochemistry = null,
+    BiogeochemistryModelRequest? BiogeochemistryModel = null);
 
 public sealed record GeneratedTerrainCreationRequest(
     [property: JsonRequired]
@@ -63,6 +65,11 @@ public sealed record GeneratedGrazerCreationRequest(
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialCohortMemberCount = 10,
     int MaximumInitialCohortCount = 64);
+
+public sealed record GeneratedBiogeochemistryCreationRequest(
+    double InitialDetritalBiomassKilogramsPerSquareMeter = 0,
+    double InitialDetritalNitrogenKilogramsPerSquareMeter = 0,
+    double InitialPlantAvailableNitrogenKilogramsPerSquareMeter = 0);
 
 public sealed record BirdModelRequest
 {
@@ -212,6 +219,61 @@ public sealed record VegetationModelRequest
     } = 293.15;
 
     public double MaximumGrowthTemperatureKelvin
+    {
+        get;
+        init;
+    } = 313.15;
+
+    public double TemperatureLapseRateKelvinPerMeter
+    {
+        get;
+        init;
+    } = 0.0065;
+
+    public double? PlantNitrogenKilogramsPerKilogramLiveBiomass
+    {
+        get;
+        init;
+    }
+
+    public double BaselineMortalityRatePerDay
+    {
+        get;
+        init;
+    } = 0;
+}
+
+public sealed record BiogeochemistryModelRequest
+{
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double MaximumRelativeDecompositionRatePerDay
+    {
+        get;
+        init;
+    } = 0.05;
+
+    public double
+        SoilWaterForFullDecompositionKilogramsPerSquareMeter
+    {
+        get;
+        init;
+    } = 50;
+
+    public double MinimumDecompositionTemperatureKelvin
+    {
+        get;
+        init;
+    } = 263.15;
+
+    public double OptimumDecompositionTemperatureKelvin
+    {
+        get;
+        init;
+    } = 293.15;
+
+    public double MaximumDecompositionTemperatureKelvin
     {
         get;
         init;

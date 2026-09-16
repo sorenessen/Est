@@ -12,7 +12,9 @@ public sealed record SimulationDefinitionResponse(
     BirdModelResponse[]
         BirdModels,
     GrazerModelResponse[]
-        GrazerModels);
+        GrazerModels,
+    BiogeochemistryModelResponse[]
+        BiogeochemistryModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -55,7 +57,9 @@ public sealed record VegetationModelResponse(
     double MinimumGrowthTemperatureKelvin,
     double OptimumGrowthTemperatureKelvin,
     double MaximumGrowthTemperatureKelvin,
-    double TemperatureLapseRateKelvinPerMeter);
+    double TemperatureLapseRateKelvinPerMeter,
+    double? PlantNitrogenKilogramsPerKilogramLiveBiomass,
+    double BaselineMortalityRatePerDay);
 
 
 public sealed record InvertebrateModelResponse(
@@ -90,3 +94,13 @@ public sealed record GrazerModelResponse(
     double FoodShortageMortalityRatePerDay,
     double WaterAbsenceMortalityRatePerDay,
     double HabitatAbsenceMortalityRatePerDay);
+
+public sealed record BiogeochemistryModelResponse(
+    Guid PlanetId,
+    long MaximumIntegrationStepSeconds,
+    double MaximumRelativeDecompositionRatePerDay,
+    double SoilWaterForFullDecompositionKilogramsPerSquareMeter,
+    double MinimumDecompositionTemperatureKelvin,
+    double OptimumDecompositionTemperatureKelvin,
+    double MaximumDecompositionTemperatureKelvin,
+    double TemperatureLapseRateKelvinPerMeter);

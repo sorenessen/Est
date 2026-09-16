@@ -1,4 +1,5 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
 using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
@@ -91,6 +92,26 @@ public static class WorldFactory
                 item =>
                     item.PlanetId);
 
+        var biogeochemistry =
+            specification.Planets
+                .Select(
+                    (planetSpecification, index) =>
+                        CreateBiogeochemistry(
+                            planets[index],
+                            terrainByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            hydrologyByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedBiogeochemistry))
+                .Where(
+                    item =>
+                        item is not null)
+                .Select(
+                    item =>
+                        item!)
+                .ToArray();
+
         var vegetation =
             specification.Planets
                 .Select(
@@ -174,7 +195,8 @@ public static class WorldFactory
             vegetation,
             invertebrates,
             birdFlocks,
-            grazerCohorts);
+            grazerCohorts,
+            biogeochemistry);
     }
 
     private static PlanetState CreatePlanet(
@@ -265,6 +287,59 @@ public static class WorldFactory
                 terrain,
                 specification
                     .SurfaceLiquidWaterInventoryKilograms);
+    }
+
+    private static PlanetBiogeochemistryState? CreateBiogeochemistry(
+        PlanetState planet,
+        PlanetTerrainState? terrain,
+        PlanetHydrologyState? hydrology,
+        GeneratedBiogeochemistryCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return null;
+        }
+
+        if (terrain is null)
+        {
+            throw new ArgumentException(
+                "Generated biogeochemistry requires generated terrain.",
+                nameof(specification));
+        }
+
+        if (hydrology is null)
+        {
+            throw new ArgumentException(
+                "Generated biogeochemistry requires generated hydrology.",
+                nameof(specification));
+        }
+
+        if (terrain.GridDefinition !=
+            hydrology.GridDefinition)
+        {
+            throw new ArgumentException(
+                "Generated biogeochemistry requires terrain and hydrology on the same surface grid.",
+                nameof(specification));
+        }
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                terrain.GridDefinition);
+
+        return new PlanetBiogeochemistryState(
+            planet.Id,
+            terrain.GridDefinition,
+            grid.Cells.Select(
+                cell =>
+                    new BiogeochemistryCellState(
+                        cell.Id,
+                        specification
+                            .InitialDetritalBiomassKilogramsPerSquareMeter,
+                        specification
+                            .InitialDetritalNitrogenKilogramsPerSquareMeter,
+                        specification
+                            .InitialPlantAvailableNitrogenKilogramsPerSquareMeter)));
     }
 
     private static PlanetVegetationState? CreateVegetation(

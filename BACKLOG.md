@@ -441,7 +441,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [ ] Route plant mortality and biological mortality into authoritative
         detrital biomass and nitrogen rather than allowing dead matter to
         disappear from the ecological system.
-  - [ ] Wire biogeochemistry through the session/API boundary and validate the
+  - [x] Wire biogeochemistry through the session/API boundary and validate the
         closed terrestrial nutrient loop end to end.
 - [ ] Explore evolutionary population dynamics above the mature biosphere
       substrate.

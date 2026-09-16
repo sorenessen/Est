@@ -4,6 +4,7 @@ using Est.Persistence.Archives;
 using Est.Persistence.Storage;
 using Est.Application.Sessions;
 using Est.Application.Worlds;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
 using Est.Simulation.Climate;
 using Est.Simulation.Grazers;
@@ -215,7 +216,16 @@ app.MapPost(
                                             planet.GeneratedGrazers
                                                 .MinimumInitialCohortMemberCount,
                                             planet.GeneratedGrazers
-                                                .MaximumInitialCohortCount)))
+                                                .MaximumInitialCohortCount),
+                                    planet.GeneratedBiogeochemistry is null
+                                        ? null
+                                        : new GeneratedBiogeochemistryCreationSpecification(
+                                            planet.GeneratedBiogeochemistry
+                                                .InitialDetritalBiomassKilogramsPerSquareMeter,
+                                            planet.GeneratedBiogeochemistry
+                                                .InitialDetritalNitrogenKilogramsPerSquareMeter,
+                                            planet.GeneratedBiogeochemistry
+                                                .InitialPlantAvailableNitrogenKilogramsPerSquareMeter)))
                         .ToArray());
 
             var world =
@@ -336,7 +346,11 @@ app.MapPost(
                                         planet.VegetationModel
                                             .MaximumGrowthTemperatureKelvin,
                                         planet.VegetationModel
-                                            .TemperatureLapseRateKelvinPerMeter)))
+                                            .TemperatureLapseRateKelvinPerMeter,
+                                        planet.VegetationModel
+                                            .PlantNitrogenKilogramsPerKilogramLiveBiomass,
+                                        planet.VegetationModel
+                                            .BaselineMortalityRatePerDay)))
                     .Where(
                         model =>
                             model is not null)
@@ -455,6 +469,35 @@ app.MapPost(
                     .Cast<GrazerModelDefinition>()
                     .ToArray();
 
+            var biogeochemistryModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.BiogeochemistryModel is null
+                                ? null
+                                : new BiogeochemistryModelDefinition(
+                                    world.Planets[index].Id,
+                                    new BiogeochemistryModelParameters(
+                                        planet.BiogeochemistryModel
+                                            .MaximumIntegrationStepSeconds,
+                                        planet.BiogeochemistryModel
+                                            .MaximumRelativeDecompositionRatePerDay,
+                                        planet.BiogeochemistryModel
+                                            .SoilWaterForFullDecompositionKilogramsPerSquareMeter,
+                                        planet.BiogeochemistryModel
+                                            .MinimumDecompositionTemperatureKelvin,
+                                        planet.BiogeochemistryModel
+                                            .OptimumDecompositionTemperatureKelvin,
+                                        planet.BiogeochemistryModel
+                                            .MaximumDecompositionTemperatureKelvin,
+                                        planet.BiogeochemistryModel
+                                            .TemperatureLapseRateKelvinPerMeter)))
+                    .Where(
+                        model =>
+                            model is not null)
+                    .Cast<BiogeochemistryModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
@@ -463,7 +506,8 @@ app.MapPost(
                     vegetationModels,
                     invertebrateModels,
                     birdModels,
-                    grazerModels);
+                    grazerModels,
+                    biogeochemistryModels);
 
             var sessionId =
                 manager.Create(
@@ -743,6 +787,65 @@ app.MapGet(
             ToHydrologyResponse(
                 planet,
                 hydrology));
+    });
+
+app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/biogeochemistry",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(
+                id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var biogeochemistry =
+            session.CurrentWorld.Biogeochemistry
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (biogeochemistry is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(
+            ToBiogeochemistryResponse(
+                planet,
+                biogeochemistry));
     });
 
 app.MapGet(
@@ -1391,6 +1494,31 @@ static HydrologyResponse ToHydrologyResponse(
             .ToArray());
 }
 
+static BiogeochemistryResponse ToBiogeochemistryResponse(
+    PlanetState planet,
+    PlanetBiogeochemistryState biogeochemistry)
+{
+    biogeochemistry.ValidateFor(
+        planet);
+
+    return new BiogeochemistryResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            biogeochemistry.GridDefinition.Kind.ToString(),
+            biogeochemistry.GridDefinition.IdentityVersion,
+            biogeochemistry.GridDefinition.LatitudeBandCount,
+            biogeochemistry.GridDefinition.LongitudeBandCount),
+        biogeochemistry.Cells
+            .Select(
+                cell =>
+                    new BiogeochemistryCellResponse(
+                        cell.CellId.Value,
+                        cell.DetritalBiomassKilogramsPerSquareMeter,
+                        cell.DetritalNitrogenKilogramsPerSquareMeter,
+                        cell.PlantAvailableNitrogenKilogramsPerSquareMeter))
+            .ToArray());
+}
+
 static InvertebrateResponse ToInvertebrateResponse(
     PlanetState planet,
     PlanetInvertebrateState invertebrates)
@@ -1587,7 +1715,11 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                         model.Parameters
                             .MaximumGrowthTemperatureKelvin,
                         model.Parameters
-                            .TemperatureLapseRateKelvinPerMeter))
+                            .TemperatureLapseRateKelvinPerMeter,
+                        model.Parameters
+                            .PlantNitrogenKilogramsPerKilogramLiveBiomass,
+                        model.Parameters
+                            .BaselineMortalityRatePerDay))
             .ToArray(),
         definition.InvertebrateModels
             .Select(
@@ -1654,6 +1786,26 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .WaterAbsenceMortalityRatePerDay,
                         model.Parameters
                             .HabitatAbsenceMortalityRatePerDay))
+            .ToArray(),
+        definition.BiogeochemistryModels
+            .Select(
+                model =>
+                    new BiogeochemistryModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .MaximumIntegrationStepSeconds,
+                        model.Parameters
+                            .MaximumRelativeDecompositionRatePerDay,
+                        model.Parameters
+                            .SoilWaterForFullDecompositionKilogramsPerSquareMeter,
+                        model.Parameters
+                            .MinimumDecompositionTemperatureKelvin,
+                        model.Parameters
+                            .OptimumDecompositionTemperatureKelvin,
+                        model.Parameters
+                            .MaximumDecompositionTemperatureKelvin,
+                        model.Parameters
+                            .TemperatureLapseRateKelvinPerMeter))
             .ToArray());
 }
 

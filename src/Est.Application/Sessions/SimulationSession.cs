@@ -1,4 +1,5 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
 using Est.Simulation.Causality;
 using Est.Simulation.Climate;
@@ -70,6 +71,15 @@ public sealed class SimulationSession
                     model =>
                         (ICausalSystem)
                             new HydrologySystem(
+                                model.PlanetId,
+                                model.Parameters));
+
+        var biogeochemistrySystems =
+            definition.BiogeochemistryModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new BiogeochemistrySystem(
                                 model.PlanetId,
                                 model.Parameters));
 
@@ -156,6 +166,7 @@ public sealed class SimulationSession
         _causalSystems =
             energyBalanceSystems
                 .Concat(hydrologySystems)
+                .Concat(biogeochemistrySystems)
                 .Concat(vegetationSystems)
                 .Concat(invertebrateSystems)
                 .Concat(birdSystems)
