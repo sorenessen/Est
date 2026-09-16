@@ -29,10 +29,15 @@ public sealed class GrazerCohortSystem
 
     private readonly PlanetId _planetId;
     private readonly GrazerModelParameters _parameters;
+    private readonly double?
+        _plantNitrogenKilogramsPerKilogramLiveBiomass;
 
     public GrazerCohortSystem(
         PlanetId planetId,
-        GrazerModelParameters parameters)
+        GrazerModelParameters parameters,
+        double?
+            plantNitrogenKilogramsPerKilogramLiveBiomass =
+                null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -44,11 +49,26 @@ public sealed class GrazerCohortSystem
         ArgumentNullException.ThrowIfNull(
             parameters);
 
+        if (plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+            (!double.IsFinite(
+                plantNitrogenKilogramsPerKilogramLiveBiomass.Value) ||
+             plantNitrogenKilogramsPerKilogramLiveBiomass.Value <= 0))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    plantNitrogenKilogramsPerKilogramLiveBiomass),
+                "Plant-tissue nitrogen ratio must be finite and greater than zero.");
+        }
+
         _planetId =
             planetId;
 
         _parameters =
             parameters;
+
+        _plantNitrogenKilogramsPerKilogramLiveBiomass =
+            plantNitrogenKilogramsPerKilogramLiveBiomass;
     }
 
     public SimulationChange Evaluate(
@@ -118,6 +138,14 @@ public sealed class GrazerCohortSystem
         biogeochemistry?.ValidateFor(
             planet);
 
+        if (_plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+            biogeochemistry is null)
+        {
+            throw new InvalidOperationException(
+                "Nitrogen-coupled grazer grazing requires authoritative biogeochemistry state for the target planet.");
+        }
+
         var grid =
             PlanetSurfaceGridFactory.Create(
                 planet,
@@ -153,8 +181,14 @@ public sealed class GrazerCohortSystem
                             cohort))
                 .ToList();
 
+        var feedingMaterialTransfers =
+            new List<VegetationFeedingEvent>();
+
         var mortalityDeposits =
             new List<OrganismMortalityDeposit>();
+
+        var nitrogenReturnedKilograms =
+            0d;
 
         var initialCohortCount =
             cohorts.Count;
@@ -329,6 +363,19 @@ public sealed class GrazerCohortSystem
 
                     biomassGrazedKilograms +=
                         grazedKilograms;
+
+                    if (_plantNitrogenKilogramsPerKilogramLiveBiomass
+                            is double plantNitrogenRatio)
+                    {
+                        feedingMaterialTransfers.Add(
+                            new VegetationFeedingEvent(
+                                cellId,
+                                grazedKilograms));
+
+                        nitrogenReturnedKilograms +=
+                            grazedKilograms *
+                            plantNitrogenRatio;
+                    }
 
                     grazingSteps++;
                 }
@@ -517,20 +564,39 @@ public sealed class GrazerCohortSystem
         PlanetBiogeochemistryState?
             nextBiogeochemistry = null;
 
+        if (feedingMaterialTransfers.Count > 0)
+        {
+            if (biogeochemistry is null ||
+                _plantNitrogenKilogramsPerKilogramLiveBiomass
+                    is not double plantNitrogenRatio)
+            {
+                throw new InvalidOperationException(
+                    "Nitrogen-coupled grazer grazing requires authoritative biogeochemistry and plant-tissue nitrogen policy.");
+            }
+
+            nextBiogeochemistry =
+                VegetationFeedingMaterialTransfer
+                    .ReturnConsumedNitrogen(
+                        planet,
+                        biogeochemistry,
+                        feedingMaterialTransfers,
+                        plantNitrogenRatio);
+        }
+
         if (mortalityDeposits.Any(
                 deposit =>
                     !deposit.Material.IsEmpty))
         {
-            if (biogeochemistry is null)
-            {
+            var mortalityBiogeochemistry =
+                nextBiogeochemistry ??
+                biogeochemistry ??
                 throw new InvalidOperationException(
                     "Material-bearing grazer mortality requires authoritative biogeochemistry state for the target planet.");
-            }
 
             nextBiogeochemistry =
                 OrganismMortalityDetritusTransfer.Apply(
                     planet,
-                    biogeochemistry,
+                    mortalityBiogeochemistry,
                     mortalityDeposits);
         }
 
@@ -566,6 +632,10 @@ public sealed class GrazerCohortSystem
                     finalVegetationMass,
                 ["biomassGrazedKilograms"] =
                     biomassGrazedKilograms,
+                ["biomassRespiredKilograms"] =
+                    biomassGrazedKilograms,
+                ["nitrogenReturnedKilograms"] =
+                    nitrogenReturnedKilograms,
                 ["movementSteps"] =
                     movementSteps,
                 ["grazingSteps"] =

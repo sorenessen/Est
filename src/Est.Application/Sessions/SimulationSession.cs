@@ -117,7 +117,15 @@ public sealed class SimulationSession
                         (ICausalSystem)
                             new GrazerCohortSystem(
                                 model.PlanetId,
-                                model.Parameters));
+                                model.Parameters,
+                                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                    definition.VegetationModels
+                                        .FirstOrDefault(
+                                            vegetationModel =>
+                                                vegetationModel.PlanetId ==
+                                                model.PlanetId)
+                                        ?.Parameters
+                                        .PlantNitrogenKilogramsPerKilogramLiveBiomass));
 
         var foragingSystems =
             definition.PopulationModels
@@ -129,7 +137,15 @@ public sealed class SimulationSession
                         (ICausalSystem)
                             new ForagingSystem(
                                 model.PlanetId,
-                                model.VegetationForaging!));
+                                model.VegetationForaging!,
+                                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                    definition.VegetationModels
+                                        .FirstOrDefault(
+                                            vegetationModel =>
+                                                vegetationModel.PlanetId ==
+                                                model.PlanetId)
+                                        ?.Parameters
+                                        .PlantNitrogenKilogramsPerKilogramLiveBiomass));
 
         var predatorSystems =
             timeline.CurrentWorld.Animals

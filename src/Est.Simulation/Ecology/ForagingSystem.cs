@@ -1,5 +1,7 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -20,12 +22,17 @@ public sealed class ForagingSystem : ICausalSystem
     private readonly PlanetId _planetId;
     private readonly double _searchRadiusDegrees;
     private readonly VegetationForagingParameters _vegetationForaging;
+    private readonly double?
+        _plantNitrogenKilogramsPerKilogramLiveBiomass;
 
     public ForagingSystem(
         PlanetId planetId,
         VegetationForagingParameters vegetationForaging,
         double searchRadiusDegrees =
-            DefaultSearchRadiusDegrees)
+            DefaultSearchRadiusDegrees,
+        double?
+            plantNitrogenKilogramsPerKilogramLiveBiomass =
+                null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -44,11 +51,25 @@ public sealed class ForagingSystem : ICausalSystem
                 nameof(searchRadiusDegrees));
         }
 
+        if (plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+            (!double.IsFinite(
+                plantNitrogenKilogramsPerKilogramLiveBiomass.Value) ||
+             plantNitrogenKilogramsPerKilogramLiveBiomass.Value <= 0))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    plantNitrogenKilogramsPerKilogramLiveBiomass),
+                "Plant-tissue nitrogen ratio must be finite and greater than zero.");
+        }
+
         _planetId = planetId;
         _searchRadiusDegrees =
             searchRadiusDegrees;
         _vegetationForaging =
             vegetationForaging;
+        _plantNitrogenKilogramsPerKilogramLiveBiomass =
+            plantNitrogenKilogramsPerKilogramLiveBiomass;
     }
 
     public SimulationChange Evaluate(
@@ -95,6 +116,32 @@ public sealed class ForagingSystem : ICausalSystem
 
         vegetation.ValidateFor(planet);
 
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                state =>
+                    state.PlanetId == _planetId);
+
+        if (_plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+            biogeochemistry is null)
+        {
+            throw new InvalidOperationException(
+                "Nitrogen-coupled vegetation foraging requires authoritative biogeochemistry state for the target planet.");
+        }
+
+        if (biogeochemistry is not null)
+        {
+            if (biogeochemistry.GridDefinition !=
+                vegetation.GridDefinition)
+            {
+                throw new InvalidOperationException(
+                    "Vegetation foraging and biogeochemistry must use the same surface grid.");
+            }
+
+            biogeochemistry.ValidateFor(
+                planet);
+        }
+
         var surfaceGrid =
             PlanetSurfaceGridFactory.Create(
                 planet,
@@ -123,6 +170,13 @@ public sealed class ForagingSystem : ICausalSystem
         var noViableFoodFound = 0;
         var biomassHarvestedKilograms = 0d;
         var reserveEnergyGained = 0d;
+        var nitrogenReturnedKilograms = 0d;
+
+        var feedingMaterialTransfers =
+            new List<VegetationFeedingEvent>();
+
+        var mortalityDeposits =
+            new List<OrganismMortalityDeposit>();
 
         var remainingSeconds = elapsedSeconds;
 
@@ -231,6 +285,19 @@ public sealed class ForagingSystem : ICausalSystem
                                     source.Id,
                                     remainingBiomass /
                                     source.AreaSquareMeters);
+
+                            if (_plantNitrogenKilogramsPerKilogramLiveBiomass
+                                    is double plantNitrogenRatio)
+                            {
+                                feedingMaterialTransfers.Add(
+                                    new VegetationFeedingEvent(
+                                        source.Id,
+                                        harvestedBiomass));
+
+                                nitrogenReturnedKilograms +=
+                                    harvestedBiomass *
+                                    plantNitrogenRatio;
+                            }
 
                             if (availableBiomass > 0 &&
                                 remainingBiomass == 0)
@@ -344,6 +411,16 @@ public sealed class ForagingSystem : ICausalSystem
                 if (needs.Health <= 0)
                 {
                     starvationDeaths++;
+
+                    if (!current.Material.IsEmpty)
+                    {
+                        mortalityDeposits.Add(
+                            new OrganismMortalityDeposit(
+                                current.LatitudeDegrees,
+                                current.LongitudeDegrees,
+                                current.Material));
+                    }
+
                     continue;
                 }
 
@@ -376,11 +453,51 @@ public sealed class ForagingSystem : ICausalSystem
                         vegetationByCell[
                             original.CellId]));
 
+        PlanetBiogeochemistryState?
+            nextBiogeochemistry = null;
+
+        if (feedingMaterialTransfers.Count > 0)
+        {
+            if (biogeochemistry is null ||
+                _plantNitrogenKilogramsPerKilogramLiveBiomass
+                    is not double plantNitrogenRatio)
+            {
+                throw new InvalidOperationException(
+                    "Nitrogen-coupled vegetation foraging requires authoritative biogeochemistry and plant-tissue nitrogen policy.");
+            }
+
+            nextBiogeochemistry =
+                VegetationFeedingMaterialTransfer
+                    .ReturnConsumedNitrogen(
+                        planet,
+                        biogeochemistry,
+                        feedingMaterialTransfers,
+                        plantNitrogenRatio);
+        }
+
+        if (mortalityDeposits.Any(
+                deposit =>
+                    !deposit.Material.IsEmpty))
+        {
+            var mortalityBiogeochemistry =
+                nextBiogeochemistry ??
+                biogeochemistry ??
+                throw new InvalidOperationException(
+                    "Material-bearing human starvation mortality requires authoritative biogeochemistry state for the target planet.");
+
+            nextBiogeochemistry =
+                OrganismMortalityDetritusTransfer.Apply(
+                    planet,
+                    mortalityBiogeochemistry,
+                    mortalityDeposits);
+        }
+
         var operation =
             new ReplacePlanetVegetationForagingStateOperation(
                 _planetId,
                 population,
-                updatedVegetation);
+                updatedVegetation,
+                nextBiogeochemistry);
 
         return new SimulationChange(
             operation,
@@ -400,6 +517,10 @@ public sealed class ForagingSystem : ICausalSystem
                     reserveEnergyGained,
                 ["biomassHarvestedKilograms"] =
                     biomassHarvestedKilograms,
+                ["biomassRespiredKilograms"] =
+                    biomassHarvestedKilograms,
+                ["nitrogenReturnedKilograms"] =
+                    nitrogenReturnedKilograms,
                 ["depletedVegetationCells"] =
                     depletedVegetationCells,
                 ["foodSeekingTravel"] =
