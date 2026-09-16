@@ -16,7 +16,8 @@ public sealed record AnimalState
         AnimalActivity activity = AnimalActivity.Idle,
         OrganismMaterialState? material = null,
         long birthTimeSeconds = 0,
-        AnimalId? parentId = null)
+        AnimalId? parentId = null,
+        WolfLifecycleState? wolfLifecycle = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -72,6 +73,14 @@ public sealed record AnimalState
                 nameof(parentId));
         }
 
+        if (wolfLifecycle is not null &&
+            species != AnimalSpecies.Wolf)
+        {
+            throw new ArgumentException(
+                "Wolf lifecycle state can only be attached to a wolf.",
+                nameof(wolfLifecycle));
+        }
+
         Id = id;
         PlanetId = planetId;
         Species = species;
@@ -87,6 +96,12 @@ public sealed record AnimalState
                 liveNitrogenKilograms: 0);
         BirthTimeSeconds = birthTimeSeconds;
         ParentId = parentId;
+        WolfLifecycle =
+            species == AnimalSpecies.Wolf
+                ? wolfLifecycle ??
+                  new WolfLifecycleState(
+                      WolfSex.Unknown)
+                : null;
     }
 
     public AnimalId Id { get; private init; }
@@ -110,6 +125,12 @@ public sealed record AnimalState
     public long BirthTimeSeconds { get; private init; }
 
     public AnimalId? ParentId { get; private init; }
+
+    public WolfLifecycleState? WolfLifecycle
+    {
+        get;
+        private init;
+    }
 
     public double AgeYears(long currentTimeSeconds)
     {
@@ -139,6 +160,34 @@ public sealed record AnimalState
             activity,
             Material,
             BirthTimeSeconds,
-            ParentId);
+            ParentId,
+            WolfLifecycle);
+    }
+
+    public AnimalState WithWolfLifecycle(
+        WolfLifecycleState wolfLifecycle)
+    {
+        ArgumentNullException.ThrowIfNull(
+            wolfLifecycle);
+
+        if (Species != AnimalSpecies.Wolf)
+        {
+            throw new InvalidOperationException(
+                "Wolf lifecycle state can only be attached to a wolf.");
+        }
+
+        return new AnimalState(
+            Id,
+            PlanetId,
+            Species,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            EnergyReserve,
+            Health,
+            Activity,
+            Material,
+            BirthTimeSeconds,
+            ParentId,
+            wolfLifecycle);
     }
 }

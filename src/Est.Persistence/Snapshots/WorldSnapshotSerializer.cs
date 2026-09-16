@@ -18,7 +18,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 17;
+    public const int CurrentSchemaVersion = 18;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -36,6 +36,7 @@ public static class WorldSnapshotSerializer
     private const int BiogeochemistrySchemaVersion = 15;
     private const int OrganismMaterialSchemaVersion = 16;
     private const int AnimalLifecycleSchemaVersion = 17;
+    private const int WolfLifecycleSchemaVersion = 18;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -123,6 +124,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != GrazerCohortSchemaVersion &&
             snapshot.SchemaVersion != BiogeochemistrySchemaVersion &&
             snapshot.SchemaVersion != OrganismMaterialSchemaVersion &&
+            snapshot.SchemaVersion != AnimalLifecycleSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -838,7 +840,23 @@ public static class WorldSnapshotSerializer
             BirthTimeSeconds =
                 animal.BirthTimeSeconds,
             ParentId =
-                animal.ParentId?.Value
+                animal.ParentId?.Value,
+            WolfLifecycle =
+                animal.WolfLifecycle is null
+                    ? null
+                    : new WolfLifecycleSnapshot
+                    {
+                        Sex =
+                            animal.WolfLifecycle.Sex,
+                        PregnancyConceptionTimeSeconds =
+                            animal.WolfLifecycle
+                                .Pregnancy?
+                                .ConceptionTimeSeconds,
+                        PregnancyFatherId =
+                            animal.WolfLifecycle
+                                .Pregnancy?
+                                .FatherId.Value
+                    }
         };
     }
 
@@ -865,6 +883,50 @@ public static class WorldSnapshotSerializer
                 ? new AnimalId(parentIdValue)
                 : null;
 
+        WolfLifecycleState? wolfLifecycle =
+            null;
+
+        if (schemaVersion >=
+                WolfLifecycleSchemaVersion &&
+            snapshot.WolfLifecycle is not null)
+        {
+            var wolfSnapshot =
+                snapshot.WolfLifecycle;
+
+            var hasConception =
+                wolfSnapshot
+                    .PregnancyConceptionTimeSeconds
+                is not null;
+
+            var hasFather =
+                wolfSnapshot
+                    .PregnancyFatherId
+                is not null;
+
+            if (hasConception != hasFather)
+            {
+                throw new JsonException(
+                    "Wolf pregnancy requires both conception time and father identity.");
+            }
+
+            WolfPregnancyState? pregnancy =
+                hasConception
+                    ? new WolfPregnancyState(
+                        wolfSnapshot
+                            .PregnancyConceptionTimeSeconds!
+                            .Value,
+                        new AnimalId(
+                            wolfSnapshot
+                                .PregnancyFatherId!
+                                .Value))
+                    : null;
+
+            wolfLifecycle =
+                new WolfLifecycleState(
+                    wolfSnapshot.Sex,
+                    pregnancy);
+        }
+
         return new AnimalState(
             new AnimalId(snapshot.AnimalId),
             new PlanetId(snapshot.PlanetId),
@@ -878,7 +940,8 @@ public static class WorldSnapshotSerializer
                 snapshot.Material,
                 schemaVersion),
             birthTimeSeconds,
-            parentId);
+            parentId,
+            wolfLifecycle);
     }
 
     private static void ValidateLegacyFoodResource(
@@ -1433,6 +1496,27 @@ public static class WorldSnapshotSerializer
         public long? BirthTimeSeconds { get; set; }
 
         public Guid? ParentId { get; set; }
+
+        public WolfLifecycleSnapshot?
+            WolfLifecycle { get; set; }
+    }
+
+    private sealed class WolfLifecycleSnapshot
+    {
+        public required WolfSex Sex { get; set; }
+
+        public long?
+            PregnancyConceptionTimeSeconds
+        {
+            get;
+            set;
+        }
+
+        public Guid? PregnancyFatherId
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class FoodResourceSnapshot

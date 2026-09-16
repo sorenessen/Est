@@ -370,7 +370,17 @@ public class WorldSnapshotSerializerTests
                 parentId:
                     new AnimalId(
                         Guid.Parse(
-                            "00000000-0000-0000-0000-000000000202")));
+                            "00000000-0000-0000-0000-000000000202")),
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female,
+                        new WolfPregnancyState(
+                            conceptionTimeSeconds:
+                                120_000,
+                            fatherId:
+                                new AnimalId(
+                                    Guid.Parse(
+                                        "00000000-0000-0000-0000-000000000203")))));
 
         var world =
             new WorldState(
@@ -387,6 +397,89 @@ public class WorldSnapshotSerializerTests
         Assert.Equal(
             wolf,
             Assert.Single(restored.Animals));
+    }
+
+    [Fact]
+    public void Deserialize_VersionSeventeenBackfillsUnknownWolfLifecycle()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var wolf =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 12.5,
+                longitudeDegrees: -45.25,
+                material:
+                    new OrganismMaterialState(
+                        40,
+                        1),
+                birthTimeSeconds:
+                    -4 * 31_536_000L,
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(0),
+                [planet],
+                [],
+                [wolf]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 17;
+
+        var animal =
+            node["animals"]!
+                .AsArray()[0]!
+                .AsObject();
+
+        animal.Remove(
+            "wolfLifecycle");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredWolf =
+            Assert.Single(
+                restored.Animals);
+
+        Assert.NotNull(
+            restoredWolf.WolfLifecycle);
+
+        Assert.Equal(
+            WolfSex.Unknown,
+            restoredWolf.WolfLifecycle!.Sex);
+
+        Assert.Null(
+            restoredWolf.WolfLifecycle.Pregnancy);
+
+        Assert.Equal(
+            wolf.BirthTimeSeconds,
+            restoredWolf.BirthTimeSeconds);
+
+        Assert.Equal(
+            wolf.Material,
+            restoredWolf.Material);
     }
 
     [Fact]

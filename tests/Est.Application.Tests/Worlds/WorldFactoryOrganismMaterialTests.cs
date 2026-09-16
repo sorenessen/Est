@@ -1,4 +1,5 @@
 using Est.Application.Worlds;
+using Est.Simulation.Animals;
 
 namespace Est.Application.Tests.Worlds;
 
@@ -123,6 +124,20 @@ public sealed class WorldFactoryOrganismMaterialTests
             3,
             world.Animals.Length);
 
+        Assert.Equal(
+            2,
+            world.Animals.Count(
+                wolf =>
+                    wolf.WolfLifecycle?.Sex ==
+                    WolfSex.Female));
+
+        Assert.Equal(
+            1,
+            world.Animals.Count(
+                wolf =>
+                    wolf.WolfLifecycle?.Sex ==
+                    WolfSex.Male));
+
         Assert.All(
             world.Animals,
             wolf =>
@@ -143,6 +158,13 @@ public sealed class WorldFactoryOrganismMaterialTests
 
                 Assert.Null(
                     wolf.ParentId);
+
+                Assert.NotNull(
+                    wolf.WolfLifecycle);
+
+                Assert.Null(
+                    wolf.WolfLifecycle!
+                        .Pregnancy);
             });
 
         Assert.NotEmpty(

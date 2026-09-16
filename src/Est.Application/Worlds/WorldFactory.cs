@@ -582,7 +582,12 @@ public static class WorldFactory
                     material:
                         materialPerWolf.ForUnits(1),
                     birthTimeSeconds:
-                        birthTimeSeconds);
+                        birthTimeSeconds,
+                    wolfLifecycle:
+                        new WolfLifecycleState(
+                            index % 2 == 0
+                                ? WolfSex.Female
+                                : WolfSex.Male));
         }
 
         return animals;
