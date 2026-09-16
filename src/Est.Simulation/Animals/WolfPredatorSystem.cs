@@ -89,6 +89,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var mortalityDeposits =
             new List<OrganismMortalityDeposit>();
 
+        var preyConsumptionEvents =
+            new List<OrganismConsumptionEvent>();
+
         var population =
             world.Population
                 .Where(
@@ -271,11 +274,23 @@ public sealed class WolfPredatorSystem : ICausalSystem
 
                         grazerHunts++;
 
-                        if (ConsumeOneGrazer(
+                        var consumedGrazerMaterial =
+                            ConsumeOneGrazer(
                                 grazerCohorts,
-                                grazerTarget.Id))
+                                grazerTarget.Id);
+
+                        if (consumedGrazerMaterial is not null)
                         {
                             grazerKills++;
+
+                            if (!consumedGrazerMaterial.IsEmpty)
+                            {
+                                preyConsumptionEvents.Add(
+                                    new OrganismConsumptionEvent(
+                                        grazerTarget.LatitudeDegrees,
+                                        grazerTarget.LongitudeDegrees,
+                                        consumedGrazerMaterial));
+                            }
 
                             FeedPack(
                                 animals,
@@ -524,6 +539,15 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     successfulKills++;
                     predationDeaths++;
 
+                    if (!target.Material.IsEmpty)
+                    {
+                        preyConsumptionEvents.Add(
+                            new OrganismConsumptionEvent(
+                                target.LatitudeDegrees,
+                                target.LongitudeDegrees,
+                                target.Material));
+                    }
+
                     population.RemoveAll(
                         person =>
                             person.Id ==
@@ -701,6 +725,16 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     grazerChaseSteps,
                 ["grazerPackHunts"] =
                     grazerPackHunts,
+                ["preyBiomassRespiredKilograms"] =
+                    preyConsumptionEvents.Sum(
+                        consumption =>
+                            consumption.Material
+                                .LiveBiomassKilograms),
+                ["preyNitrogenReturnedKilograms"] =
+                    preyConsumptionEvents.Sum(
+                        consumption =>
+                            consumption.Material
+                                .LiveNitrogenKilograms),
                 ["grazerMembers"] =
                     grazerCohorts.Sum(
                         cohort =>
@@ -742,18 +776,34 @@ public sealed class WolfPredatorSystem : ICausalSystem
         PlanetBiogeochemistryState?
             nextBiogeochemistry = null;
 
-        if (mortalityDeposits.Count > 0)
+        if (preyConsumptionEvents.Count > 0)
         {
             if (biogeochemistry is null)
             {
                 throw new InvalidOperationException(
-                    "Material-bearing wolf mortality requires authoritative biogeochemistry state for the target planet.");
+                    "Material-bearing predation requires authoritative biogeochemistry state for the target planet.");
             }
+
+            nextBiogeochemistry =
+                OrganismConsumptionMaterialTransfer
+                    .ReturnConsumedNitrogen(
+                        planet,
+                        biogeochemistry,
+                        preyConsumptionEvents);
+        }
+
+        if (mortalityDeposits.Count > 0)
+        {
+            var sourceBiogeochemistry =
+                nextBiogeochemistry ??
+                biogeochemistry ??
+                throw new InvalidOperationException(
+                    "Material-bearing wolf mortality requires authoritative biogeochemistry state for the target planet.");
 
             nextBiogeochemistry =
                 OrganismMortalityDetritusTransfer.Apply(
                     planet,
-                    biogeochemistry,
+                    sourceBiogeochemistry,
                     mortalityDeposits);
         }
 
@@ -1415,9 +1465,10 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
     }
 
-    private static bool ConsumeOneGrazer(
-        List<GrazerCohortState> grazerCohorts,
-        GrazerCohortId id)
+    private static OrganismMaterialState?
+        ConsumeOneGrazer(
+            List<GrazerCohortState> grazerCohorts,
+            GrazerCohortId id)
     {
         var index =
             grazerCohorts.FindIndex(
@@ -1426,18 +1477,23 @@ public sealed class WolfPredatorSystem : ICausalSystem
 
         if (index < 0)
         {
-            return false;
+            return null;
         }
 
         var cohort =
             grazerCohorts[index];
+
+        var consumedMaterial =
+            cohort.Material.RetainFraction(
+                1d /
+                cohort.MemberCount);
 
         if (cohort.MemberCount == 1)
         {
             grazerCohorts.RemoveAt(
                 index);
 
-            return true;
+            return consumedMaterial;
         }
 
         grazerCohorts[index] =
@@ -1446,7 +1502,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 cohort.LatitudeDegrees,
                 cohort.LongitudeDegrees);
 
-        return true;
+        return consumedMaterial;
     }
 
     private static AnimalState?
