@@ -428,7 +428,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Connect wolves to ecologically appropriate terrestrial prey without
         collapsing cohort fauna into the existing wolf-specific individual
         `AnimalState` representation.
-- [ ] Add decomposition and nutrient cycling.
+- [x] Add decomposition and nutrient cycling.
   - [x] Add durable authoritative per-cell biogeochemistry state for detrital
         biomass, detrital nitrogen, and plant-available nitrogen on the shared
         surface grid, including world invariants and snapshot/archive
@@ -438,9 +438,11 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         from detritus into the plant-available pool with explicit mass balance.
   - [x] Make plant productivity consume and respond to authoritative available
         nitrogen without breaking existing biomass accounting.
-  - [ ] Route plant mortality and biological mortality into authoritative
-        detrital biomass and nitrogen rather than allowing dead matter to
-        disappear from the ecological system.
+  - [x] Route mortality from authoritative material-bearing biological state
+        into detritus: plant mortality returns biomass and tissue nitrogen, and
+        invertebrate mortality returns realized biomass without inventing
+        untracked nitrogen. Count-only fauna remain outside material accounting
+        until authoritative physical composition is modeled.
   - [x] Wire biogeochemistry through the session/API boundary and validate the
         closed terrestrial nutrient loop end to end.
 - [ ] Explore evolutionary population dynamics above the mature biosphere
