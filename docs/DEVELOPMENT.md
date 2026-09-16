@@ -14,13 +14,16 @@ Current invariant:
 The current live planet does not use cube-sphere geometry, terrain patches, a
 renderer quadtree, or camera-driven planetary LOD.
 
-Cesium evaluation pages and the historical R1/R2/R3/R4 work are intentionally
-preserved as engineering evidence for future features and enhancements. Do not
-delete them simply because they are not the current production rendering path.
+Babylon.js is the only current planetary renderer.
 
-Some launcher instructions below still describe the earlier Cesium-first
-workflow. Until those scripts are deliberately realigned, validate the current
-production renderer at:
+Cesium evaluation pages and historical Cesium/R-series work are preserved only
+as engineering evidence. They are not an alternate current renderer, development
+path, smoke-test target, or runtime-validation path.
+
+**Do not use `/cesium.html` for current development, launch, smoke testing,
+runtime validation, or simulation visualization.**
+
+Use the Babylon root route:
 
 `http://localhost:5173/?session=<session-id>`
 
@@ -63,8 +66,11 @@ Review the ZIP before sharing it. Ignore rules cannot guarantee that every untra
 ## Run and Debug
 
 Est has a headless API project and a browser client in `src/Est.Web`.
-The Cesium evaluation reads authoritative API session/world state. The API
-provides explicit world/session operations and server-owned archive storage.
+The current Babylon browser renderer reads authoritative API session/world state.
+The API provides explicit world/session operations and server-owned archive storage.
+
+Cesium remains historical/evaluation-only and must not be used as the current
+simulation viewer.
 The archive directory defaults to the API content root's `archives` directory
 and can be configured through `Est:ArchiveDirectory`.
 
@@ -82,9 +88,9 @@ cd ~/Projects/Est
 ```
 
 Play starts or reuses Est.Api and Est.Web, waits for their health checks,
-creates a fresh Earth session through `POST /sessions`, and opens Cesium
-with the returned session ID. No manual API -> Web -> Play sequence is
-required.
+creates a fresh Earth session through `POST /sessions`, and opens the Babylon
+root route with the returned session ID. No manual API -> Web -> Play sequence
+is required.
 
 The Sparrow workspace configuration is `sparrow.toml`:
 
@@ -95,13 +101,13 @@ The Sparrow workspace configuration is `sparrow.toml`:
 The launcher is currently macOS-specific and uses iTerm to open independent
 service windows. It requires the .NET SDK, Node.js/npm, Python 3, curl,
 lsof, zsh, and iTerm. The launcher preserves the invoking shell's PATH
-when starting service windows. The browser requires the existing local
-Cesium configuration, including the ion token where applicable.
+when starting service windows. Current Babylon development does not require
+Cesium configuration or a Cesium ion token.
 
 The API listens on port 5026 and Vite on port 5173. The API health contract
 is `GET /health`, returning HTTP 200 with service `Est.Api` and status
-`healthy`. The web health check requests the Cesium HTML page using
-`localhost`, which supports the observed IPv6-only Vite listener.
+`healthy`. Web startup validation must target the current Est.Web application,
+not `/cesium.html`.
 
 The scripts inspect existing listeners and verify project ownership before
 reuse. They do not automatically kill or restart occupied ports. An
@@ -141,11 +147,12 @@ Create a simulation session through `POST /sessions`, retain the returned
 `sessionId`, and open:
 
 ```text
-http://localhost:5173/cesium.html?session=<session-id>
+http://localhost:5173/?session=<session-id>
 ```
 
-A successful smoke test renders the Cesium globe and shows authoritative
-session data, for example `Earth · 288.15 K · t=0s`.
+A successful smoke test renders the Babylon planet and shows authoritative
+session state. `/cesium.html` is historical/evaluation-only and is not a valid
+current smoke-test target.
 
 ### Process and session safety
 

@@ -55,6 +55,27 @@ body {
   height: 100%;
 }
 
+.cesium-retirement-banner {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 20;
+  max-width: min(620px, calc(100% - 36px));
+  padding: 10px 14px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 10px;
+  background: rgb(5 10 16 / 92%);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(18px);
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .render-evaluation-panel {
   position: absolute;
   top: 18px;

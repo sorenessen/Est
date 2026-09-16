@@ -2,11 +2,15 @@
 
 ## Current status — 2026-09-15
 
-This document is preserved as engineering evidence.
+This document is preserved as historical engineering evidence.
 
-Cesium is not the current production planetary renderer. The active First Light
-globe uses one immutable Babylon icosphere with authoritative terrain baked
-into fixed spherical geometry.
+**Cesium is not a current Est renderer. Do not use `/cesium.html` for current
+development, launch, smoke testing, runtime validation, or simulation
+visualization.**
+
+The active First Light globe uses Babylon.js with one immutable icosphere and
+authoritative terrain baked into fixed spherical geometry. All Cesium references
+below describe completed historical/evaluation work only.
 
 That change does not invalidate the evidence collected here. The regional
 surface, TMS, multi-scale presentation, local-building, Longmire,

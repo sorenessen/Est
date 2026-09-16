@@ -1,5 +1,15 @@
 # Cesium historical evaluation archive
 
+## Do not use as current runtime
+
+This entire directory is historical/evaluation-only.
+
+Est's current planetary renderer is Babylon.js. Cesium is not a current
+renderer, alternate development path, fallback renderer, smoke-test target, or
+runtime-validation target.
+
+**Do not use `/cesium.html` for current simulation visualization.**
+
 ## Preservation intent
 
 This archive is intentionally retained as future-facing engineering evidence,

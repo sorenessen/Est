@@ -4,6 +4,16 @@
 
 Accepted for implementation.
 
+## Current renderer authority — 2026-09-16
+
+Babylon.js is Est's current planetary renderer.
+
+Cesium is retired and preserved only as historical/evaluation evidence. It is
+not an alternate current renderer or fallback development path.
+
+**Do not use `/cesium.html` for current development, launch, smoke testing,
+runtime validation, or simulation visualization.**
+
 ## Current implementation direction — 2026-09-15
 
 The architectural separation in this ADR remains accepted:

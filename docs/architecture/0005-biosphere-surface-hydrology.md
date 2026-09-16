@@ -4,6 +4,15 @@
 
 Accepted for implementation.
 
+## Renderer clarification — 2026-09-16
+
+Any Cesium references in this ADR are historical/evaluation references only.
+Est currently uses Babylon.js for planetary rendering. `/cesium.html` must not
+be used for current development, launch, smoke testing, runtime validation, or
+simulation visualization.
+
+ADR 0006 is authoritative for renderer selection.
+
 ## Context
 
 At the time this ADR was adopted, Est had causal planetary climate,

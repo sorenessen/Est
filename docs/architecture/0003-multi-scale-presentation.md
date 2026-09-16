@@ -4,6 +4,17 @@
 
 Accepted
 
+## Renderer supersession note — 2026-09-16
+
+Cesium references in this ADR describe historical experiments only.
+
+Est's current planetary renderer is Babylon.js. Cesium is not a current
+renderer candidate or alternate implementation path. Do not use `/cesium.html`
+for current development, launch, smoke testing, runtime validation, or
+simulation visualization.
+
+ADR 0006 is authoritative for the current planetary-rendering direction.
+
 ## Context
 
 Est must eventually present worlds across very different viewing scales, from
@@ -398,8 +409,8 @@ Tradeoffs:
   scale.
 - How terrain, imagery, geometry, and materials should visually blend during
   transitions.
-- Whether Cesium remains the long-term renderer once Est's local-scene
-  requirements are better understood.
+- Which renderer-neutral implementation boundaries should remain stable if
+  the current Babylon presentation layer is replaced by a future renderer.
 
 These questions remain open and will be resolved through focused experiments
 as their requirements become concrete.

@@ -113,33 +113,34 @@ The physiology, ecology, reproduction, locomotion, and presentation models are
 still deliberately simplified while Est proves the end-to-end living-world
 architecture.
 
-## Current Rendering Evaluation
+## Current Planetary Renderer
 
-Phase 7 is evaluating CesiumJS alongside the preserved Babylon prototype.
-Cesium is a serious candidate, not a final renderer selection.
+Est's current planetary renderer is Babylon.js.
 
-The browser evaluation now reads authoritative simulation state through
-Est.Api and includes a real regional surface study derived from USGS Annual
-NLCD Land Cover 2025. The validated semantic/evaluation pipeline is:
+The production browser route is:
 
-USGS categorical raster -> Est surface categories -> Est presentation
--> geographic TMS -> Cesium terrain draping.
+`http://localhost:5173/?session=<session-id>`
 
-The Olympia/Puget Sound/Mount Rainier evaluation confirms geographic
-alignment, terrain relief, coastline placement, snow/ice coverage, and a
-renderer-independent path from Est surface semantics to presentation assets.
-It also established that direct categorical land-cover rendering is not the
-intended final visual-surface strategy. Est surface semantics describe what is
-at a location; a separate visual-surface composition path may combine
-non-authoritative presentation inputs to determine how that location should
-look. Cesium remains a consumer of those presentation assets rather than the
-owner of semantic interpretation.
+Cesium is retired from the current planetary-rendering path. Any Cesium code,
+pages, screenshots, experiments, or documentation retained in this repository
+are historical/evaluation evidence only.
 
-For local development, use Sparrow's Play Est task or run
-`./scripts/dev/play.sh` from the repository root. Play starts or reuses
-the API and web hosts, creates a fresh Earth session, and opens Cesium.
-The individual Start API and Start Web tasks remain available for focused
-development. The macOS launcher requires iTerm and the project toolchain.
+**Do not use `/cesium.html` for current development, launch, smoke testing,
+runtime validation, or simulation visualization.**
+
+The current production planet uses one immutable Babylon icosphere. Authoritative
+terrain is sampled from Est simulation state and baked into that fixed render
+geometry. Simulation spatial resolution and render spatial resolution remain
+independent.
+
+Historical Cesium work established useful renderer-neutral evidence around
+regional surfaces, local geometry, presentation scale, and browser-hosted globe
+interaction. That evidence is preserved, but Cesium is not a current renderer
+candidate and is not an alternate current runtime path.
+
+For local development, use Sparrow's **Play Est** task or run
+`./scripts/dev/play.sh` from the repository root. Play starts or reuses the API
+and web hosts, creates a fresh Earth session, and opens the Babylon root route.
 
 See `docs/DEVELOPMENT.md` for development commands and
 `docs/SURFACE_EVALUATION.md` for the data pipeline and next steps.

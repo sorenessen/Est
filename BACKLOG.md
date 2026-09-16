@@ -180,9 +180,11 @@ Production client direction:
 TypeScript web application with Babylon.js as the first production planetary
 renderer.
 
-Cesium is retained only as historical/evaluation evidence. ADR 0006 records
-the renderer reset and the explicit separation between simulation spatial
-resolution and render spatial resolution.
+Cesium is retained only as historical/evaluation evidence. It is not a
+current renderer, alternate development path, fallback renderer, smoke-test
+target, or runtime-validation target. Do not use `/cesium.html` for current
+simulation visualization. ADR 0006 records the renderer reset and the explicit
+separation between simulation spatial resolution and render spatial resolution.
 
 Earlier Cesium work proved that a browser-hosted globe, authoritative API
 integration, orbit/zoom interaction, local geometry, and multi-scale
@@ -268,18 +270,22 @@ Do not connect authoritative terrain yet.
 - [ ] Do not infer simulation truth from renderer animation or procedural
       decoration.
 
-#### R6 - Cesium retirement
+#### R6 - Historical Cesium cleanup
 
-Only after the Babylon renderer passes its runtime gates:
+The production-renderer decision is complete: Babylon.js is the current
+planetary renderer. Cesium is historical/evaluation-only and must not be used
+for current launch, development, smoke testing, runtime validation, or
+simulation visualization.
 
-- [ ] Retarget normal Play Est flow to the production Babylon renderer.
-- [ ] Remove Cesium from the production application path.
-- [ ] Retain only Cesium evaluation artifacts that still provide useful
-      architectural evidence.
-- [ ] Remove obsolete Cesium-specific terrain, imagery, and water adapters.
-- [ ] Remove obsolete Cesium dependencies when no remaining evaluation path
+- [x] Retarget normal Play Est flow to the production Babylon renderer.
+- [x] Remove Cesium from the production application path.
+- [x] Retain Cesium only as historical/evaluation evidence where it remains
+      technically useful.
+- [ ] Remove obsolete Cesium-specific terrain, imagery, and water adapters when
+      doing so does not erase useful historical evidence.
+- [ ] Remove obsolete Cesium dependencies when no preserved evaluation artifact
       requires them.
-- [ ] Update launcher and development documentation for the final renderer path.
+- [x] Update launcher and development documentation for the Babylon renderer path.
 
 Renderer milestones require browser runtime validation.
 

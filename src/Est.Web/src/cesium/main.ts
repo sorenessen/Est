@@ -1,3 +1,8 @@
+// HISTORICAL EVALUATION ONLY.
+// Est's current planetary renderer is Babylon.js at the root application route.
+// Do not use this Cesium entrypoint for current development, launch,
+// smoke testing, runtime validation, or simulation visualization.
+
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import '../style.css'
 import { EstApi } from '../api/est-api'
@@ -46,7 +51,7 @@ const token = import.meta.env.VITE_CESIUM_ION_TOKEN
 
 if (!token) {
   throw new Error(
-    'VITE_CESIUM_ION_TOKEN is required for the Cesium evaluation.',
+    'VITE_CESIUM_ION_TOKEN is required for the historical Cesium evaluation.',
   )
 }
 
@@ -61,7 +66,19 @@ if (!app) {
 const appRoot = app
 
 appRoot.innerHTML = `
-  <div id="cesiumContainer" aria-label="Est Cesium globe evaluation"></div>
+  <div
+    class="cesium-retirement-banner"
+    role="note"
+    aria-label="Historical Cesium evaluation warning"
+  >
+    HISTORICAL CESIUM EVALUATION · NOT CURRENT EST RUNTIME ·
+    CURRENT PLANETARY RENDERER: BABYLON.JS AT /?session=&lt;session-id&gt;
+  </div>
+
+  <div
+    id="cesiumContainer"
+    aria-label="Historical Est Cesium globe evaluation"
+  ></div>
 
   <section
     id="renderEvaluationPanel"
@@ -72,7 +89,7 @@ appRoot.innerHTML = `
       class="render-evaluation-heading"
     >
       <div class="render-evaluation-heading-copy">
-        <strong>Est Rendering Evaluation</strong>
+        <strong>Historical Cesium Evaluation</strong>
         <div class="render-evaluation-mode">
           <span class="render-evaluation-mode-label">Mode:</span>
           <span id="lookLabel">Baseline</span>
@@ -157,7 +174,7 @@ appRoot.innerHTML = `
     aria-label="Show Est rendering evaluation panel"
     title="Show rendering evaluation panel"
     hidden
-  >Est</button>
+  >Cesium History</button>
 `
 
 const terrainProvider = await createWorldTerrainAsync({
