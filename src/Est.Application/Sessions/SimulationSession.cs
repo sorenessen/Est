@@ -145,7 +145,9 @@ public sealed class SimulationSession
                                                 vegetationModel.PlanetId ==
                                                 model.PlanetId)
                                         ?.Parameters
-                                        .PlantNitrogenKilogramsPerKilogramLiveBiomass));
+                                        .PlantNitrogenKilogramsPerKilogramLiveBiomass,
+                                populationParameters:
+                                    model.Parameters));
 
         var predatorSystems =
             timeline.CurrentWorld.Animals

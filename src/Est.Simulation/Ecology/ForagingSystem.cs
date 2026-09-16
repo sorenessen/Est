@@ -24,6 +24,8 @@ public sealed class ForagingSystem : ICausalSystem
     private readonly VegetationForagingParameters _vegetationForaging;
     private readonly double?
         _plantNitrogenKilogramsPerKilogramLiveBiomass;
+    private readonly PopulationModelParameters?
+        _populationParameters;
 
     public ForagingSystem(
         PlanetId planetId,
@@ -32,7 +34,9 @@ public sealed class ForagingSystem : ICausalSystem
             DefaultSearchRadiusDegrees,
         double?
             plantNitrogenKilogramsPerKilogramLiveBiomass =
-                null)
+                null,
+        PopulationModelParameters? populationParameters =
+            null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -70,6 +74,8 @@ public sealed class ForagingSystem : ICausalSystem
             vegetationForaging;
         _plantNitrogenKilogramsPerKilogramLiveBiomass =
             plantNitrogenKilogramsPerKilogramLiveBiomass;
+        _populationParameters =
+            populationParameters;
     }
 
     public SimulationChange Evaluate(
@@ -169,8 +175,12 @@ public sealed class ForagingSystem : ICausalSystem
         var scarcityMigrations = 0;
         var noViableFoodFound = 0;
         var biomassHarvestedKilograms = 0d;
+        var biomassAssimilatedKilograms = 0d;
+        var nitrogenAssimilatedKilograms = 0d;
+        var biomassRespiredKilograms = 0d;
         var reserveEnergyGained = 0d;
         var nitrogenReturnedKilograms = 0d;
+        var growthFeedingEvents = 0;
 
         var feedingMaterialTransfers =
             new List<VegetationFeedingEvent>();
@@ -179,6 +189,7 @@ public sealed class ForagingSystem : ICausalSystem
             new List<OrganismMortalityDeposit>();
 
         var remainingSeconds = elapsedSeconds;
+        var processedSeconds = 0L;
 
         while (remainingSeconds > 0)
         {
@@ -186,6 +197,12 @@ public sealed class ForagingSystem : ICausalSystem
                 Math.Min(
                     MaximumIntegrationStepSeconds,
                     remainingSeconds);
+
+            var stepEndTimeSeconds =
+                checked(
+                    world.CurrentTime.TotalSeconds +
+                    processedSeconds +
+                    stepSeconds);
 
             var elapsedDays =
                 stepSeconds / 86_400d;
@@ -200,16 +217,45 @@ public sealed class ForagingSystem : ICausalSystem
                 var fedThisStep = false;
                 var traveledThisStep = false;
 
-                if (current.Needs.EnergyReserve <
-                    HungerThreshold)
+                var growthTarget =
+                    GrowthTarget(
+                        current,
+                        stepEndTimeSeconds);
+
+                var growthFoodBiomassNeeded =
+                    GrowthFoodBiomassNeeded(
+                        current.Material,
+                        growthTarget);
+
+                var shouldForage =
+                    current.Needs.EnergyReserve <
+                        HungerThreshold ||
+                    growthFoodBiomassNeeded > 0;
+
+                if (shouldForage)
                 {
                     foragingAttempts++;
 
-                    var minimumLocalBiomass =
-                        PersonNeedsState
-                            .EnergyConsumedPerDay *
+                    var reserveNeeded =
+                        1 -
+                        current.Needs.EnergyReserve;
+
+                    var maintenanceBiomassNeeded =
+                        reserveNeeded *
                         parameters
                             .KilogramsLiveBiomassPerEnergyReserveUnit;
+
+                    var biomassNeeded =
+                        maintenanceBiomassNeeded +
+                        growthFoodBiomassNeeded;
+
+                    var minimumLocalBiomass =
+                        Math.Min(
+                            PersonNeedsState
+                                .EnergyConsumedPerDay *
+                            parameters
+                                .KilogramsLiveBiomassPerEnergyReserveUnit,
+                            biomassNeeded);
 
                     var occupiedCell =
                         surfaceGrid.LocateCell(
@@ -246,15 +292,6 @@ public sealed class ForagingSystem : ICausalSystem
                                 .LiveBiomassKilogramsPerSquareMeter *
                             source.AreaSquareMeters;
 
-                        var reserveNeeded =
-                            1 -
-                            current.Needs.EnergyReserve;
-
-                        var biomassNeeded =
-                            reserveNeeded *
-                            parameters
-                                .KilogramsLiveBiomassPerEnergyReserveUnit;
-
                         var maximumHarvest =
                             parameters
                                 .MaximumHarvestKilogramsPerPersonPerDay *
@@ -286,17 +323,73 @@ public sealed class ForagingSystem : ICausalSystem
                                     remainingBiomass /
                                     source.AreaSquareMeters);
 
+                            var maintenanceBiomassUsed =
+                                Math.Min(
+                                    harvestedBiomass,
+                                    maintenanceBiomassNeeded);
+
+                            var growthFoodBiomass =
+                                Math.Max(
+                                    0,
+                                    harvestedBiomass -
+                                    maintenanceBiomassUsed);
+
+                            var assimilatedMaterial =
+                                AssimilateGrowth(
+                                    current.Material,
+                                    growthTarget,
+                                    growthFoodBiomass);
+
+                            if (!assimilatedMaterial.IsEmpty)
+                            {
+                                current =
+                                    current.WithMaterial(
+                                        new OrganismMaterialState(
+                                            current.Material
+                                                .LiveBiomassKilograms +
+                                            assimilatedMaterial
+                                                .LiveBiomassKilograms,
+                                            current.Material
+                                                .LiveNitrogenKilograms +
+                                            assimilatedMaterial
+                                                .LiveNitrogenKilograms));
+
+                                biomassAssimilatedKilograms +=
+                                    assimilatedMaterial
+                                        .LiveBiomassKilograms;
+
+                                nitrogenAssimilatedKilograms +=
+                                    assimilatedMaterial
+                                        .LiveNitrogenKilograms;
+
+                                growthFeedingEvents++;
+                            }
+
+                            var respiredBiomass =
+                                harvestedBiomass -
+                                assimilatedMaterial
+                                    .LiveBiomassKilograms;
+
+                            biomassRespiredKilograms +=
+                                respiredBiomass;
+
                             if (_plantNitrogenKilogramsPerKilogramLiveBiomass
                                     is double plantNitrogenRatio)
                             {
                                 feedingMaterialTransfers.Add(
                                     new VegetationFeedingEvent(
                                         source.Id,
-                                        harvestedBiomass));
+                                        harvestedBiomass,
+                                        assimilatedMaterial
+                                            .LiveBiomassKilograms,
+                                        assimilatedMaterial
+                                            .LiveNitrogenKilograms));
 
                                 nitrogenReturnedKilograms +=
                                     harvestedBiomass *
-                                    plantNitrogenRatio;
+                                    plantNitrogenRatio -
+                                    assimilatedMaterial
+                                        .LiveNitrogenKilograms;
                             }
 
                             if (availableBiomass > 0 &&
@@ -306,7 +399,7 @@ public sealed class ForagingSystem : ICausalSystem
                             }
 
                             var reserveGained =
-                                harvestedBiomass /
+                                maintenanceBiomassUsed /
                                 parameters
                                     .KilogramsLiveBiomassPerEnergyReserveUnit;
 
@@ -341,10 +434,7 @@ public sealed class ForagingSystem : ICausalSystem
                     if (!fedThisStep)
                     {
                         var minimumDestinationBiomass =
-                            PersonNeedsState
-                                .EnergyConsumedPerDay *
-                            parameters
-                                .KilogramsLiveBiomassPerEnergyReserveUnit;
+                            minimumLocalBiomass;
 
                         var destination =
                             FindNearestHarvestableCell(
@@ -442,6 +532,7 @@ public sealed class ForagingSystem : ICausalSystem
 
             population = survivors;
             remainingSeconds -= stepSeconds;
+            processedSeconds += stepSeconds;
         }
 
         var updatedVegetation =
@@ -517,10 +608,16 @@ public sealed class ForagingSystem : ICausalSystem
                     reserveEnergyGained,
                 ["biomassHarvestedKilograms"] =
                     biomassHarvestedKilograms,
+                ["biomassAssimilatedKilograms"] =
+                    biomassAssimilatedKilograms,
+                ["nitrogenAssimilatedKilograms"] =
+                    nitrogenAssimilatedKilograms,
                 ["biomassRespiredKilograms"] =
-                    biomassHarvestedKilograms,
+                    biomassRespiredKilograms,
                 ["nitrogenReturnedKilograms"] =
                     nitrogenReturnedKilograms,
+                ["growthFeedingEvents"] =
+                    growthFeedingEvents,
                 ["depletedVegetationCells"] =
                     depletedVegetationCells,
                 ["foodSeekingTravel"] =
@@ -533,6 +630,140 @@ public sealed class ForagingSystem : ICausalSystem
                     starvationDeaths,
                 ["survivors"] = population.Count
             });
+    }
+
+    private OrganismMaterialState? GrowthTarget(
+        PersonState person,
+        long targetTimeSeconds)
+    {
+        if (_populationParameters is null ||
+            _plantNitrogenKilogramsPerKilogramLiveBiomass
+                is null)
+        {
+            return null;
+        }
+
+        return _populationParameters
+            .MaterialTargetAtAgeYears(
+                person.AgeYears(
+                    targetTimeSeconds));
+    }
+
+    private double GrowthFoodBiomassNeeded(
+        OrganismMaterialState currentMaterial,
+        OrganismMaterialState? growthTarget)
+    {
+        if (growthTarget is null ||
+            _plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not double plantNitrogenRatio)
+        {
+            return 0;
+        }
+
+        var biomassDeficit =
+            Math.Max(
+                0,
+                growthTarget.LiveBiomassKilograms -
+                currentMaterial.LiveBiomassKilograms);
+
+        if (biomassDeficit <= 0)
+        {
+            return 0;
+        }
+
+        var nitrogenDeficit =
+            Math.Max(
+                0,
+                growthTarget.LiveNitrogenKilograms -
+                currentMaterial.LiveNitrogenKilograms);
+
+        var desiredNitrogenPerKilogramGrowth =
+            Math.Clamp(
+                nitrogenDeficit /
+                biomassDeficit,
+                0,
+                1);
+
+        var nitrogenLimitedFood =
+            desiredNitrogenPerKilogramGrowth <= 0
+                ? biomassDeficit
+                : nitrogenDeficit /
+                  plantNitrogenRatio;
+
+        return Math.Max(
+            biomassDeficit,
+            nitrogenLimitedFood);
+    }
+
+    private OrganismMaterialState AssimilateGrowth(
+        OrganismMaterialState currentMaterial,
+        OrganismMaterialState? growthTarget,
+        double growthFoodBiomassKilograms)
+    {
+        if (growthTarget is null ||
+            growthFoodBiomassKilograms <= 0 ||
+            _plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not double plantNitrogenRatio)
+        {
+            return new OrganismMaterialState(
+                0,
+                0);
+        }
+
+        var biomassDeficit =
+            Math.Max(
+                0,
+                growthTarget.LiveBiomassKilograms -
+                currentMaterial.LiveBiomassKilograms);
+
+        if (biomassDeficit <= 0)
+        {
+            return new OrganismMaterialState(
+                0,
+                0);
+        }
+
+        var nitrogenDeficit =
+            Math.Max(
+                0,
+                growthTarget.LiveNitrogenKilograms -
+                currentMaterial.LiveNitrogenKilograms);
+
+        var desiredNitrogenPerKilogramGrowth =
+            Math.Clamp(
+                nitrogenDeficit /
+                biomassDeficit,
+                0,
+                1);
+
+        var availableNitrogen =
+            growthFoodBiomassKilograms *
+            plantNitrogenRatio;
+
+        var nitrogenLimitedBiomass =
+            desiredNitrogenPerKilogramGrowth <= 0
+                ? growthFoodBiomassKilograms
+                : availableNitrogen /
+                  desiredNitrogenPerKilogramGrowth;
+
+        var assimilatedBiomass =
+            Math.Min(
+                biomassDeficit,
+                Math.Min(
+                    growthFoodBiomassKilograms,
+                    nitrogenLimitedBiomass));
+
+        var assimilatedNitrogen =
+            Math.Min(
+                nitrogenDeficit,
+                Math.Min(
+                    availableNitrogen,
+                    assimilatedBiomass *
+                    desiredNitrogenPerKilogramGrowth));
+
+        return new OrganismMaterialState(
+            assimilatedBiomass,
+            assimilatedNitrogen);
     }
 
     private static SurfaceCell?

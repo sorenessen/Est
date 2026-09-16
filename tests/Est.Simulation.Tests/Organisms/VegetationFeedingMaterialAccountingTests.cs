@@ -18,6 +18,9 @@ public sealed class VegetationFeedingMaterialAccountingTests
     private const long OneDaySeconds =
         86_400;
 
+    private const long OneYearSeconds =
+        31_536_000;
+
     private const double PlantNitrogenRatio =
         0.02;
 
@@ -32,7 +35,8 @@ public sealed class VegetationFeedingMaterialAccountingTests
                 PersonId.New(),
                 fixture.Planet.Id,
                 PersonSex.Male,
-                birthTimeSeconds: 0,
+                birthTimeSeconds:
+                    -25 * OneYearSeconds,
                 fixture.TargetCell.CenterLatitudeDegrees,
                 fixture.TargetCell.CenterLongitudeDegrees,
                 needs:
@@ -58,7 +62,9 @@ public sealed class VegetationFeedingMaterialAccountingTests
                         maximumHarvestKilogramsPerPersonPerDay:
                             1),
                     plantNitrogenKilogramsPerKilogramLiveBiomass:
-                        PlantNitrogenRatio)
+                        PlantNitrogenRatio,
+                    populationParameters:
+                        new PopulationModelParameters())
                 .Evaluate(
                     world,
                     OneDaySeconds);
@@ -118,6 +124,320 @@ public sealed class VegetationFeedingMaterialAccountingTests
             expectedDetritalNitrogenKilograms: 0,
             expectedPlantAvailableNitrogenKilograms:
                 0);
+    }
+
+    [Fact]
+    public void HumanJuvenileForaging_AssimilatesConsumedPlantMaterialIntoGrowth()
+    {
+        var fixture =
+            CreateFixture();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                fixture.Planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds:
+                    -9 * OneYearSeconds,
+                fixture.TargetCell.CenterLatitudeDegrees,
+                fixture.TargetCell.CenterLongitudeDegrees,
+                needs:
+                    new PersonNeedsState(
+                        energyReserve: 1),
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 30,
+                        liveNitrogenKilograms: 0.75));
+
+        var world =
+            CreateWorld(
+                fixture,
+                person: person,
+                vegetationMassKilograms: 1);
+
+        var change =
+            new ForagingSystem(
+                    fixture.Planet.Id,
+                    new VegetationForagingParameters(
+                        kilogramsLiveBiomassPerEnergyReserveUnit:
+                            1,
+                        maximumHarvestKilogramsPerPersonPerDay:
+                            1),
+                    plantNitrogenKilogramsPerKilogramLiveBiomass:
+                        PlantNitrogenRatio,
+                    populationParameters:
+                        new PopulationModelParameters())
+                .Evaluate(
+                    world,
+                    OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var changedPerson =
+            Assert.Single(
+                changed.Population);
+
+        Assert.Equal(
+            30.8,
+            changedPerson.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0.77,
+            changedPerson.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            RemovedVegetationMassKilograms(
+                world,
+                changed,
+                fixture.TargetCell),
+            precision: 10);
+
+        Assert.Equal(
+            0.8,
+            change.Metrics[
+                "biomassAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.02,
+            change.Metrics[
+                "nitrogenAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.2,
+            change.Metrics[
+                "biomassRespiredKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "nitrogenReturnedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "growthFeedingEvents"],
+            precision: 10);
+
+        Assert.Equal(
+            PersonActivity.Eating,
+            changedPerson.Activity);
+
+        AssertBiogeochemistryMass(
+            changed,
+            fixture.Grid,
+            fixture.TargetCell,
+            expectedDetritalBiomassKilograms: 0,
+            expectedDetritalNitrogenKilograms: 0,
+            expectedPlantAvailableNitrogenKilograms:
+                0);
+    }
+
+    [Fact]
+    public void HumanJuvenileForaging_PrioritizesMaintenanceBeforeGrowth()
+    {
+        var fixture =
+            CreateFixture();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                fixture.Planet.Id,
+                PersonSex.Male,
+                birthTimeSeconds:
+                    -9 * OneYearSeconds,
+                fixture.TargetCell.CenterLatitudeDegrees,
+                fixture.TargetCell.CenterLongitudeDegrees,
+                needs:
+                    new PersonNeedsState(
+                        energyReserve: 0.5),
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 30,
+                        liveNitrogenKilograms: 0.75));
+
+        var world =
+            CreateWorld(
+                fixture,
+                person: person,
+                vegetationMassKilograms: 1);
+
+        var change =
+            new ForagingSystem(
+                    fixture.Planet.Id,
+                    new VegetationForagingParameters(
+                        kilogramsLiveBiomassPerEnergyReserveUnit:
+                            1,
+                        maximumHarvestKilogramsPerPersonPerDay:
+                            1),
+                    plantNitrogenKilogramsPerKilogramLiveBiomass:
+                        PlantNitrogenRatio,
+                    populationParameters:
+                        new PopulationModelParameters())
+                .Evaluate(
+                    world,
+                    OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var changedPerson =
+            Assert.Single(
+                changed.Population);
+
+        Assert.Equal(
+            30.4,
+            changedPerson.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0.76,
+            changedPerson.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1 - (1d / 30d),
+            changedPerson.Needs.EnergyReserve,
+            precision: 10);
+
+        Assert.Equal(
+            0.5,
+            change.Metrics[
+                "energyConsumed"],
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "biomassHarvestedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.4,
+            change.Metrics[
+                "biomassAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.01,
+            change.Metrics[
+                "nitrogenAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.6,
+            change.Metrics[
+                "biomassRespiredKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.01,
+            change.Metrics[
+                "nitrogenReturnedKilograms"],
+            precision: 10);
+    }
+
+    [Fact]
+    public void HumanJuvenileForaging_RequiresPlantNitrogenPolicyForGrowth()
+    {
+        var fixture =
+            CreateFixture();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                fixture.Planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds:
+                    -9 * OneYearSeconds,
+                fixture.TargetCell.CenterLatitudeDegrees,
+                fixture.TargetCell.CenterLongitudeDegrees,
+                needs:
+                    new PersonNeedsState(
+                        energyReserve: 1),
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 30,
+                        liveNitrogenKilograms: 0.75));
+
+        var world =
+            CreateWorld(
+                fixture,
+                person: person,
+                vegetationMassKilograms: 1);
+
+        var change =
+            new ForagingSystem(
+                    fixture.Planet.Id,
+                    new VegetationForagingParameters(
+                        kilogramsLiveBiomassPerEnergyReserveUnit:
+                            1,
+                        maximumHarvestKilogramsPerPersonPerDay:
+                            1),
+                    populationParameters:
+                        new PopulationModelParameters())
+                .Evaluate(
+                    world,
+                    OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var changedPerson =
+            Assert.Single(
+                changed.Population);
+
+        Assert.Equal(
+            30,
+            changedPerson.Material.LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0.75,
+            changedPerson.Material.LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "biomassHarvestedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "biomassAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "nitrogenAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "growthFeedingEvents"],
+            precision: 10);
+
+        Assert.Equal(
+            0,
+            RemovedVegetationMassKilograms(
+                world,
+                changed,
+                fixture.TargetCell),
+            precision: 10);
     }
 
     [Fact]

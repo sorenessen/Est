@@ -6,15 +6,19 @@ namespace Est.Simulation.Organisms;
 
 /// <summary>
 /// One authoritative removal of live vegetation biomass by feeding.
-/// The consumed organic biomass is treated as metabolized out of the tracked
-/// organic-biomass pool. Its implied plant-tissue nitrogen is returned to the
-/// authoritative plant-available nitrogen pool of the source surface cell.
+///
+/// Consumed biomass can either be retained as new consumer tissue or
+/// metabolized out of the tracked organic-biomass pool. Plant-tissue nitrogen
+/// retained in consumer tissue is not returned to soil; the remainder returns
+/// to the authoritative plant-available nitrogen pool of the source cell.
 /// </summary>
 public sealed record VegetationFeedingEvent
 {
     public VegetationFeedingEvent(
         SurfaceCellId sourceCellId,
-        double consumedBiomassKilograms)
+        double consumedBiomassKilograms,
+        double assimilatedBiomassKilograms = 0,
+        double assimilatedNitrogenKilograms = 0)
     {
         if (!double.IsFinite(consumedBiomassKilograms) ||
             consumedBiomassKilograms < 0)
@@ -24,14 +28,42 @@ public sealed record VegetationFeedingEvent
                 "Consumed vegetation biomass must be finite and non-negative.");
         }
 
+        if (!double.IsFinite(assimilatedBiomassKilograms) ||
+            assimilatedBiomassKilograms < 0 ||
+            assimilatedBiomassKilograms >
+                consumedBiomassKilograms)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(assimilatedBiomassKilograms),
+                "Assimilated biomass must be finite, non-negative, and cannot exceed consumed biomass.");
+        }
+
+        if (!double.IsFinite(assimilatedNitrogenKilograms) ||
+            assimilatedNitrogenKilograms < 0 ||
+            assimilatedNitrogenKilograms >
+                assimilatedBiomassKilograms)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(assimilatedNitrogenKilograms),
+                "Assimilated nitrogen must be finite, non-negative, and cannot exceed assimilated biomass.");
+        }
+
         SourceCellId = sourceCellId;
         ConsumedBiomassKilograms =
             consumedBiomassKilograms;
+        AssimilatedBiomassKilograms =
+            assimilatedBiomassKilograms;
+        AssimilatedNitrogenKilograms =
+            assimilatedNitrogenKilograms;
     }
 
     public SurfaceCellId SourceCellId { get; }
 
     public double ConsumedBiomassKilograms { get; }
+
+    public double AssimilatedBiomassKilograms { get; }
+
+    public double AssimilatedNitrogenKilograms { get; }
 }
 
 /// <summary>
@@ -104,9 +136,20 @@ public static class VegetationFeedingMaterialTransfer
                     nameof(feedingEvents));
             }
 
-            var returnedNitrogenKilograms =
+            var consumedNitrogenKilograms =
                 feedingEvent.ConsumedBiomassKilograms *
                 plantNitrogenKilogramsPerKilogramLiveBiomass;
+
+            if (feedingEvent.AssimilatedNitrogenKilograms >
+                consumedNitrogenKilograms)
+            {
+                throw new InvalidOperationException(
+                    "Vegetation feeding cannot assimilate more nitrogen than the consumed plant tissue contains.");
+            }
+
+            var returnedNitrogenKilograms =
+                consumedNitrogenKilograms -
+                feedingEvent.AssimilatedNitrogenKilograms;
 
             availableNitrogenByCellId[
                 sourceCell.Id] +=
