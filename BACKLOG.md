@@ -373,11 +373,17 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Seed deterministic generated vegetation only on dry surface cells.
   - [x] Execute vegetation after hydrology and before biological consumers.
   - [x] Expose generated vegetation and vegetation model policy through Est.Api.
+  - [x] Connect population foraging to authoritative live plant biomass through
+        an explicit harvest / energy-conversion policy.
+  - [x] Preserve biomass accounting during consumption and keep synthetic food
+        out of the vegetation-backed foraging path.
+  - [x] Prove the existing population survival vertical slice can run against
+        authoritative vegetation through session, API, and persistence tests.
   - [ ] Add explicit plant stress / mortality behavior for conditions such as
         later inundation, drought, temperature extremes, and other ecological
         losses when that lifecycle layer is designed.
-- [ ] Replace synthetic food resources only after vegetation can preserve
-      the existing population survival vertical slice.
+- [ ] Remove the synthetic food-resource scaffolding now that authoritative
+      vegetation preserves the population survival vertical slice.
 - [ ] Add aggregate invertebrate / bug populations.
 - [ ] Add bird population / flock representation.
 - [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
