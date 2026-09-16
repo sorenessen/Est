@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
@@ -11,8 +12,9 @@ namespace Est.Simulation.Invertebrates;
 ///
 /// Local live vegetation establishes carrying capacity. Existing invertebrate
 /// biomass can reproduce toward that support ceiling while baseline loss
-/// continuously removes biomass. Vegetation is not directly consumed by this
-/// aggregate model.
+/// continuously removes biomass. When authoritative biogeochemistry is present,
+/// realized mortality biomass enters the detrital pool. Vegetation is not
+/// directly consumed by this aggregate model.
 /// </summary>
 public sealed class InvertebrateSystem
     : ICausalSystem
@@ -81,6 +83,12 @@ public sealed class InvertebrateSystem
             ?? throw new InvalidOperationException(
                 "Invertebrate integration requires invertebrate state for the target planet.");
 
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                candidate =>
+                    candidate.PlanetId ==
+                    _planetId);
+
         if (vegetation.GridDefinition !=
             invertebrates.GridDefinition)
         {
@@ -88,10 +96,21 @@ public sealed class InvertebrateSystem
                 "Invertebrates and vegetation must use the same surface grid.");
         }
 
+        if (biogeochemistry is not null &&
+            biogeochemistry.GridDefinition !=
+            invertebrates.GridDefinition)
+        {
+            throw new InvalidOperationException(
+                "Invertebrates and biogeochemistry must use the same surface grid.");
+        }
+
         vegetation.ValidateFor(
             planet);
 
         invertebrates.ValidateFor(
+            planet);
+
+        biogeochemistry?.ValidateFor(
             planet);
 
         var grid =
@@ -113,6 +132,16 @@ public sealed class InvertebrateSystem
             TotalBiomassMassKilograms(
                 invertebrates,
                 surfaceCellsById);
+
+        var detritalBiomassByCellId =
+            biogeochemistry?.Cells.ToDictionary(
+                cell =>
+                    cell.CellId,
+                cell =>
+                    cell.DetritalBiomassKilogramsPerSquareMeter);
+
+        var totalMortalityDetritalBiomassMass =
+            0d;
 
         var current =
             invertebrates;
@@ -189,18 +218,38 @@ public sealed class InvertebrateSystem
                         elapsedDays;
                 }
 
-                var loss =
+                var nominalLoss =
                     biomass *
                     _parameters
                         .BaselineMortalityRatePerDay *
                     elapsedDays;
+
+                var realizedLoss =
+                    Math.Min(
+                        biomass +
+                        growth,
+                        nominalLoss);
 
                 var nextBiomass =
                     Math.Max(
                         0,
                         biomass +
                         growth -
-                        loss);
+                        realizedLoss);
+
+                if (detritalBiomassByCellId is not null &&
+                    realizedLoss > 0)
+                {
+                    detritalBiomassByCellId[
+                        cell.CellId] +=
+                        realizedLoss;
+
+                    totalMortalityDetritalBiomassMass +=
+                        realizedLoss *
+                        surfaceCellsById[
+                            cell.CellId]
+                        .AreaSquareMeters;
+                }
 
                 if (nextBiomass >
                         biomass &&
@@ -234,9 +283,32 @@ public sealed class InvertebrateSystem
                 current,
                 surfaceCellsById);
 
+        var finalBiogeochemistry =
+            biogeochemistry is null
+                ? null
+                : new PlanetBiogeochemistryState(
+                    biogeochemistry.PlanetId,
+                    biogeochemistry.GridDefinition,
+                    biogeochemistry.Cells.Select(
+                        cell =>
+                            new BiogeochemistryCellState(
+                                cell.CellId,
+                                detritalBiomassByCellId![
+                                    cell.CellId],
+                                cell.DetritalNitrogenKilogramsPerSquareMeter,
+                                cell.PlantAvailableNitrogenKilogramsPerSquareMeter)));
+
+        var operation =
+            finalBiogeochemistry is null
+                ? (ISimulationOperation)
+                    new ReplacePlanetInvertebrateStateOperation(
+                        current)
+                : new ReplacePlanetInvertebrateBiogeochemistryStateOperation(
+                    current,
+                    finalBiogeochemistry);
+
         return new SimulationChange(
-            new ReplacePlanetInvertebrateStateOperation(
-                current),
+            operation,
             "planetary-invertebrates",
             "Vegetation-supported aggregate invertebrate biomass changed.",
             planet.Id,
@@ -250,6 +322,8 @@ public sealed class InvertebrateSystem
                 ["biomassChangeKilograms"] =
                     finalBiomassMass -
                     initialBiomassMass,
+                ["mortalityDetritalBiomassKilograms"] =
+                    totalMortalityDetritalBiomassMass,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });
