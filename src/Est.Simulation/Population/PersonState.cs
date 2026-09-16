@@ -101,10 +101,10 @@ public sealed record PersonState
     {
         const double secondsPerYear = 31_536_000d;
 
-        return Math.Max(
-            0,
-            (currentTimeSeconds - BirthTimeSeconds)
-            / secondsPerYear);
+        return OrganismLifecycleClock.AgeSeconds(
+                   BirthTimeSeconds,
+                   currentTimeSeconds)
+               / secondsPerYear;
     }
 
     public PersonState WithSurvivalState(
