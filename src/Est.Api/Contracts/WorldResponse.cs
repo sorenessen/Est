@@ -20,7 +20,8 @@ public sealed record PopulationPersonResponse(
     Guid? PregnancyFatherId,
     string Activity,
     double EnergyReserve,
-    double Health);
+    double Health,
+    OrganismMaterialResponse Material);
 
 public sealed record AnimalResponse(
     Guid AnimalId,
@@ -30,7 +31,12 @@ public sealed record AnimalResponse(
     double LongitudeDegrees,
     double EnergyReserve,
     double Health,
-    string Activity);
+    string Activity,
+    OrganismMaterialResponse Material);
+
+public sealed record OrganismMaterialResponse(
+    double LiveBiomassKilograms,
+    double LiveNitrogenKilograms);
 
 public sealed record PlanetResponse(
     Guid PlanetId,

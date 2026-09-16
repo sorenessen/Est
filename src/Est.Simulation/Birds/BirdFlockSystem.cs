@@ -130,10 +130,7 @@ public sealed class BirdFlockSystem
                 .Select(
                     flock =>
                         new RuntimeFlock(
-                            flock.Id,
-                            flock.LatitudeDegrees,
-                            flock.LongitudeDegrees,
-                            flock.MemberCount))
+                            flock))
                 .ToList();
 
         var initialFlockCount =
@@ -335,9 +332,7 @@ public sealed class BirdFlockSystem
             flocks
                 .Select(
                     flock =>
-                        new BirdFlockState(
-                            flock.Id,
-                            _planetId,
+                        flock.Source.WithSurvivalState(
                             checked(
                                 (int)Math.Floor(
                                     flock.MemberCount)),
@@ -705,23 +700,28 @@ public sealed class BirdFlockSystem
     private sealed class RuntimeFlock
     {
         public RuntimeFlock(
-            BirdFlockId id,
-            double latitudeDegrees,
-            double longitudeDegrees,
-            double memberCount)
+            BirdFlockState source)
         {
+            ArgumentNullException.ThrowIfNull(
+                source);
+
+            Source =
+                source;
+
             Id =
-                id;
+                source.Id;
 
             LatitudeDegrees =
-                latitudeDegrees;
+                source.LatitudeDegrees;
 
             LongitudeDegrees =
-                longitudeDegrees;
+                source.LongitudeDegrees;
 
             MemberCount =
-                memberCount;
+                source.MemberCount;
         }
+
+        public BirdFlockState Source { get; }
 
         public BirdFlockId Id { get; }
 

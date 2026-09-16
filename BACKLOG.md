@@ -445,6 +445,25 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         until authoritative physical composition is modeled.
   - [x] Wire biogeochemistry through the session/API boundary and validate the
         closed terrestrial nutrient loop end to end.
+- [ ] Unify organism material and lifecycle accounting before evolutionary
+      population dynamics.
+  - [x] Add shared authoritative live biomass and nitrogen state that works for
+        both individual organisms and aggregate cohorts/flocks without forcing
+        them into one behavioral representation.
+  - [x] Seed organism material through explicit world-creation/model policy and
+        persist/expose it without hiding species composition assumptions inside
+        behavior systems.
+  - [ ] Route human, wolf, bird, and grazer mortality through common detrital
+        material-transfer semantics.
+  - [ ] Close human-foraging and grazer-grazing material leaks so consumed
+        biomass and tracked nitrogen have explicit destinations.
+  - [ ] Replace count-and-energy-only predation with explicit prey-material
+        accounting while preserving species-specific hunting behavior.
+  - [ ] Give runtime births a causal material source before inheritance depends
+        on newly created organisms.
+  - [ ] Validate material and nitrogen accounting across feeding, predation,
+        reproduction, mortality, decomposition, persistence, and session
+        advancement.
 - [ ] Explore evolutionary population dynamics above the mature biosphere
       substrate.
 

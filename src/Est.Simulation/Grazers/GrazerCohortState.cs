@@ -1,3 +1,4 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 
 namespace Est.Simulation.Grazers;
@@ -17,7 +18,8 @@ public sealed record GrazerCohortState
         PlanetId planetId,
         int memberCount,
         double latitudeDegrees,
-        double longitudeDegrees)
+        double longitudeDegrees,
+        OrganismMaterialState? material = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -61,6 +63,11 @@ public sealed record GrazerCohortState
         MemberCount = memberCount;
         LatitudeDegrees = latitudeDegrees;
         LongitudeDegrees = longitudeDegrees;
+        Material =
+            material ??
+            new OrganismMaterialState(
+                liveBiomassKilograms: 0,
+                liveNitrogenKilograms: 0);
     }
 
     public GrazerCohortId Id { get; }
@@ -72,4 +79,32 @@ public sealed record GrazerCohortState
     public double LatitudeDegrees { get; }
 
     public double LongitudeDegrees { get; }
+
+    public OrganismMaterialState Material { get; }
+
+    public GrazerCohortState WithSurvivalState(
+        int survivingMemberCount,
+        double latitudeDegrees,
+        double longitudeDegrees)
+    {
+        if (survivingMemberCount > MemberCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(survivingMemberCount),
+                "Surviving membership cannot exceed current membership.");
+        }
+
+        var retainedFraction =
+            survivingMemberCount /
+            (double)MemberCount;
+
+        return new GrazerCohortState(
+            Id,
+            PlanetId,
+            survivingMemberCount,
+            latitudeDegrees,
+            longitudeDegrees,
+            Material.RetainFraction(
+                retainedFraction));
+    }
 }

@@ -43,7 +43,11 @@ public sealed class TimelineArchiveGrazerModelTests
                 waterAbsenceMortalityRatePerDay:
                     0.25,
                 habitatAbsenceMortalityRatePerDay:
-                    0.04);
+                    0.04,
+                liveBiomassKilogramsPerGrazer:
+                    320,
+                liveNitrogenKilogramsPerGrazer:
+                    8);
 
         var restored =
             RoundTrip(
@@ -61,6 +65,65 @@ public sealed class TimelineArchiveGrazerModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFifteenDefaultsGrazerMaterialComposition()
+    {
+        var fixture =
+            CreateFixture();
+
+        var parameters =
+            new GrazerModelParameters(
+                liveBiomassKilogramsPerGrazer:
+                    320,
+                liveNitrogenKilogramsPerGrazer:
+                    8);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    new SimulationDefinition(
+                        grazerModels:
+                        [
+                            new GrazerModelDefinition(
+                                fixture.Planet.Id,
+                                parameters)
+                        ]),
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] =
+            15;
+
+        var parametersNode =
+            node["definition"]!
+                .AsObject()["grazerModels"]!
+                .AsArray()[0]!["parameters"]!
+                .AsObject();
+
+        parametersNode.Remove(
+            "liveBiomassKilogramsPerGrazer");
+
+        parametersNode.Remove(
+            "liveNitrogenKilogramsPerGrazer");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.GrazerModels)
+                .Parameters;
+
+        var defaults =
+            new GrazerModelParameters();
+
+        Assert.Equal(
+            defaults.MaterialPerGrazer,
+            restoredParameters.MaterialPerGrazer);
     }
 
     [Fact]

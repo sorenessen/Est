@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+
 namespace Est.Simulation.Birds;
 
 /// <summary>
@@ -23,7 +25,9 @@ public sealed record BirdModelParameters
         double maximumTravelMetersPerDay = 250_000,
         double foodShortageMortalityRatePerDay = 0.05,
         double waterAbsenceMortalityRatePerDay = 0.20,
-        double habitatAbsenceMortalityRatePerDay = 0.02)
+        double habitatAbsenceMortalityRatePerDay = 0.02,
+        double liveBiomassKilogramsPerBird = 1,
+        double liveNitrogenKilogramsPerBird = 0.025)
     {
         if (!double.IsFinite(
                 carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass) ||
@@ -108,6 +112,11 @@ public sealed record BirdModelParameters
 
         HabitatAbsenceMortalityRatePerDay =
             habitatAbsenceMortalityRatePerDay;
+
+        MaterialPerBird =
+            new OrganismMaterialComposition(
+                liveBiomassKilogramsPerBird,
+                liveNitrogenKilogramsPerBird);
     }
 
     public double
@@ -131,6 +140,8 @@ public sealed record BirdModelParameters
     public double WaterAbsenceMortalityRatePerDay { get; }
 
     public double HabitatAbsenceMortalityRatePerDay { get; }
+
+    public OrganismMaterialComposition MaterialPerBird { get; }
 
     private static void ValidateNonnegativeFinite(
         double value,

@@ -1395,9 +1395,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
 
         grazerCohorts[index] =
-            new GrazerCohortState(
-                cohort.Id,
-                cohort.PlanetId,
+            cohort.WithSurvivalState(
                 cohort.MemberCount - 1,
                 cohort.LatitudeDegrees,
                 cohort.LongitudeDegrees);

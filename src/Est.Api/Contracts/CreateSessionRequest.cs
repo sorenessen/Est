@@ -57,14 +57,18 @@ public sealed record GeneratedBirdCreationRequest(
         0.000001,
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialFlockMemberCount = 10,
-    int MaximumInitialFlockCount = 64);
+    int MaximumInitialFlockCount = 64,
+    double LiveBiomassKilogramsPerBird = 1,
+    double LiveNitrogenKilogramsPerBird = 0.025);
 
 public sealed record GeneratedGrazerCreationRequest(
     double CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
         0.000001,
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialCohortMemberCount = 10,
-    int MaximumInitialCohortCount = 64);
+    int MaximumInitialCohortCount = 64,
+    double LiveBiomassKilogramsPerGrazer = 250,
+    double LiveNitrogenKilogramsPerGrazer = 6.25);
 
 public sealed record GeneratedBiogeochemistryCreationRequest(
     double InitialDetritalBiomassKilogramsPerSquareMeter = 0,
@@ -106,6 +110,12 @@ public sealed record BirdModelRequest
 
     public double HabitatAbsenceMortalityRatePerDay { get; init; } =
         0.02;
+
+    public double LiveBiomassKilogramsPerBird { get; init; } =
+        1;
+
+    public double LiveNitrogenKilogramsPerBird { get; init; } =
+        0.025;
 }
 
 public sealed record GrazerModelRequest
@@ -149,6 +159,12 @@ public sealed record GrazerModelRequest
 
     public double HabitatAbsenceMortalityRatePerDay { get; init; } =
         0.02;
+
+    public double LiveBiomassKilogramsPerGrazer { get; init; } =
+        250;
+
+    public double LiveNitrogenKilogramsPerGrazer { get; init; } =
+        6.25;
 }
 
 public sealed record InvertebrateModelRequest
@@ -367,7 +383,9 @@ public sealed record SyntheticPopulationCreationRequest(
     double SpreadDegrees,
     double MinimumAgeYears = 18,
     double MaximumAgeYears = 35,
-    VegetationForagingRequest? VegetationForaging = null);
+    VegetationForagingRequest? VegetationForaging = null,
+    double LiveBiomassKilogramsPerPerson = 70,
+    double LiveNitrogenKilogramsPerPerson = 1.75);
 
 public sealed record VegetationForagingRequest(
     [property: JsonRequired]
@@ -385,7 +403,9 @@ public sealed record SyntheticAnimalCreationRequest(
     [property: JsonRequired]
     double CenterLongitudeDegrees,
     [property: JsonRequired]
-    double SpreadDegrees);
+    double SpreadDegrees,
+    double LiveBiomassKilogramsPerWolf = 40,
+    double LiveNitrogenKilogramsPerWolf = 1);
 
 public sealed record PlanetaryEnergyBalanceModelRequest(
     [property: JsonRequired]

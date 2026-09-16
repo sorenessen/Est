@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
+    private const int OrganismMaterialPolicySchemaVersion = 16;
     private const int VegetationMortalitySchemaVersion = 15;
     private const int VegetationNitrogenCouplingSchemaVersion = 14;
     private const int BiogeochemistryModelSchemaVersion = 13;
@@ -555,7 +556,15 @@ public static class TimelineArchiveSerializer
                                                 .WaterAbsenceMortalityRatePerDay,
                                         HabitatAbsenceMortalityRatePerDay =
                                             model.Parameters
-                                                .HabitatAbsenceMortalityRatePerDay
+                                                .HabitatAbsenceMortalityRatePerDay,
+                                        LiveBiomassKilogramsPerBird =
+                                            model.Parameters
+                                                .MaterialPerBird
+                                                .LiveBiomassKilogramsPerUnit,
+                                        LiveNitrogenKilogramsPerBird =
+                                            model.Parameters
+                                                .MaterialPerBird
+                                                .LiveNitrogenKilogramsPerUnit
                                     }
                             })
                     .ToArray(),
@@ -599,7 +608,15 @@ public static class TimelineArchiveSerializer
                                                 .WaterAbsenceMortalityRatePerDay,
                                         HabitatAbsenceMortalityRatePerDay =
                                             model.Parameters
-                                                .HabitatAbsenceMortalityRatePerDay
+                                                .HabitatAbsenceMortalityRatePerDay,
+                                        LiveBiomassKilogramsPerGrazer =
+                                            model.Parameters
+                                                .MaterialPerGrazer
+                                                .LiveBiomassKilogramsPerUnit,
+                                        LiveNitrogenKilogramsPerGrazer =
+                                            model.Parameters
+                                                .MaterialPerGrazer
+                                                .LiveNitrogenKilogramsPerUnit
                                     }
                             })
                     .ToArray(),
@@ -1001,7 +1018,27 @@ public static class TimelineArchiveSerializer
                                         : model.Parameters
                                             .HabitatAbsenceMortalityRatePerDay
                                             ?? throw new JsonException(
-                                                "Bird habitat-absence mortality rate is required.")));
+                                                "Bird habitat-absence mortality rate is required."),
+                                    liveBiomassKilogramsPerBird:
+                                        schemaVersion <
+                                            OrganismMaterialPolicySchemaVersion
+                                            ? behaviorDefaults
+                                                .MaterialPerBird
+                                                .LiveBiomassKilogramsPerUnit
+                                            : model.Parameters
+                                                .LiveBiomassKilogramsPerBird
+                                                ?? throw new JsonException(
+                                                    "Bird live biomass per bird is required."),
+                                    liveNitrogenKilogramsPerBird:
+                                        schemaVersion <
+                                            OrganismMaterialPolicySchemaVersion
+                                            ? behaviorDefaults
+                                                .MaterialPerBird
+                                                .LiveNitrogenKilogramsPerUnit
+                                            : model.Parameters
+                                                .LiveNitrogenKilogramsPerBird
+                                                ?? throw new JsonException(
+                                                    "Bird live nitrogen per bird is required.")));
                         })
                     .ToArray();
         }
@@ -1094,7 +1131,27 @@ public static class TimelineArchiveSerializer
                                         : model.Parameters
                                             .HabitatAbsenceMortalityRatePerDay
                                             ?? throw new JsonException(
-                                                "Grazer habitat-absence mortality rate is required.")));
+                                                "Grazer habitat-absence mortality rate is required."),
+                                    liveBiomassKilogramsPerGrazer:
+                                        schemaVersion <
+                                            OrganismMaterialPolicySchemaVersion
+                                            ? behaviorDefaults
+                                                .MaterialPerGrazer
+                                                .LiveBiomassKilogramsPerUnit
+                                            : model.Parameters
+                                                .LiveBiomassKilogramsPerGrazer
+                                                ?? throw new JsonException(
+                                                    "Grazer live biomass per grazer is required."),
+                                    liveNitrogenKilogramsPerGrazer:
+                                        schemaVersion <
+                                            OrganismMaterialPolicySchemaVersion
+                                            ? behaviorDefaults
+                                                .MaterialPerGrazer
+                                                .LiveNitrogenKilogramsPerUnit
+                                            : model.Parameters
+                                                .LiveNitrogenKilogramsPerGrazer
+                                                ?? throw new JsonException(
+                                                    "Grazer live nitrogen per grazer is required.")));
                         })
                     .ToArray();
         }
@@ -1364,6 +1421,18 @@ public static class TimelineArchiveSerializer
             get;
             set;
         }
+
+        public double? LiveBiomassKilogramsPerGrazer
+        {
+            get;
+            set;
+        }
+
+        public double? LiveNitrogenKilogramsPerGrazer
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class BirdModelSnapshot
@@ -1430,6 +1499,18 @@ public static class TimelineArchiveSerializer
         }
 
         public double? HabitatAbsenceMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double? LiveBiomassKilogramsPerBird
+        {
+            get;
+            set;
+        }
+
+        public double? LiveNitrogenKilogramsPerBird
         {
             get;
             set;

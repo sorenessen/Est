@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+
 namespace Est.Simulation.Grazers;
 
 /// <summary>
@@ -24,7 +26,9 @@ public sealed record GrazerModelParameters
         double maximumGrazeKilogramsPerGrazerPerDay = 10,
         double foodShortageMortalityRatePerDay = 0.05,
         double waterAbsenceMortalityRatePerDay = 0.20,
-        double habitatAbsenceMortalityRatePerDay = 0.02)
+        double habitatAbsenceMortalityRatePerDay = 0.02,
+        double liveBiomassKilogramsPerGrazer = 250,
+        double liveNitrogenKilogramsPerGrazer = 6.25)
     {
         if (!double.IsFinite(
                 carryingCapacityGrazersPerKilogramLiveVegetationBiomass) ||
@@ -116,6 +120,11 @@ public sealed record GrazerModelParameters
 
         HabitatAbsenceMortalityRatePerDay =
             habitatAbsenceMortalityRatePerDay;
+
+        MaterialPerGrazer =
+            new OrganismMaterialComposition(
+                liveBiomassKilogramsPerGrazer,
+                liveNitrogenKilogramsPerGrazer);
     }
 
     public double
@@ -141,6 +150,8 @@ public sealed record GrazerModelParameters
     public double WaterAbsenceMortalityRatePerDay { get; }
 
     public double HabitatAbsenceMortalityRatePerDay { get; }
+
+    public OrganismMaterialComposition MaterialPerGrazer { get; }
 
     private static void ValidateNonnegativeFinite(
         double value,

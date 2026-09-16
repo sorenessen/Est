@@ -5,6 +5,7 @@ using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -17,7 +18,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -33,6 +34,7 @@ public static class WorldSnapshotSerializer
     private const int BirdFlockSchemaVersion = 13;
     private const int GrazerCohortSchemaVersion = 14;
     private const int BiogeochemistrySchemaVersion = 15;
+    private const int OrganismMaterialSchemaVersion = 16;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -118,6 +120,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != InvertebrateSchemaVersion &&
             snapshot.SchemaVersion != BirdFlockSchemaVersion &&
             snapshot.SchemaVersion != GrazerCohortSchemaVersion &&
+            snapshot.SchemaVersion != BiogeochemistrySchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -224,7 +227,11 @@ public static class WorldSnapshotSerializer
             }
 
             animals = snapshot.Animals
-                .Select(FromSnapshot)
+                .Select(
+                    animal =>
+                        FromSnapshot(
+                            animal,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -324,7 +331,11 @@ public static class WorldSnapshotSerializer
             }
 
             birdFlocks = snapshot.BirdFlocks
-                .Select(FromSnapshot)
+                .Select(
+                    flock =>
+                        FromSnapshot(
+                            flock,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -344,7 +355,11 @@ public static class WorldSnapshotSerializer
             }
 
             grazerCohorts = snapshot.GrazerCohorts
-                .Select(FromSnapshot)
+                .Select(
+                    cohort =>
+                        FromSnapshot(
+                            cohort,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -397,12 +412,16 @@ public static class WorldSnapshotSerializer
             LatitudeDegrees =
                 flock.LatitudeDegrees,
             LongitudeDegrees =
-                flock.LongitudeDegrees
+                flock.LongitudeDegrees,
+            Material =
+                ToSnapshot(
+                    flock.Material)
         };
     }
 
     private static BirdFlockState FromSnapshot(
-        BirdFlockSnapshot snapshot)
+        BirdFlockSnapshot snapshot,
+        int schemaVersion)
     {
         return new BirdFlockState(
             new BirdFlockId(
@@ -411,7 +430,10 @@ public static class WorldSnapshotSerializer
                 snapshot.PlanetId),
             snapshot.MemberCount,
             snapshot.LatitudeDegrees,
-            snapshot.LongitudeDegrees);
+            snapshot.LongitudeDegrees,
+            FromMaterialSnapshot(
+                snapshot.Material,
+                schemaVersion));
     }
 
     private static GrazerCohortSnapshot ToSnapshot(
@@ -428,12 +450,16 @@ public static class WorldSnapshotSerializer
             LatitudeDegrees =
                 cohort.LatitudeDegrees,
             LongitudeDegrees =
-                cohort.LongitudeDegrees
+                cohort.LongitudeDegrees,
+            Material =
+                ToSnapshot(
+                    cohort.Material)
         };
     }
 
     private static GrazerCohortState FromSnapshot(
-        GrazerCohortSnapshot snapshot)
+        GrazerCohortSnapshot snapshot,
+        int schemaVersion)
     {
         return new GrazerCohortState(
             new GrazerCohortId(
@@ -442,7 +468,10 @@ public static class WorldSnapshotSerializer
                 snapshot.PlanetId),
             snapshot.MemberCount,
             snapshot.LatitudeDegrees,
-            snapshot.LongitudeDegrees);
+            snapshot.LongitudeDegrees,
+            FromMaterialSnapshot(
+                snapshot.Material,
+                schemaVersion));
     }
 
     private static PlanetBiogeochemistrySnapshot ToSnapshot(
@@ -799,12 +828,16 @@ public static class WorldSnapshotSerializer
             LongitudeDegrees = animal.LongitudeDegrees,
             EnergyReserve = animal.EnergyReserve,
             Health = animal.Health,
-            Activity = animal.Activity
+            Activity = animal.Activity,
+            Material =
+                ToSnapshot(
+                    animal.Material)
         };
     }
 
     private static AnimalState FromSnapshot(
-        AnimalSnapshot snapshot)
+        AnimalSnapshot snapshot,
+        int schemaVersion)
     {
         return new AnimalState(
             new AnimalId(snapshot.AnimalId),
@@ -814,7 +847,10 @@ public static class WorldSnapshotSerializer
             snapshot.LongitudeDegrees,
             snapshot.EnergyReserve,
             snapshot.Health,
-            snapshot.Activity);
+            snapshot.Activity,
+            FromMaterialSnapshot(
+                snapshot.Material,
+                schemaVersion));
     }
 
     private static void ValidateLegacyFoodResource(
@@ -909,7 +945,10 @@ public static class WorldSnapshotSerializer
             PregnancyConceptionTimeSeconds =
                 person.Pregnancy?.ConceptionTimeSeconds,
             PregnancyFatherId =
-                person.Pregnancy?.FatherId.Value
+                person.Pregnancy?.FatherId.Value,
+            Material =
+                ToSnapshot(
+                    person.Material)
         };
     }
 
@@ -988,7 +1027,54 @@ public static class WorldSnapshotSerializer
                 : null,
             needs,
             activity,
-            pregnancy);
+            pregnancy,
+            FromMaterialSnapshot(
+                snapshot.Material,
+                schemaVersion));
+    }
+
+    private static OrganismMaterialSnapshot ToSnapshot(
+        OrganismMaterialState material)
+    {
+        return new OrganismMaterialSnapshot
+        {
+            LiveBiomassKilograms =
+                material.LiveBiomassKilograms,
+            LiveNitrogenKilograms =
+                material.LiveNitrogenKilograms
+        };
+    }
+
+    private static OrganismMaterialState FromMaterialSnapshot(
+        OrganismMaterialSnapshot? snapshot,
+        int schemaVersion)
+    {
+        if (schemaVersion <
+            OrganismMaterialSchemaVersion)
+        {
+            return new OrganismMaterialState(
+                liveBiomassKilograms: 0,
+                liveNitrogenKilograms: 0);
+        }
+
+        if (snapshot is null)
+        {
+            throw new JsonException(
+                "Organism material is required.");
+        }
+
+        try
+        {
+            return new OrganismMaterialState(
+                snapshot.LiveBiomassKilograms,
+                snapshot.LiveNitrogenKilograms);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new JsonException(
+                "Organism material is invalid.",
+                exception);
+        }
     }
 
     private static PlanetSnapshot ToSnapshot(PlanetState planet)
@@ -1141,6 +1227,8 @@ public static class WorldSnapshotSerializer
         public required double LatitudeDegrees { get; set; }
 
         public required double LongitudeDegrees { get; set; }
+
+        public OrganismMaterialSnapshot? Material { get; set; }
     }
 
     private sealed class BirdFlockSnapshot
@@ -1154,6 +1242,8 @@ public static class WorldSnapshotSerializer
         public required double LatitudeDegrees { get; set; }
 
         public required double LongitudeDegrees { get; set; }
+
+        public OrganismMaterialSnapshot? Material { get; set; }
     }
 
     private sealed class PlanetInvertebrateSnapshot
@@ -1309,6 +1399,8 @@ public static class WorldSnapshotSerializer
         public required double EnergyReserve { get; set; }
         public required double Health { get; set; }
         public required AnimalActivity Activity { get; set; }
+
+        public OrganismMaterialSnapshot? Material { get; set; }
     }
 
     private sealed class FoodResourceSnapshot
@@ -1336,6 +1428,15 @@ public static class WorldSnapshotSerializer
         public PersonActivity? Activity { get; set; }
         public long? PregnancyConceptionTimeSeconds { get; set; }
         public Guid? PregnancyFatherId { get; set; }
+
+        public OrganismMaterialSnapshot? Material { get; set; }
+    }
+
+    private sealed class OrganismMaterialSnapshot
+    {
+        public required double LiveBiomassKilograms { get; set; }
+
+        public required double LiveNitrogenKilograms { get; set; }
     }
 
     private sealed class PlanetSnapshot

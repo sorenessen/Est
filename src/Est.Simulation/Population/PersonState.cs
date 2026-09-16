@@ -1,3 +1,4 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 
 namespace Est.Simulation.Population;
@@ -14,7 +15,8 @@ public sealed record PersonState
         PersonId? parentId = null,
         PersonNeedsState? needs = null,
         PersonActivity activity = PersonActivity.Idle,
-        PregnancyState? pregnancy = null)
+        PregnancyState? pregnancy = null,
+        OrganismMaterialState? material = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -66,6 +68,11 @@ public sealed record PersonState
         Needs = needs ?? new PersonNeedsState();
         Activity = activity;
         Pregnancy = pregnancy;
+        Material =
+            material ??
+            new OrganismMaterialState(
+                liveBiomassKilograms: 0,
+                liveNitrogenKilograms: 0);
     }
 
     public PersonId Id { get; private init; }
@@ -87,6 +94,8 @@ public sealed record PersonState
     public PersonActivity Activity { get; private init; }
 
     public PregnancyState? Pregnancy { get; private init; }
+
+    public OrganismMaterialState Material { get; private init; }
 
     public double AgeYears(long currentTimeSeconds)
     {
@@ -114,7 +123,8 @@ public sealed record PersonState
             ParentId,
             needs,
             activity,
-            Pregnancy);
+            Pregnancy,
+            Material);
     }
 
     public PersonState MoveTo(
@@ -131,7 +141,8 @@ public sealed record PersonState
             ParentId,
             Needs,
             Activity,
-            Pregnancy);
+            Pregnancy,
+            Material);
     }
 
     public PersonState WithPregnancy(
@@ -149,7 +160,8 @@ public sealed record PersonState
             ParentId,
             Needs,
             Activity,
-            pregnancy);
+            pregnancy,
+            Material);
     }
 
     public PersonState WithoutPregnancy()
@@ -164,6 +176,7 @@ public sealed record PersonState
             ParentId,
             Needs,
             Activity,
-            pregnancy: null);
+            pregnancy: null,
+            material: Material);
     }
 }

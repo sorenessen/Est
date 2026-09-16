@@ -1,3 +1,4 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 
 namespace Est.Simulation.Birds;
@@ -17,7 +18,8 @@ public sealed record BirdFlockState
         PlanetId planetId,
         int memberCount,
         double latitudeDegrees,
-        double longitudeDegrees)
+        double longitudeDegrees,
+        OrganismMaterialState? material = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -70,6 +72,12 @@ public sealed record BirdFlockState
 
         LongitudeDegrees =
             longitudeDegrees;
+
+        Material =
+            material ??
+            new OrganismMaterialState(
+                liveBiomassKilograms: 0,
+                liveNitrogenKilograms: 0);
     }
 
     public BirdFlockId Id { get; }
@@ -81,4 +89,32 @@ public sealed record BirdFlockState
     public double LatitudeDegrees { get; }
 
     public double LongitudeDegrees { get; }
+
+    public OrganismMaterialState Material { get; }
+
+    public BirdFlockState WithSurvivalState(
+        int survivingMemberCount,
+        double latitudeDegrees,
+        double longitudeDegrees)
+    {
+        if (survivingMemberCount > MemberCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(survivingMemberCount),
+                "Surviving membership cannot exceed current membership.");
+        }
+
+        var retainedFraction =
+            survivingMemberCount /
+            (double)MemberCount;
+
+        return new BirdFlockState(
+            Id,
+            PlanetId,
+            survivingMemberCount,
+            latitudeDegrees,
+            longitudeDegrees,
+            Material.RetainFraction(
+                retainedFraction));
+    }
 }

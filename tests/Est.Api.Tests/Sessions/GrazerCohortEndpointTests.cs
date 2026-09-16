@@ -55,7 +55,11 @@ public sealed class GrazerCohortEndpointTests
                             MinimumInitialCohortMemberCount:
                                 1,
                             MaximumInitialCohortCount:
-                                3),
+                                3,
+                            LiveBiomassKilogramsPerGrazer:
+                                320,
+                            LiveNitrogenKilogramsPerGrazer:
+                                8),
                     GrazerModel:
                         new GrazerModelRequest
                         {
@@ -78,7 +82,11 @@ public sealed class GrazerCohortEndpointTests
                             WaterAbsenceMortalityRatePerDay =
                                 0,
                             HabitatAbsenceMortalityRatePerDay =
-                                0
+                                0,
+                            LiveBiomassKilogramsPerGrazer =
+                                300,
+                            LiveNitrogenKilogramsPerGrazer =
+                                7.5
                         })
             ]);
 
@@ -150,6 +158,14 @@ public sealed class GrazerCohortEndpointTests
             0,
             model.HabitatAbsenceMortalityRatePerDay);
 
+        Assert.Equal(
+            300,
+            model.LiveBiomassKilogramsPerGrazer);
+
+        Assert.Equal(
+            7.5,
+            model.LiveNitrogenKilogramsPerGrazer);
+
         var world =
             await client.GetFromJsonAsync<WorldResponse>(
                 $"/sessions/{created.SessionId}/world");
@@ -180,8 +196,18 @@ public sealed class GrazerCohortEndpointTests
         Assert.All(
             before.Cohorts,
             cohort =>
+            {
                 Assert.True(
-                    cohort.MemberCount > 0));
+                    cohort.MemberCount > 0);
+
+                Assert.Equal(
+                    cohort.MemberCount * 320,
+                    cohort.Material.LiveBiomassKilograms);
+
+                Assert.Equal(
+                    cohort.MemberCount * 8,
+                    cohort.Material.LiveNitrogenKilograms);
+            });
 
         var beforeById =
             before.Cohorts.ToDictionary(
@@ -244,6 +270,10 @@ public sealed class GrazerCohortEndpointTests
             Assert.Equal(
                 original.LongitudeDegrees,
                 cohort.LongitudeDegrees);
+
+            Assert.Equal(
+                original.Material,
+                cohort.Material);
         }
     }
 

@@ -183,7 +183,10 @@ public static class PlanetGrazerCohortInitializer
                         planet.Id,
                         (int)memberCount,
                         candidate.Cell.CenterLatitudeDegrees,
-                        candidate.Cell.CenterLongitudeDegrees);
+                        candidate.Cell.CenterLongitudeDegrees,
+                        material:
+                            parameters.MaterialPerGrazer.ForUnits(
+                                (int)memberCount));
                 })
             .ToArray();
     }

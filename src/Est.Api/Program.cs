@@ -151,7 +151,11 @@ app.MapPost(
                                             planet.SyntheticPopulation
                                                 .MinimumAgeYears,
                                             planet.SyntheticPopulation
-                                                .MaximumAgeYears),
+                                                .MaximumAgeYears,
+                                            planet.SyntheticPopulation
+                                                .LiveBiomassKilogramsPerPerson,
+                                            planet.SyntheticPopulation
+                                                .LiveNitrogenKilogramsPerPerson),
                                     planet.SyntheticAnimals is null
                                         ? null
                                         : new SyntheticAnimalCreationSpecification(
@@ -164,7 +168,11 @@ app.MapPost(
                                             planet.SyntheticAnimals
                                                 .CenterLongitudeDegrees,
                                             planet.SyntheticAnimals
-                                                .SpreadDegrees),
+                                                .SpreadDegrees,
+                                            planet.SyntheticAnimals
+                                                .LiveBiomassKilogramsPerWolf,
+                                            planet.SyntheticAnimals
+                                                .LiveNitrogenKilogramsPerWolf),
                                     planet.GeneratedTerrain is null
                                         ? null
                                         : new GeneratedTerrainCreationSpecification(
@@ -205,7 +213,11 @@ app.MapPost(
                                             planet.GeneratedBirds
                                                 .MinimumInitialFlockMemberCount,
                                             planet.GeneratedBirds
-                                                .MaximumInitialFlockCount),
+                                                .MaximumInitialFlockCount,
+                                            planet.GeneratedBirds
+                                                .LiveBiomassKilogramsPerBird,
+                                            planet.GeneratedBirds
+                                                .LiveNitrogenKilogramsPerBird),
                                     planet.GeneratedGrazers is null
                                         ? null
                                         : new GeneratedGrazerCreationSpecification(
@@ -216,7 +228,11 @@ app.MapPost(
                                             planet.GeneratedGrazers
                                                 .MinimumInitialCohortMemberCount,
                                             planet.GeneratedGrazers
-                                                .MaximumInitialCohortCount),
+                                                .MaximumInitialCohortCount,
+                                            planet.GeneratedGrazers
+                                                .LiveBiomassKilogramsPerGrazer,
+                                            planet.GeneratedGrazers
+                                                .LiveNitrogenKilogramsPerGrazer),
                                     planet.GeneratedBiogeochemistry is null
                                         ? null
                                         : new GeneratedBiogeochemistryCreationSpecification(
@@ -417,7 +433,13 @@ app.MapPost(
                                                 .WaterAbsenceMortalityRatePerDay,
                                         habitatAbsenceMortalityRatePerDay:
                                             planet.BirdModel
-                                                .HabitatAbsenceMortalityRatePerDay)))
+                                                .HabitatAbsenceMortalityRatePerDay,
+                                        liveBiomassKilogramsPerBird:
+                                            planet.BirdModel
+                                                .LiveBiomassKilogramsPerBird,
+                                        liveNitrogenKilogramsPerBird:
+                                            planet.BirdModel
+                                                .LiveNitrogenKilogramsPerBird)))
                     .Where(
                         model =>
                             model is not null)
@@ -462,7 +484,13 @@ app.MapPost(
                                                 .WaterAbsenceMortalityRatePerDay,
                                         habitatAbsenceMortalityRatePerDay:
                                             planet.GrazerModel
-                                                .HabitatAbsenceMortalityRatePerDay)))
+                                                .HabitatAbsenceMortalityRatePerDay,
+                                        liveBiomassKilogramsPerGrazer:
+                                            planet.GrazerModel
+                                                .LiveBiomassKilogramsPerGrazer,
+                                        liveNitrogenKilogramsPerGrazer:
+                                            planet.GrazerModel
+                                                .LiveNitrogenKilogramsPerGrazer)))
                     .Where(
                         model =>
                             model is not null)
@@ -962,7 +990,10 @@ app.MapGet(
                             flock.Id.Value,
                             flock.MemberCount,
                             flock.LatitudeDegrees,
-                            flock.LongitudeDegrees))
+                            flock.LongitudeDegrees,
+                            new OrganismMaterialResponse(
+                                flock.Material.LiveBiomassKilograms,
+                                flock.Material.LiveNitrogenKilograms)))
                 .ToArray();
 
         return Results.Ok(
@@ -1027,7 +1058,10 @@ app.MapGet(
                             cohort.Id.Value,
                             cohort.MemberCount,
                             cohort.LatitudeDegrees,
-                            cohort.LongitudeDegrees))
+                            cohort.LongitudeDegrees,
+                            new OrganismMaterialResponse(
+                                cohort.Material.LiveBiomassKilograms,
+                                cohort.Material.LiveNitrogenKilograms)))
                 .ToArray();
 
         return Results.Ok(
@@ -1620,7 +1654,10 @@ static WorldResponse ToWorldResponse(
                             ?.FatherId.Value,
                         person.Activity.ToString(),
                         person.Needs.EnergyReserve,
-                        person.Needs.Health))
+                        person.Needs.Health,
+                        new OrganismMaterialResponse(
+                            person.Material.LiveBiomassKilograms,
+                            person.Material.LiveNitrogenKilograms)))
             .ToArray(),
         world.Animals
             .Select(
@@ -1633,7 +1670,10 @@ static WorldResponse ToWorldResponse(
                         animal.LongitudeDegrees,
                         animal.EnergyReserve,
                         animal.Health,
-                        animal.Activity.ToString()))
+                        animal.Activity.ToString(),
+                        new OrganismMaterialResponse(
+                            animal.Material.LiveBiomassKilograms,
+                            animal.Material.LiveNitrogenKilograms)))
             .ToArray());
 }
 
@@ -1759,7 +1799,13 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                         model.Parameters
                             .WaterAbsenceMortalityRatePerDay,
                         model.Parameters
-                            .HabitatAbsenceMortalityRatePerDay))
+                            .HabitatAbsenceMortalityRatePerDay,
+                        model.Parameters
+                            .MaterialPerBird
+                            .LiveBiomassKilogramsPerUnit,
+                        model.Parameters
+                            .MaterialPerBird
+                            .LiveNitrogenKilogramsPerUnit))
             .ToArray(),
         definition.GrazerModels
             .Select(
@@ -1785,7 +1831,13 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                         model.Parameters
                             .WaterAbsenceMortalityRatePerDay,
                         model.Parameters
-                            .HabitatAbsenceMortalityRatePerDay))
+                            .HabitatAbsenceMortalityRatePerDay,
+                        model.Parameters
+                            .MaterialPerGrazer
+                            .LiveBiomassKilogramsPerUnit,
+                        model.Parameters
+                            .MaterialPerGrazer
+                            .LiveNitrogenKilogramsPerUnit))
             .ToArray(),
         definition.BiogeochemistryModels
             .Select(

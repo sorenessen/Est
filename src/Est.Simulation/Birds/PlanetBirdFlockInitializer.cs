@@ -183,7 +183,10 @@ public static class PlanetBirdFlockInitializer
                         planet.Id,
                         (int)memberCount,
                         candidate.Cell.CenterLatitudeDegrees,
-                        candidate.Cell.CenterLongitudeDegrees);
+                        candidate.Cell.CenterLongitudeDegrees,
+                        material:
+                            parameters.MaterialPerBird.ForUnits(
+                                (int)memberCount));
                 })
             .ToArray();
     }

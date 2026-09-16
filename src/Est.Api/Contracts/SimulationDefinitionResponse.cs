@@ -80,7 +80,9 @@ public sealed record BirdModelResponse(
     double MaximumTravelMetersPerDay,
     double FoodShortageMortalityRatePerDay,
     double WaterAbsenceMortalityRatePerDay,
-    double HabitatAbsenceMortalityRatePerDay);
+    double HabitatAbsenceMortalityRatePerDay,
+    double LiveBiomassKilogramsPerBird,
+    double LiveNitrogenKilogramsPerBird);
 
 public sealed record GrazerModelResponse(
     Guid PlanetId,
@@ -93,7 +95,9 @@ public sealed record GrazerModelResponse(
     double MaximumGrazeKilogramsPerGrazerPerDay,
     double FoodShortageMortalityRatePerDay,
     double WaterAbsenceMortalityRatePerDay,
-    double HabitatAbsenceMortalityRatePerDay);
+    double HabitatAbsenceMortalityRatePerDay,
+    double LiveBiomassKilogramsPerGrazer,
+    double LiveNitrogenKilogramsPerGrazer);
 
 public sealed record BiogeochemistryModelResponse(
     Guid PlanetId,

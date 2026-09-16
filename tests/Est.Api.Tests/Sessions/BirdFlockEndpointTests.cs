@@ -75,7 +75,11 @@ public sealed class BirdFlockEndpointTests
                             MinimumInitialFlockMemberCount:
                                 1,
                             MaximumInitialFlockCount:
-                                3),
+                                3,
+                            LiveBiomassKilogramsPerBird:
+                                0.8,
+                            LiveNitrogenKilogramsPerBird:
+                                0.02),
                     BirdModel:
                         new BirdModelRequest
                         {
@@ -96,7 +100,11 @@ public sealed class BirdFlockEndpointTests
                             WaterAbsenceMortalityRatePerDay =
                                 0,
                             HabitatAbsenceMortalityRatePerDay =
-                                0
+                                0,
+                            LiveBiomassKilogramsPerBird =
+                                0.9,
+                            LiveNitrogenKilogramsPerBird =
+                                0.0225
                         })
             ]);
 
@@ -164,6 +172,14 @@ public sealed class BirdFlockEndpointTests
             0,
             model.HabitatAbsenceMortalityRatePerDay);
 
+        Assert.Equal(
+            0.9,
+            model.LiveBiomassKilogramsPerBird);
+
+        Assert.Equal(
+            0.0225,
+            model.LiveNitrogenKilogramsPerBird);
+
         var world =
             await client.GetFromJsonAsync<WorldResponse>(
                 $"/sessions/{created.SessionId}/world");
@@ -194,8 +210,18 @@ public sealed class BirdFlockEndpointTests
         Assert.All(
             before.Flocks,
             flock =>
+            {
                 Assert.True(
-                    flock.MemberCount > 0));
+                    flock.MemberCount > 0);
+
+                Assert.Equal(
+                    flock.MemberCount * 0.8,
+                    flock.Material.LiveBiomassKilograms);
+
+                Assert.Equal(
+                    flock.MemberCount * 0.02,
+                    flock.Material.LiveNitrogenKilograms);
+            });
 
         var beforeById =
             before.Flocks.ToDictionary(
@@ -257,6 +283,10 @@ public sealed class BirdFlockEndpointTests
             Assert.Equal(
                 original.LongitudeDegrees,
                 flock.LongitudeDegrees);
+
+            Assert.Equal(
+                original.Material,
+                flock.Material);
         }
     }
 

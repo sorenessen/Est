@@ -1,3 +1,4 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 
 namespace Est.Simulation.Animals;
@@ -12,7 +13,8 @@ public sealed record AnimalState
         double longitudeDegrees,
         double energyReserve = 1,
         double health = 1,
-        AnimalActivity activity = AnimalActivity.Idle)
+        AnimalActivity activity = AnimalActivity.Idle,
+        OrganismMaterialState? material = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -68,6 +70,11 @@ public sealed record AnimalState
         EnergyReserve = energyReserve;
         Health = health;
         Activity = activity;
+        Material =
+            material ??
+            new OrganismMaterialState(
+                liveBiomassKilograms: 0,
+                liveNitrogenKilograms: 0);
     }
 
     public AnimalId Id { get; private init; }
@@ -86,6 +93,8 @@ public sealed record AnimalState
 
     public AnimalActivity Activity { get; private init; }
 
+    public OrganismMaterialState Material { get; private init; }
+
     public AnimalState WithState(
         double latitudeDegrees,
         double longitudeDegrees,
@@ -101,6 +110,7 @@ public sealed record AnimalState
             longitudeDegrees,
             Math.Clamp(energyReserve, 0, 1),
             Math.Clamp(health, 0, 1),
-            activity);
+            activity,
+            Material);
     }
 }

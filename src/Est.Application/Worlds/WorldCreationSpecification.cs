@@ -40,14 +40,18 @@ public sealed record GeneratedBirdCreationSpecification(
         0.000001,
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialFlockMemberCount = 10,
-    int MaximumInitialFlockCount = 64);
+    int MaximumInitialFlockCount = 64,
+    double LiveBiomassKilogramsPerBird = 1,
+    double LiveNitrogenKilogramsPerBird = 0.025);
 
 public sealed record GeneratedGrazerCreationSpecification(
     double CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
         0.000001,
     double InitialFractionOfLocalCarryingCapacity = 0.25,
     int MinimumInitialCohortMemberCount = 10,
-    int MaximumInitialCohortCount = 64);
+    int MaximumInitialCohortCount = 64,
+    double LiveBiomassKilogramsPerGrazer = 250,
+    double LiveNitrogenKilogramsPerGrazer = 6.25);
 
 public sealed record GeneratedBiogeochemistryCreationSpecification(
     double InitialDetritalBiomassKilogramsPerSquareMeter = 0,
@@ -61,14 +65,18 @@ public sealed record SyntheticPopulationCreationSpecification(
     double CenterLongitudeDegrees,
     double SpreadDegrees,
     double MinimumAgeYears = 18,
-    double MaximumAgeYears = 35);
+    double MaximumAgeYears = 35,
+    double LiveBiomassKilogramsPerPerson = 70,
+    double LiveNitrogenKilogramsPerPerson = 1.75);
 
 public sealed record SyntheticAnimalCreationSpecification(
     int WolfCount,
     int Seed,
     double CenterLatitudeDegrees,
     double CenterLongitudeDegrees,
-    double SpreadDegrees);
+    double SpreadDegrees,
+    double LiveBiomassKilogramsPerWolf = 40,
+    double LiveNitrogenKilogramsPerWolf = 1);
 
 public sealed record PlanetEnvironmentCreationSpecification(
     double MeanSurfaceTemperatureKelvin,

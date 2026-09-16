@@ -42,7 +42,11 @@ public sealed class TimelineArchiveBirdModelTests
                 waterAbsenceMortalityRatePerDay:
                     0.31,
                 habitatAbsenceMortalityRatePerDay:
-                    0.04);
+                    0.04,
+                liveBiomassKilogramsPerBird:
+                    0.75,
+                liveNitrogenKilogramsPerBird:
+                    0.01875);
 
         var definition =
             new SimulationDefinition(
@@ -71,6 +75,65 @@ public sealed class TimelineArchiveBirdModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFifteenDefaultsBirdMaterialComposition()
+    {
+        var fixture =
+            CreateFixture();
+
+        var definition =
+            new SimulationDefinition(
+                birdModels:
+                [
+                    new BirdModelDefinition(
+                        fixture.Planet.Id,
+                        new BirdModelParameters(
+                            liveBiomassKilogramsPerBird:
+                                0.75,
+                            liveNitrogenKilogramsPerBird:
+                                0.01875))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] =
+            15;
+
+        var parameters =
+            node["definition"]!
+                .AsObject()["birdModels"]!
+                .AsArray()[0]!["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "liveBiomassKilogramsPerBird");
+
+        parameters.Remove(
+            "liveNitrogenKilogramsPerBird");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.BirdModels)
+                .Parameters;
+
+        var defaults =
+            new BirdModelParameters();
+
+        Assert.Equal(
+            defaults.MaterialPerBird,
+            restoredParameters.MaterialPerBird);
     }
 
     [Fact]

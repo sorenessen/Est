@@ -1968,7 +1968,20 @@ public sealed class SessionEndpointTests
                         42,
                         0,
                         25,
-                        3))
+                        3,
+                        LiveBiomassKilogramsPerPerson:
+                            82,
+                        LiveNitrogenKilogramsPerPerson:
+                            2.05),
+                    SyntheticAnimals:
+                        new SyntheticAnimalCreationRequest(
+                            WolfCount: 3,
+                            Seed: 84,
+                            CenterLatitudeDegrees: 0,
+                            CenterLongitudeDegrees: 25,
+                            SpreadDegrees: 3,
+                            LiveBiomassKilogramsPerWolf: 46,
+                            LiveNitrogenKilogramsPerWolf: 1.15))
             ]);
 
         var createResponse =
@@ -2042,6 +2055,39 @@ public sealed class SessionEndpointTests
                 Assert.Equal(
                     1,
                     person.Health);
+
+                Assert.Equal(
+                    82,
+                    person.Material.LiveBiomassKilograms);
+
+                Assert.Equal(
+                    2.05,
+                    person.Material.LiveNitrogenKilograms);
+            });
+
+        Assert.Equal(
+            3,
+            world.Animals.Length);
+
+        Assert.All(
+            world.Animals,
+            animal =>
+            {
+                Assert.Equal(
+                    planet.PlanetId,
+                    animal.PlanetId);
+
+                Assert.Equal(
+                    "Wolf",
+                    animal.Species);
+
+                Assert.Equal(
+                    46,
+                    animal.Material.LiveBiomassKilograms);
+
+                Assert.Equal(
+                    1.15,
+                    animal.Material.LiveNitrogenKilograms);
             });
 
         var populationModel =

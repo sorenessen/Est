@@ -1,3 +1,4 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Animals;
 using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
@@ -406,7 +407,13 @@ public static class WorldFactory
                         .MinimumInitialCohortMemberCount,
                 maximumInitialCohortCount:
                     specification
-                        .MaximumInitialCohortCount);
+                        .MaximumInitialCohortCount,
+                liveBiomassKilogramsPerGrazer:
+                    specification
+                        .LiveBiomassKilogramsPerGrazer,
+                liveNitrogenKilogramsPerGrazer:
+                    specification
+                        .LiveNitrogenKilogramsPerGrazer);
 
         return PlanetGrazerCohortInitializer
             .FromVegetationSupport(
@@ -478,7 +485,13 @@ public static class WorldFactory
                         .MinimumInitialFlockMemberCount,
                 maximumInitialFlockCount:
                     specification
-                        .MaximumInitialFlockCount);
+                        .MaximumInitialFlockCount,
+                liveBiomassKilogramsPerBird:
+                    specification
+                        .LiveBiomassKilogramsPerBird,
+                liveNitrogenKilogramsPerBird:
+                    specification
+                        .LiveNitrogenKilogramsPerBird);
 
         return PlanetBirdFlockInitializer
             .FromInvertebrateSupport(
@@ -500,6 +513,11 @@ public static class WorldFactory
 
         var random =
             new Random(specification.Seed);
+
+        var materialPerWolf =
+            new OrganismMaterialComposition(
+                specification.LiveBiomassKilogramsPerWolf,
+                specification.LiveNitrogenKilogramsPerWolf);
 
         var animals =
             new AnimalState[specification.WolfCount];
@@ -542,7 +560,9 @@ public static class WorldFactory
                     longitude,
                     energyReserve: 0.35,
                     health: 1,
-                    activity: AnimalActivity.Hunting);
+                    activity: AnimalActivity.Hunting,
+                    material:
+                        materialPerWolf.ForUnits(1));
         }
 
         return animals;
@@ -561,6 +581,11 @@ public static class WorldFactory
 
         var random =
             new Random(specification.Seed);
+
+        var materialPerPerson =
+            new OrganismMaterialComposition(
+                specification.LiveBiomassKilogramsPerPerson,
+                specification.LiveNitrogenKilogramsPerPerson);
 
         var population =
             new PersonState[specification.FounderCount];
@@ -611,7 +636,9 @@ public static class WorldFactory
                         : PersonSex.Male,
                     birthTimeSeconds,
                     latitude,
-                    longitude);
+                    longitude,
+                    material:
+                        materialPerPerson.ForUnits(1));
         }
 
         return population;

@@ -8,4 +8,5 @@ public sealed record BirdFlockResponse(
     Guid FlockId,
     int MemberCount,
     double LatitudeDegrees,
-    double LongitudeDegrees);
+    double LongitudeDegrees,
+    OrganismMaterialResponse Material);

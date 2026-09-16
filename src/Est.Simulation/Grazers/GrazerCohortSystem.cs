@@ -131,10 +131,7 @@ public sealed class GrazerCohortSystem
                 .Select(
                     cohort =>
                         new RuntimeCohort(
-                            cohort.Id,
-                            cohort.LatitudeDegrees,
-                            cohort.LongitudeDegrees,
-                            cohort.MemberCount))
+                            cohort))
                 .ToList();
 
         var initialCohortCount =
@@ -397,9 +394,7 @@ public sealed class GrazerCohortSystem
             cohorts
                 .Select(
                     cohort =>
-                        new GrazerCohortState(
-                            cohort.Id,
-                            _planetId,
+                        cohort.Source.WithSurvivalState(
                             checked(
                                 (int)Math.Floor(
                                     cohort.MemberCount)),
@@ -792,23 +787,28 @@ public sealed class GrazerCohortSystem
     private sealed class RuntimeCohort
     {
         public RuntimeCohort(
-            GrazerCohortId id,
-            double latitudeDegrees,
-            double longitudeDegrees,
-            double memberCount)
+            GrazerCohortState source)
         {
+            ArgumentNullException.ThrowIfNull(
+                source);
+
+            Source =
+                source;
+
             Id =
-                id;
+                source.Id;
 
             LatitudeDegrees =
-                latitudeDegrees;
+                source.LatitudeDegrees;
 
             LongitudeDegrees =
-                longitudeDegrees;
+                source.LongitudeDegrees;
 
             MemberCount =
-                memberCount;
+                source.MemberCount;
         }
+
+        public GrazerCohortState Source { get; }
 
         public GrazerCohortId Id { get; }
 
