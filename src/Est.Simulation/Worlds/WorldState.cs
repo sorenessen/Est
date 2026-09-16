@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Est.Simulation.Animals;
 using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -41,6 +42,7 @@ public sealed record WorldState
             null,
             null,
             null,
+            null,
             null)
     {
     }
@@ -55,7 +57,8 @@ public sealed record WorldState
         IEnumerable<PlanetHydrologyState>? hydrology = null,
         IEnumerable<PlanetVegetationState>? vegetation = null,
         IEnumerable<PlanetInvertebrateState>? invertebrates = null,
-        IEnumerable<BirdFlockState>? birdFlocks = null)
+        IEnumerable<BirdFlockState>? birdFlocks = null,
+        IEnumerable<GrazerCohortState>? grazerCohorts = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -85,6 +88,9 @@ public sealed record WorldState
 
         var birdFlockArray =
             (birdFlocks ?? []).ToImmutableArray();
+
+        var grazerCohortArray =
+            (grazerCohorts ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -214,6 +220,28 @@ public sealed record WorldState
                 nameof(birdFlocks));
         }
 
+        if (grazerCohortArray.Any(
+                cohort =>
+                    cohort is null))
+        {
+            throw new ArgumentException(
+                "World grazer cohorts cannot contain null entries.",
+                nameof(grazerCohorts));
+        }
+
+        if (grazerCohortArray
+            .GroupBy(
+                cohort =>
+                    cohort.Id)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain duplicate grazer cohort identities.",
+                nameof(grazerCohorts));
+        }
+
         if (animalArray
             .GroupBy(animal => animal.Id)
             .Any(group => group.Count() > 1))
@@ -262,6 +290,16 @@ public sealed record WorldState
             throw new ArgumentException(
                 "Every bird flock must belong to a planet in the world.",
                 nameof(birdFlocks));
+        }
+
+        if (grazerCohortArray.Any(
+                cohort =>
+                    !planetIds.Contains(
+                        cohort.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every grazer cohort must belong to a planet in the world.",
+                nameof(grazerCohorts));
         }
 
         foreach (var terrainState in terrainArray)
@@ -429,6 +467,7 @@ public sealed record WorldState
         Vegetation = vegetationArray;
         Invertebrates = invertebrateArray;
         BirdFlocks = birdFlockArray;
+        GrazerCohorts = grazerCohortArray;
     }
 
     public WorldId Id { get; private init; }
@@ -475,6 +514,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<GrazerCohortState> GrazerCohorts
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -495,7 +540,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState Fork()
@@ -510,7 +556,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplacePopulation(
@@ -528,7 +575,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceAnimals(
@@ -546,7 +594,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceTerrain(
@@ -564,7 +613,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceHydrology(
@@ -583,7 +633,8 @@ public sealed record WorldState
             hydrology,
             Vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceVegetation(
@@ -602,7 +653,8 @@ public sealed record WorldState
             Hydrology,
             vegetation,
             Invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceInvertebrates(
@@ -621,7 +673,8 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             invertebrates,
-            BirdFlocks);
+            BirdFlocks,
+            GrazerCohorts);
     }
 
     public WorldState ReplaceBirdFlocks(
@@ -640,7 +693,28 @@ public sealed record WorldState
             Hydrology,
             Vegetation,
             Invertebrates,
-            birdFlocks);
+            birdFlocks,
+            GrazerCohorts);
+    }
+
+    public WorldState ReplaceGrazerCohorts(
+        IEnumerable<GrazerCohortState> grazerCohorts)
+    {
+        ArgumentNullException.ThrowIfNull(
+            grazerCohorts);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            Invertebrates,
+            BirdFlocks,
+            grazerCohorts);
     }
 
     public WorldState AddPlanet(PlanetState planet)

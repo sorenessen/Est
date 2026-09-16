@@ -1,24 +1,24 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Est.Persistence.Snapshots;
-using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Planets;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
 namespace Est.Persistence.Tests.Snapshots;
 
-public sealed class WorldSnapshotBirdFlockTests
+public sealed class WorldSnapshotGrazerCohortTests
 {
     [Fact]
-    public void RoundTrip_PreservesBirdFlocks()
+    public void RoundTrip_PreservesGrazerCohorts()
     {
         var planet =
             CreatePlanet();
 
-        var flock =
-            new BirdFlockState(
-                BirdFlockId.New(),
+        var cohort =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
                 planet.Id,
                 275,
                 41.25,
@@ -31,9 +31,9 @@ public sealed class WorldSnapshotBirdFlockTests
                     123),
                 [planet],
                 [],
-                birdFlocks:
+                grazerCohorts:
                 [
-                    flock
+                    cohort
                 ]);
 
         var json =
@@ -50,13 +50,13 @@ public sealed class WorldSnapshotBirdFlockTests
                 json);
 
         Assert.Equal(
-            flock,
+            cohort,
             Assert.Single(
-                restored.BirdFlocks));
+                restored.GrazerCohorts));
     }
 
     [Fact]
-    public void Deserialize_VersionTwelveGetsEmptyBirdFlocks()
+    public void Deserialize_VersionThirteenGetsEmptyGrazerCohorts()
     {
         var node =
             JsonNode.Parse(
@@ -64,21 +64,21 @@ public sealed class WorldSnapshotBirdFlockTests
                     CreateWorld()))!
                 .AsObject();
 
-        node["schemaVersion"] = 12;
+        node["schemaVersion"] = 13;
 
         node.Remove(
-            "birdFlocks");
+            "grazerCohorts");
 
         var restored =
             WorldSnapshotSerializer.Deserialize(
                 node.ToJsonString());
 
         Assert.Empty(
-            restored.BirdFlocks);
+            restored.GrazerCohorts);
     }
 
     [Fact]
-    public void Deserialize_VersionThirteenRequiresBirdFlocks()
+    public void Deserialize_VersionFourteenRequiresGrazerCohorts()
     {
         var node =
             JsonNode.Parse(
@@ -87,7 +87,7 @@ public sealed class WorldSnapshotBirdFlockTests
                 .AsObject();
 
         node.Remove(
-            "birdFlocks");
+            "grazerCohorts");
 
         Assert.Throws<JsonException>(
             () =>
@@ -111,7 +111,7 @@ public sealed class WorldSnapshotBirdFlockTests
     {
         return new PlanetState(
             PlanetId.New(),
-            "Bird Snapshot World",
+            "Grazer Snapshot World",
             5.0e24,
             6_000_000,
             new PlanetEnvironment(

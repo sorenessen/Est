@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
 using Est.Simulation.Birds;
+using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -15,7 +16,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 13;
+    public const int CurrentSchemaVersion = 14;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -29,6 +30,7 @@ public static class WorldSnapshotSerializer
     private const int FoodRetirementSchemaVersion = 11;
     private const int InvertebrateSchemaVersion = 12;
     private const int BirdFlockSchemaVersion = 13;
+    private const int GrazerCohortSchemaVersion = 14;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -71,6 +73,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             BirdFlocks = world.BirdFlocks
                 .Select(ToSnapshot)
+                .ToArray(),
+            GrazerCohorts = world.GrazerCohorts
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -106,6 +111,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != VegetationSchemaVersion &&
             snapshot.SchemaVersion != FoodRetirementSchemaVersion &&
             snapshot.SchemaVersion != InvertebrateSchemaVersion &&
+            snapshot.SchemaVersion != BirdFlockSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -316,6 +322,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        GrazerCohortState[] grazerCohorts;
+
+        if (snapshot.SchemaVersion <
+            GrazerCohortSchemaVersion)
+        {
+            grazerCohorts = [];
+        }
+        else
+        {
+            if (snapshot.GrazerCohorts is null)
+            {
+                throw new JsonException(
+                    "Snapshot grazer cohort collection is required.");
+            }
+
+            grazerCohorts = snapshot.GrazerCohorts
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -326,7 +352,8 @@ public static class WorldSnapshotSerializer
             hydrology,
             vegetation,
             invertebrates,
-            birdFlocks);
+            birdFlocks,
+            grazerCohorts);
     }
 
     private static BirdFlockSnapshot ToSnapshot(
@@ -353,6 +380,37 @@ public static class WorldSnapshotSerializer
         return new BirdFlockState(
             new BirdFlockId(
                 snapshot.BirdFlockId),
+            new PlanetId(
+                snapshot.PlanetId),
+            snapshot.MemberCount,
+            snapshot.LatitudeDegrees,
+            snapshot.LongitudeDegrees);
+    }
+
+    private static GrazerCohortSnapshot ToSnapshot(
+        GrazerCohortState cohort)
+    {
+        return new GrazerCohortSnapshot
+        {
+            GrazerCohortId =
+                cohort.Id.Value,
+            PlanetId =
+                cohort.PlanetId.Value,
+            MemberCount =
+                cohort.MemberCount,
+            LatitudeDegrees =
+                cohort.LatitudeDegrees,
+            LongitudeDegrees =
+                cohort.LongitudeDegrees
+        };
+    }
+
+    private static GrazerCohortState FromSnapshot(
+        GrazerCohortSnapshot snapshot)
+    {
+        return new GrazerCohortState(
+            new GrazerCohortId(
+                snapshot.GrazerCohortId),
             new PlanetId(
                 snapshot.PlanetId),
             snapshot.MemberCount,
@@ -924,6 +982,20 @@ public static class WorldSnapshotSerializer
         public PlanetVegetationSnapshot[]? Vegetation { get; set; }
         public PlanetInvertebrateSnapshot[]? Invertebrates { get; set; }
         public BirdFlockSnapshot[]? BirdFlocks { get; set; }
+        public GrazerCohortSnapshot[]? GrazerCohorts { get; set; }
+    }
+
+    private sealed class GrazerCohortSnapshot
+    {
+        public required Guid GrazerCohortId { get; set; }
+
+        public required Guid PlanetId { get; set; }
+
+        public required int MemberCount { get; set; }
+
+        public required double LatitudeDegrees { get; set; }
+
+        public required double LongitudeDegrees { get; set; }
     }
 
     private sealed class BirdFlockSnapshot
