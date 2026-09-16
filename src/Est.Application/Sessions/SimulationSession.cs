@@ -163,6 +163,22 @@ public sealed class SimulationSession
                             new WolfPredatorSystem(
                                 planetId));
 
+        var wolfReproductionSystems =
+            timeline.CurrentWorld.Animals
+                .Where(
+                    animal =>
+                        animal.Species ==
+                        AnimalSpecies.Wolf)
+                .Select(
+                    animal =>
+                        animal.PlanetId)
+                .Distinct()
+                .Select(
+                    planetId =>
+                        (ICausalSystem)
+                            new WolfReproductionSystem(
+                                planetId));
+
         var reproductionSystems =
             definition.PopulationModels
                 .Select(
@@ -191,6 +207,7 @@ public sealed class SimulationSession
                 .Concat(grazerSystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
+                .Concat(wolfReproductionSystems)
                 .Concat(reproductionSystems)
                 .Concat(populationSystems)
                 .ToArray();
