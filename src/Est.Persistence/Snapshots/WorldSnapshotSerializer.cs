@@ -18,7 +18,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 16;
+    public const int CurrentSchemaVersion = 17;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -35,6 +35,7 @@ public static class WorldSnapshotSerializer
     private const int GrazerCohortSchemaVersion = 14;
     private const int BiogeochemistrySchemaVersion = 15;
     private const int OrganismMaterialSchemaVersion = 16;
+    private const int AnimalLifecycleSchemaVersion = 17;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -121,6 +122,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != BirdFlockSchemaVersion &&
             snapshot.SchemaVersion != GrazerCohortSchemaVersion &&
             snapshot.SchemaVersion != BiogeochemistrySchemaVersion &&
+            snapshot.SchemaVersion != OrganismMaterialSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -231,7 +233,8 @@ public static class WorldSnapshotSerializer
                     animal =>
                         FromSnapshot(
                             animal,
-                            snapshot.SchemaVersion))
+                            snapshot.SchemaVersion,
+                            snapshot.CurrentTimeSeconds))
                 .ToArray();
         }
 
@@ -831,14 +834,37 @@ public static class WorldSnapshotSerializer
             Activity = animal.Activity,
             Material =
                 ToSnapshot(
-                    animal.Material)
+                    animal.Material),
+            BirthTimeSeconds =
+                animal.BirthTimeSeconds,
+            ParentId =
+                animal.ParentId?.Value
         };
     }
 
     private static AnimalState FromSnapshot(
         AnimalSnapshot snapshot,
-        int schemaVersion)
+        int schemaVersion,
+        long currentTimeSeconds)
     {
+        const long legacyFounderAgeSeconds =
+            4L * 31_536_000L;
+
+        var birthTimeSeconds =
+            schemaVersion >=
+                AnimalLifecycleSchemaVersion
+                ? snapshot.BirthTimeSeconds
+                    ?? throw new JsonException(
+                        "Animal birth time is required.")
+                : checked(
+                    currentTimeSeconds -
+                    legacyFounderAgeSeconds);
+
+        AnimalId? parentId =
+            snapshot.ParentId is Guid parentIdValue
+                ? new AnimalId(parentIdValue)
+                : null;
+
         return new AnimalState(
             new AnimalId(snapshot.AnimalId),
             new PlanetId(snapshot.PlanetId),
@@ -850,7 +876,9 @@ public static class WorldSnapshotSerializer
             snapshot.Activity,
             FromMaterialSnapshot(
                 snapshot.Material,
-                schemaVersion));
+                schemaVersion),
+            birthTimeSeconds,
+            parentId);
     }
 
     private static void ValidateLegacyFoodResource(
@@ -1401,6 +1429,10 @@ public static class WorldSnapshotSerializer
         public required AnimalActivity Activity { get; set; }
 
         public OrganismMaterialSnapshot? Material { get; set; }
+
+        public long? BirthTimeSeconds { get; set; }
+
+        public Guid? ParentId { get; set; }
     }
 
     private sealed class FoodResourceSnapshot

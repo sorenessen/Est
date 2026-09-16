@@ -76,7 +76,9 @@ public sealed record SyntheticAnimalCreationSpecification(
     double CenterLongitudeDegrees,
     double SpreadDegrees,
     double LiveBiomassKilogramsPerWolf = 40,
-    double LiveNitrogenKilogramsPerWolf = 1);
+    double LiveNitrogenKilogramsPerWolf = 1,
+    double MinimumAgeYears = 2,
+    double MaximumAgeYears = 6);
 
 public sealed record PlanetEnvironmentCreationSpecification(
     double MeanSurfaceTemperatureKelvin,

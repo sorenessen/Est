@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Animals;
+using Est.Simulation.Organisms;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -364,7 +365,12 @@ public class WorldSnapshotSerializerTests
                 -45.25,
                 energyReserve: 0.42,
                 health: 0.73,
-                activity: AnimalActivity.Traveling);
+                activity: AnimalActivity.Traveling,
+                birthTimeSeconds: -126_144_000,
+                parentId:
+                    new AnimalId(
+                        Guid.Parse(
+                            "00000000-0000-0000-0000-000000000202")));
 
         var world =
             new WorldState(
@@ -381,6 +387,96 @@ public class WorldSnapshotSerializerTests
         Assert.Equal(
             wolf,
             Assert.Single(restored.Animals));
+    }
+
+    [Fact]
+    public void Deserialize_VersionSixteenBackfillsAdultWolfLifecycle()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var currentTime =
+            new SimulationTime(
+                10 * 31_536_000L);
+
+        var wolf =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 12.5,
+                longitudeDegrees: -45.25,
+                material:
+                    new OrganismMaterialState(
+                        40,
+                        1),
+                birthTimeSeconds:
+                    8 * 31_536_000L);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                currentTime,
+                [planet],
+                [],
+                [wolf]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 16;
+
+        var animal =
+            node["animals"]!
+                .AsArray()[0]!
+                .AsObject();
+
+        animal.Remove(
+            "birthTimeSeconds");
+
+        animal.Remove(
+            "parentId");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredWolf =
+            Assert.Single(
+                restored.Animals);
+
+        Assert.Equal(
+            4,
+            restoredWolf.AgeYears(
+                restored.CurrentTime.TotalSeconds),
+            precision: 10);
+
+        Assert.Null(
+            restoredWolf.ParentId);
+
+        Assert.Equal(
+            40,
+            restoredWolf.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            restoredWolf.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
     }
 
     [Fact]
@@ -874,7 +970,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 16",
+            $"\"schemaVersion\": {WorldSnapshotSerializer.CurrentSchemaVersion}",
             json,
             StringComparison.Ordinal);
 
@@ -970,7 +1066,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 16",
+            $"\"schemaVersion\": {WorldSnapshotSerializer.CurrentSchemaVersion}",
             json,
             StringComparison.Ordinal);
 
@@ -1118,7 +1214,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 16",
+            $"\"schemaVersion\": {WorldSnapshotSerializer.CurrentSchemaVersion}",
             json,
             StringComparison.Ordinal);
 
@@ -1238,7 +1334,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 16",
+            $"\"schemaVersion\": {WorldSnapshotSerializer.CurrentSchemaVersion}",
             json,
             StringComparison.Ordinal);
 

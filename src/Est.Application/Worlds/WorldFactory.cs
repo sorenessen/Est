@@ -514,6 +514,12 @@ public static class WorldFactory
         var random =
             new Random(specification.Seed);
 
+        var ageRandom =
+            new Random(
+                unchecked(
+                    specification.Seed ^
+                    0x574F4C46));
+
         var materialPerWolf =
             new OrganismMaterialComposition(
                 specification.LiveBiomassKilogramsPerWolf,
@@ -550,6 +556,18 @@ public static class WorldFactory
             var idBytes = new byte[16];
             random.NextBytes(idBytes);
 
+            var ageYears =
+                specification.MinimumAgeYears +
+                ageRandom.NextDouble() *
+                (specification.MaximumAgeYears -
+                 specification.MinimumAgeYears);
+
+            var birthTimeSeconds =
+                -checked(
+                    (long)Math.Round(
+                        ageYears *
+                        SecondsPerYear));
+
             animals[index] =
                 new AnimalState(
                     new AnimalId(
@@ -562,7 +580,9 @@ public static class WorldFactory
                     health: 1,
                     activity: AnimalActivity.Hunting,
                     material:
-                        materialPerWolf.ForUnits(1));
+                        materialPerWolf.ForUnits(1),
+                    birthTimeSeconds:
+                        birthTimeSeconds);
         }
 
         return animals;
@@ -678,6 +698,21 @@ public static class WorldFactory
         {
             throw new ArgumentOutOfRangeException(
                 nameof(specification.SpreadDegrees));
+        }
+
+        if (!double.IsFinite(specification.MinimumAgeYears) ||
+            specification.MinimumAgeYears < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(specification.MinimumAgeYears));
+        }
+
+        if (!double.IsFinite(specification.MaximumAgeYears) ||
+            specification.MaximumAgeYears <
+                specification.MinimumAgeYears)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(specification.MaximumAgeYears));
         }
     }
 

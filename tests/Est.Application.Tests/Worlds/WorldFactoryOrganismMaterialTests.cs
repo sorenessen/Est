@@ -134,6 +134,15 @@ public sealed class WorldFactoryOrganismMaterialTests
                 Assert.Equal(
                     wolfNitrogenKilograms,
                     wolf.Material.LiveNitrogenKilograms);
+
+                Assert.InRange(
+                    wolf.AgeYears(
+                        world.CurrentTime.TotalSeconds),
+                    2,
+                    6);
+
+                Assert.Null(
+                    wolf.ParentId);
             });
 
         Assert.NotEmpty(

@@ -41,7 +41,7 @@ public sealed class WorldSnapshotGrazerCohortTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 16",
+            $"\"schemaVersion\": {WorldSnapshotSerializer.CurrentSchemaVersion}",
             json,
             StringComparison.Ordinal);
 

@@ -14,7 +14,9 @@ public sealed record AnimalState
         double energyReserve = 1,
         double health = 1,
         AnimalActivity activity = AnimalActivity.Idle,
-        OrganismMaterialState? material = null)
+        OrganismMaterialState? material = null,
+        long birthTimeSeconds = 0,
+        AnimalId? parentId = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -62,6 +64,14 @@ public sealed record AnimalState
                 nameof(health));
         }
 
+        if (parentId is not null &&
+            parentId.Value.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Parent identity cannot be empty.",
+                nameof(parentId));
+        }
+
         Id = id;
         PlanetId = planetId;
         Species = species;
@@ -75,6 +85,8 @@ public sealed record AnimalState
             new OrganismMaterialState(
                 liveBiomassKilograms: 0,
                 liveNitrogenKilograms: 0);
+        BirthTimeSeconds = birthTimeSeconds;
+        ParentId = parentId;
     }
 
     public AnimalId Id { get; private init; }
@@ -95,6 +107,20 @@ public sealed record AnimalState
 
     public OrganismMaterialState Material { get; private init; }
 
+    public long BirthTimeSeconds { get; private init; }
+
+    public AnimalId? ParentId { get; private init; }
+
+    public double AgeYears(long currentTimeSeconds)
+    {
+        const double secondsPerYear = 31_536_000d;
+
+        return OrganismLifecycleClock.AgeSeconds(
+                   BirthTimeSeconds,
+                   currentTimeSeconds)
+               / secondsPerYear;
+    }
+
     public AnimalState WithState(
         double latitudeDegrees,
         double longitudeDegrees,
@@ -111,6 +137,8 @@ public sealed record AnimalState
             Math.Clamp(energyReserve, 0, 1),
             Math.Clamp(health, 0, 1),
             activity,
-            Material);
+            Material,
+            BirthTimeSeconds,
+            ParentId);
     }
 }
