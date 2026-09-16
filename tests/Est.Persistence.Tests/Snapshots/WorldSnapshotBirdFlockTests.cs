@@ -41,7 +41,7 @@ public sealed class WorldSnapshotBirdFlockTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 

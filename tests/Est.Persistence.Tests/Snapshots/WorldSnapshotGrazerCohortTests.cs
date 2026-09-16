@@ -41,7 +41,7 @@ public sealed class WorldSnapshotGrazerCohortTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 
@@ -85,6 +85,8 @@ public sealed class WorldSnapshotGrazerCohortTests
                 WorldSnapshotSerializer.Serialize(
                     CreateWorld()))!
                 .AsObject();
+
+        node["schemaVersion"] = 14;
 
         node.Remove(
             "grazerCohorts");

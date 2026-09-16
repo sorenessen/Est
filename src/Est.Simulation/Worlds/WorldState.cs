@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Est.Simulation.Animals;
 using Est.Simulation.Birds;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -58,7 +59,8 @@ public sealed record WorldState
         IEnumerable<PlanetVegetationState>? vegetation = null,
         IEnumerable<PlanetInvertebrateState>? invertebrates = null,
         IEnumerable<BirdFlockState>? birdFlocks = null,
-        IEnumerable<GrazerCohortState>? grazerCohorts = null)
+        IEnumerable<GrazerCohortState>? grazerCohorts = null,
+        IEnumerable<PlanetBiogeochemistryState>? biogeochemistry = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -91,6 +93,9 @@ public sealed record WorldState
 
         var grazerCohortArray =
             (grazerCohorts ?? []).ToImmutableArray();
+
+        var biogeochemistryArray =
+            (biogeochemistry ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -240,6 +245,28 @@ public sealed record WorldState
             throw new ArgumentException(
                 "World cannot contain duplicate grazer cohort identities.",
                 nameof(grazerCohorts));
+        }
+
+        if (biogeochemistryArray.Any(
+                state =>
+                    state is null))
+        {
+            throw new ArgumentException(
+                "World biogeochemistry cannot contain null entries.",
+                nameof(biogeochemistry));
+        }
+
+        if (biogeochemistryArray
+            .GroupBy(
+                state =>
+                    state.PlanetId)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain more than one biogeochemistry state for a planet.",
+                nameof(biogeochemistry));
         }
 
         if (animalArray
@@ -457,6 +484,61 @@ public sealed record WorldState
                 planet);
         }
 
+        foreach (var biogeochemistryState in biogeochemistryArray)
+        {
+            var planet =
+                planetArray.SingleOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        biogeochemistryState.PlanetId);
+
+            if (planet is null)
+            {
+                throw new ArgumentException(
+                    "Every biogeochemistry state must belong to a planet in the world.",
+                    nameof(biogeochemistry));
+            }
+
+            var terrainState =
+                terrainArray.SingleOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        biogeochemistryState.PlanetId);
+
+            if (terrainState is null)
+            {
+                throw new ArgumentException(
+                    "Biogeochemistry requires terrain for the same planet.",
+                    nameof(biogeochemistry));
+            }
+
+            var hydrologyState =
+                hydrologyArray.SingleOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        biogeochemistryState.PlanetId);
+
+            if (hydrologyState is null)
+            {
+                throw new ArgumentException(
+                    "Biogeochemistry requires hydrology for the same planet.",
+                    nameof(biogeochemistry));
+            }
+
+            if (biogeochemistryState.GridDefinition !=
+                    terrainState.GridDefinition ||
+                biogeochemistryState.GridDefinition !=
+                    hydrologyState.GridDefinition)
+            {
+                throw new ArgumentException(
+                    "Biogeochemistry, terrain, and hydrology must use the same surface-grid definition.",
+                    nameof(biogeochemistry));
+            }
+
+            biogeochemistryState.ValidateFor(
+                planet);
+        }
+
         Id = id;
         CurrentTime = currentTime;
         Planets = planetArray;
@@ -468,6 +550,7 @@ public sealed record WorldState
         Invertebrates = invertebrateArray;
         BirdFlocks = birdFlockArray;
         GrazerCohorts = grazerCohortArray;
+        Biogeochemistry = biogeochemistryArray;
     }
 
     public WorldId Id { get; private init; }
@@ -520,6 +603,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<PlanetBiogeochemistryState> Biogeochemistry
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -541,7 +630,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState Fork()
@@ -557,7 +647,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplacePopulation(
@@ -576,7 +667,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceAnimals(
@@ -595,7 +687,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceTerrain(
@@ -614,7 +707,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceHydrology(
@@ -634,7 +728,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceVegetation(
@@ -654,7 +749,8 @@ public sealed record WorldState
             vegetation,
             Invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceInvertebrates(
@@ -674,7 +770,8 @@ public sealed record WorldState
             Vegetation,
             invertebrates,
             BirdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceBirdFlocks(
@@ -694,7 +791,8 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             birdFlocks,
-            GrazerCohorts);
+            GrazerCohorts,
+            Biogeochemistry);
     }
 
     public WorldState ReplaceGrazerCohorts(
@@ -714,7 +812,29 @@ public sealed record WorldState
             Vegetation,
             Invertebrates,
             BirdFlocks,
-            grazerCohorts);
+            grazerCohorts,
+            Biogeochemistry);
+    }
+
+    public WorldState ReplaceBiogeochemistry(
+        IEnumerable<PlanetBiogeochemistryState> biogeochemistry)
+    {
+        ArgumentNullException.ThrowIfNull(
+            biogeochemistry);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            Invertebrates,
+            BirdFlocks,
+            GrazerCohorts,
+            biogeochemistry);
     }
 
     public WorldState AddPlanet(PlanetState planet)

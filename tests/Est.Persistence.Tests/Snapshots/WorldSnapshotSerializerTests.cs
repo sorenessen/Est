@@ -874,7 +874,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 
@@ -970,7 +970,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 
@@ -1118,7 +1118,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 
@@ -1238,7 +1238,7 @@ public class WorldSnapshotSerializerTests
                 world);
 
         Assert.Contains(
-            "\"schemaVersion\": 14",
+            "\"schemaVersion\": 15",
             json,
             StringComparison.Ordinal);
 

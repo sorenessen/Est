@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Simulation.Animals;
 using Est.Simulation.Birds;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -16,7 +17,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 14;
+    public const int CurrentSchemaVersion = 15;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -31,6 +32,7 @@ public static class WorldSnapshotSerializer
     private const int InvertebrateSchemaVersion = 12;
     private const int BirdFlockSchemaVersion = 13;
     private const int GrazerCohortSchemaVersion = 14;
+    private const int BiogeochemistrySchemaVersion = 15;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -76,6 +78,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             GrazerCohorts = world.GrazerCohorts
                 .Select(ToSnapshot)
+                .ToArray(),
+            Biogeochemistry = world.Biogeochemistry
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -112,6 +117,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != FoodRetirementSchemaVersion &&
             snapshot.SchemaVersion != InvertebrateSchemaVersion &&
             snapshot.SchemaVersion != BirdFlockSchemaVersion &&
+            snapshot.SchemaVersion != GrazerCohortSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -342,6 +348,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetBiogeochemistryState[] biogeochemistry;
+
+        if (snapshot.SchemaVersion <
+            BiogeochemistrySchemaVersion)
+        {
+            biogeochemistry = [];
+        }
+        else
+        {
+            if (snapshot.Biogeochemistry is null)
+            {
+                throw new JsonException(
+                    "Snapshot biogeochemistry collection is required.");
+            }
+
+            biogeochemistry = snapshot.Biogeochemistry
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -353,7 +379,8 @@ public static class WorldSnapshotSerializer
             vegetation,
             invertebrates,
             birdFlocks,
-            grazerCohorts);
+            grazerCohorts,
+            biogeochemistry);
     }
 
     private static BirdFlockSnapshot ToSnapshot(
@@ -416,6 +443,79 @@ public static class WorldSnapshotSerializer
             snapshot.MemberCount,
             snapshot.LatitudeDegrees,
             snapshot.LongitudeDegrees);
+    }
+
+    private static PlanetBiogeochemistrySnapshot ToSnapshot(
+        PlanetBiogeochemistryState biogeochemistry)
+    {
+        return new PlanetBiogeochemistrySnapshot
+        {
+            PlanetId =
+                biogeochemistry.PlanetId.Value,
+            GridDefinition =
+                new SurfaceGridDefinitionSnapshot
+                {
+                    Kind =
+                        biogeochemistry.GridDefinition.Kind,
+                    IdentityVersion =
+                        biogeochemistry.GridDefinition.IdentityVersion,
+                    LatitudeBandCount =
+                        biogeochemistry.GridDefinition.LatitudeBandCount,
+                    LongitudeBandCount =
+                        biogeochemistry.GridDefinition.LongitudeBandCount
+                },
+            Cells = biogeochemistry.Cells
+                .Select(
+                    cell =>
+                        new BiogeochemistryCellSnapshot
+                        {
+                            SurfaceCellId =
+                                cell.CellId.Value,
+                            DetritalBiomassKilogramsPerSquareMeter =
+                                cell.DetritalBiomassKilogramsPerSquareMeter,
+                            DetritalNitrogenKilogramsPerSquareMeter =
+                                cell.DetritalNitrogenKilogramsPerSquareMeter,
+                            PlantAvailableNitrogenKilogramsPerSquareMeter =
+                                cell.PlantAvailableNitrogenKilogramsPerSquareMeter
+                        })
+                .ToArray()
+        };
+    }
+
+    private static PlanetBiogeochemistryState FromSnapshot(
+        PlanetBiogeochemistrySnapshot snapshot)
+    {
+        if (snapshot.GridDefinition is null)
+        {
+            throw new JsonException(
+                "Biogeochemistry surface-grid definition is required.");
+        }
+
+        if (snapshot.Cells is null)
+        {
+            throw new JsonException(
+                "Biogeochemistry cells collection is required.");
+        }
+
+        var gridDefinition =
+            new SurfaceGridDefinition(
+                snapshot.GridDefinition.Kind,
+                snapshot.GridDefinition.IdentityVersion,
+                snapshot.GridDefinition.LatitudeBandCount,
+                snapshot.GridDefinition.LongitudeBandCount);
+
+        return new PlanetBiogeochemistryState(
+            new PlanetId(
+                snapshot.PlanetId),
+            gridDefinition,
+            snapshot.Cells.Select(
+                cell =>
+                    new BiogeochemistryCellState(
+                        new SurfaceCellId(
+                            cell.SurfaceCellId),
+                        cell.DetritalBiomassKilogramsPerSquareMeter,
+                        cell.DetritalNitrogenKilogramsPerSquareMeter,
+                        cell.PlantAvailableNitrogenKilogramsPerSquareMeter)));
     }
 
     private static PlanetInvertebrateSnapshot ToSnapshot(
@@ -983,6 +1083,51 @@ public static class WorldSnapshotSerializer
         public PlanetInvertebrateSnapshot[]? Invertebrates { get; set; }
         public BirdFlockSnapshot[]? BirdFlocks { get; set; }
         public GrazerCohortSnapshot[]? GrazerCohorts { get; set; }
+        public PlanetBiogeochemistrySnapshot[]? Biogeochemistry { get; set; }
+    }
+
+    private sealed class PlanetBiogeochemistrySnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SurfaceGridDefinitionSnapshot
+            GridDefinition
+        {
+            get;
+            set;
+        }
+
+        public required BiogeochemistryCellSnapshot[] Cells
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class BiogeochemistryCellSnapshot
+    {
+        public required Guid SurfaceCellId { get; set; }
+
+        public required double
+            DetritalBiomassKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            DetritalNitrogenKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            PlantAvailableNitrogenKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class GrazerCohortSnapshot

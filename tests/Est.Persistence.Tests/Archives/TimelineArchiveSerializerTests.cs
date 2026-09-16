@@ -5,6 +5,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -421,6 +422,151 @@ public class TimelineArchiveSerializerTests
 
                 Assert.True(
                     invertebrates.Cells.SequenceEqual(
+                        restoredCheckpoint.Cells));
+            });
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesBiogeochemistryInCurrentWorldAndCheckpoints()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Biogeochemistry World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new TerrainCellState(
+                            cell.Id,
+                            index)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            1,
+                            0,
+                            100,
+                            0)));
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    (cell, index) =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            1 + index * 0.01,
+                            0.03 + index * 0.001,
+                            0.01 + index * 0.0005)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                terrain:
+                [
+                    terrain
+                ],
+                hydrology:
+                [
+                    hydrology
+                ],
+                biogeochemistry:
+                [
+                    biogeochemistry
+                ]);
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var step =
+            new SimulationStepResult(
+                world.AdvanceBy(
+                    60),
+                new SimulationChange(
+                    new AdvanceTimeOperation(
+                        0),
+                    "biogeochemistry-test-step",
+                    "Biogeochemistry persistence test.",
+                    planet.Id,
+                    60));
+
+        timeline =
+            timeline
+                .RecordStep(
+                    step)
+                .CreateCheckpoint();
+
+        var restored =
+            RoundTrip(
+                timeline);
+
+        var restoredCurrent =
+            Assert.Single(
+                restored.Timeline
+                    .CurrentWorld
+                    .Biogeochemistry);
+
+        Assert.Equal(
+            biogeochemistry.PlanetId,
+            restoredCurrent.PlanetId);
+
+        Assert.Equal(
+            biogeochemistry.GridDefinition,
+            restoredCurrent.GridDefinition);
+
+        Assert.True(
+            biogeochemistry.Cells.SequenceEqual(
+                restoredCurrent.Cells));
+
+        Assert.All(
+            restored.Timeline.Checkpoints,
+            checkpoint =>
+            {
+                var restoredCheckpoint =
+                    Assert.Single(
+                        checkpoint.World.Biogeochemistry);
+
+                Assert.Equal(
+                    biogeochemistry.PlanetId,
+                    restoredCheckpoint.PlanetId);
+
+                Assert.Equal(
+                    biogeochemistry.GridDefinition,
+                    restoredCheckpoint.GridDefinition);
+
+                Assert.True(
+                    biogeochemistry.Cells.SequenceEqual(
                         restoredCheckpoint.Cells));
             });
     }
