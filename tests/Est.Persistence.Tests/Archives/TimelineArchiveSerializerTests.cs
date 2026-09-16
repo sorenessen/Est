@@ -1125,7 +1125,9 @@ public class TimelineArchiveSerializerTests
                 temperatureLapseRateKelvinPerMeter:
                     0.006,
                 plantNitrogenKilogramsPerKilogramLiveBiomass:
-                    0.025);
+                    0.025,
+                baselineMortalityRatePerDay:
+                    0.03);
 
         var definition =
             new SimulationDefinition(
@@ -1154,6 +1156,77 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionFourteenDefaultsPlantMortalityToZero()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            CreateTimelineWithVegetationAndBiogeochemistry(
+                planet);
+
+        var definition =
+            new SimulationDefinition(
+                vegetationModels:
+                [
+                    new VegetationModelDefinition(
+                        planet.Id,
+                        new VegetationModelParameters(
+                            plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                0.025,
+                            baselineMortalityRatePerDay:
+                                0.03))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()))!
+            .AsObject();
+
+        node["schemaVersion"] =
+            14;
+
+        node["definition"]!
+            ["vegetationModels"]!
+            .AsArray()[0]!
+            ["parameters"]!
+            .AsObject()
+            .Remove(
+                "baselineMortalityRatePerDay");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var model =
+            Assert.Single(
+                restored.Definition
+                    .VegetationModels);
+
+        Assert.Equal(
+            0.025,
+            model.Parameters
+                .PlantNitrogenKilogramsPerKilogramLiveBiomass);
+
+        Assert.Equal(
+            0,
+            model.Parameters
+                .BaselineMortalityRatePerDay);
     }
 
     [Fact]

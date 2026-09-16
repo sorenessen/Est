@@ -18,8 +18,9 @@ namespace Est.Simulation.Vegetation;
 /// authoritative plant-available nitrogen and consumes it atomically with
 /// biomass production.
 ///
-/// Zero biomass remains zero. Colonization, seed dispersal, mortality, and
-/// species structure remain later ecological systems.
+/// Configured baseline plant mortality transfers dead biomass and its implied
+/// tissue nitrogen into authoritative detrital pools. Zero biomass remains zero.
+/// Colonization, seed dispersal, and species structure remain later systems.
 /// </summary>
 public sealed class VegetationSystem
     : ICausalSystem
@@ -190,6 +191,12 @@ public sealed class VegetationSystem
         var totalNitrogenUptakeMass =
             0d;
 
+        var totalMortalityBiomassMass =
+            0d;
+
+        var totalMortalityNitrogenMass =
+            0d;
+
         var integrationSubsteps =
             0;
 
@@ -291,7 +298,18 @@ public sealed class VegetationSystem
                             .CarryingCapacityKilogramsPerSquareMeter -
                         biomass);
 
+                var mortalityLoss =
+                    Math.Min(
+                        biomass,
+                        biomass *
+                        _parameters
+                            .BaselineMortalityRatePerDay *
+                        elapsedDays);
+
                 var nitrogenUptake =
+                    0d;
+
+                var mortalityNitrogen =
                     0d;
 
                 if (plantNitrogenRatio is not null)
@@ -318,25 +336,42 @@ public sealed class VegetationSystem
                         growth *
                         plantNitrogenRatio.Value;
 
+                    mortalityNitrogen =
+                        mortalityLoss *
+                        plantNitrogenRatio.Value;
+
                     nextBiogeochemistryCells![
                         biogeochemistryIndex] =
                         new BiogeochemistryCellState(
                             biogeochemistryCell.CellId,
                             biogeochemistryCell
-                                .DetritalBiomassKilogramsPerSquareMeter,
+                                .DetritalBiomassKilogramsPerSquareMeter +
+                            mortalityLoss,
                             biogeochemistryCell
-                                .DetritalNitrogenKilogramsPerSquareMeter,
+                                .DetritalNitrogenKilogramsPerSquareMeter +
+                            mortalityNitrogen,
                             Math.Max(
                                 0,
                                 biogeochemistryCell
                                     .PlantAvailableNitrogenKilogramsPerSquareMeter -
                                 nitrogenUptake));
 
-                    totalNitrogenUptakeMass +=
-                        nitrogenUptake *
+                    var surfaceArea =
                         surfaceCellsById[
                             cell.CellId]
                         .AreaSquareMeters;
+
+                    totalNitrogenUptakeMass +=
+                        nitrogenUptake *
+                        surfaceArea;
+
+                    totalMortalityBiomassMass +=
+                        mortalityLoss *
+                        surfaceArea;
+
+                    totalMortalityNitrogenMass +=
+                        mortalityNitrogen *
+                        surfaceArea;
                 }
 
                 var nextBiomass =
@@ -344,7 +379,8 @@ public sealed class VegetationSystem
                         _parameters
                             .CarryingCapacityKilogramsPerSquareMeter,
                         biomass +
-                        growth);
+                        growth -
+                        mortalityLoss);
 
                 nextCells[index] =
                     new VegetationCellState(
@@ -419,6 +455,10 @@ public sealed class VegetationSystem
                     finalAvailableNitrogenMass,
                 ["nitrogenUptakeMassKilograms"] =
                     totalNitrogenUptakeMass,
+                ["plantMortalityBiomassKilograms"] =
+                    totalMortalityBiomassMass,
+                ["plantMortalityNitrogenKilograms"] =
+                    totalMortalityNitrogenMass,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });

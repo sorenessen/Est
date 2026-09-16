@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 14;
+    public const int CurrentSchemaVersion = 15;
+    private const int VegetationMortalitySchemaVersion = 15;
     private const int VegetationNitrogenCouplingSchemaVersion = 14;
     private const int BiogeochemistryModelSchemaVersion = 13;
     private const int GrazerBehaviorSchemaVersion = 12;
@@ -127,6 +128,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != GrazerBehaviorSchemaVersion &&
             archive.SchemaVersion != BiogeochemistryModelSchemaVersion &&
             archive.SchemaVersion != VegetationNitrogenCouplingSchemaVersion &&
+            archive.SchemaVersion != VegetationMortalitySchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -480,7 +482,10 @@ public static class TimelineArchiveSerializer
                                                 .TemperatureLapseRateKelvinPerMeter,
                                         PlantNitrogenKilogramsPerKilogramLiveBiomass =
                                             model.Parameters
-                                                .PlantNitrogenKilogramsPerKilogramLiveBiomass
+                                                .PlantNitrogenKilogramsPerKilogramLiveBiomass,
+                                        BaselineMortalityRatePerDay =
+                                            model.Parameters
+                                                .BaselineMortalityRatePerDay
                                     }
                             })
                     .ToArray(),
@@ -860,7 +865,14 @@ public static class TimelineArchiveSerializer
                                         VegetationNitrogenCouplingSchemaVersion
                                         ? null
                                         : model.Parameters
-                                            .PlantNitrogenKilogramsPerKilogramLiveBiomass));
+                                            .PlantNitrogenKilogramsPerKilogramLiveBiomass,
+                                    schemaVersion <
+                                        VegetationMortalitySchemaVersion
+                                        ? 0
+                                        : model.Parameters
+                                            .BaselineMortalityRatePerDay
+                                          ?? throw new JsonException(
+                                              "Vegetation baseline mortality rate is required.")));
                         })
                     .ToArray();
         }
@@ -1536,6 +1548,12 @@ public static class TimelineArchiveSerializer
         }
 
         public double? PlantNitrogenKilogramsPerKilogramLiveBiomass
+        {
+            get;
+            set;
+        }
+
+        public double? BaselineMortalityRatePerDay
         {
             get;
             set;

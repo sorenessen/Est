@@ -6,8 +6,9 @@ namespace Est.Simulation.Vegetation;
 /// Growth is limited by available soil water, temperature suitability, and
 /// remaining carrying capacity. Optional plant-tissue nitrogen policy also
 /// allows growth to consume and respond to authoritative available nitrogen.
-/// Regional climate, species composition, mortality, and decomposition remain
-/// later layers.
+/// Plant mortality can transfer live biomass and its implied tissue nitrogen
+/// into authoritative detrital pools. Regional climate, species composition,
+/// and detailed mortality structure remain later layers.
 /// </summary>
 public sealed record VegetationModelParameters
 {
@@ -20,7 +21,8 @@ public sealed record VegetationModelParameters
         double optimumGrowthTemperatureKelvin = 293.15,
         double maximumGrowthTemperatureKelvin = 313.15,
         double temperatureLapseRateKelvinPerMeter = 0.0065,
-        double? plantNitrogenKilogramsPerKilogramLiveBiomass = null)
+        double? plantNitrogenKilogramsPerKilogramLiveBiomass = null,
+        double baselineMortalityRatePerDay = 0)
     {
         if (maximumIntegrationStepSeconds <= 0)
         {
@@ -62,6 +64,18 @@ public sealed record VegetationModelParameters
             ValidatePositiveFinite(
                 plantNitrogenKilogramsPerKilogramLiveBiomass.Value,
                 nameof(plantNitrogenKilogramsPerKilogramLiveBiomass));
+        }
+
+        ValidateNonnegativeFinite(
+            baselineMortalityRatePerDay,
+            nameof(baselineMortalityRatePerDay));
+
+        if (baselineMortalityRatePerDay > 0 &&
+            plantNitrogenKilogramsPerKilogramLiveBiomass is null)
+        {
+            throw new ArgumentException(
+                "Plant mortality requires an explicit plant-tissue nitrogen ratio so dead biomass and nitrogen can enter detritus together.",
+                nameof(baselineMortalityRatePerDay));
         }
 
         if (optimumGrowthTemperatureKelvin <=
@@ -106,6 +120,9 @@ public sealed record VegetationModelParameters
 
         PlantNitrogenKilogramsPerKilogramLiveBiomass =
             plantNitrogenKilogramsPerKilogramLiveBiomass;
+
+        BaselineMortalityRatePerDay =
+            baselineMortalityRatePerDay;
     }
 
     public long MaximumIntegrationStepSeconds { get; }
@@ -132,6 +149,8 @@ public sealed record VegetationModelParameters
     {
         get;
     }
+
+    public double BaselineMortalityRatePerDay { get; }
 
     private static void ValidateNonnegativeFinite(
         double value,
