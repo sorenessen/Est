@@ -50,11 +50,21 @@ export interface AnimalResponse {
   animalId: string
   planetId: string
   species: string
+  birthTimeSeconds: number
+  parentId: string | null
+  sex: string | null
+  isPregnant: boolean
+  pregnancyConceptionTimeSeconds: number | null
+  pregnancyFatherId: string | null
   latitudeDegrees: number
   longitudeDegrees: number
   energyReserve: number
   health: number
   activity: string
+  material: {
+    liveBiomassKilograms: number
+    liveNitrogenKilograms: number
+  }
 }
 
 export interface WorldResponse {

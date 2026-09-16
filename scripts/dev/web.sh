@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 PORT=5173
-PAGE_URL="http://localhost:${PORT}/cesium.html"
+PAGE_URL="http://localhost:${PORT}/"
 
 web_is_healthy() {
     local response

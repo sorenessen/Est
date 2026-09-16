@@ -48,7 +48,7 @@ payload='{
         "recoveryEnergyPerDay": 0.03
       },
       "syntheticAnimals": {
-        "wolfCount": 1,
+        "wolfCount": 8,
         "seed": 126,
         "centerLatitudeDegrees": 0,
         "centerLongitudeDegrees": 25,
@@ -81,7 +81,7 @@ session_id="$(
         python3 -c 'import json,sys; print(json.load(sys.stdin)["sessionId"])'
 )"
 
-url="${WEB_URL}/cesium.html?session=${session_id}"
+url="${WEB_URL}/?session=${session_id}&focus=fauna"
 
 echo "Created Est Earth session: $session_id"
 echo "Opening: $url"

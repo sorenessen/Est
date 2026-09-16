@@ -1666,6 +1666,18 @@ static WorldResponse ToWorldResponse(
                         animal.Id.Value,
                         animal.PlanetId.Value,
                         animal.Species.ToString(),
+                        animal.BirthTimeSeconds,
+                        animal.ParentId?.Value,
+                        animal.WolfLifecycle
+                            ?.Sex.ToString(),
+                        animal.WolfLifecycle
+                            ?.Pregnancy is not null,
+                        animal.WolfLifecycle
+                            ?.Pregnancy
+                            ?.ConceptionTimeSeconds,
+                        animal.WolfLifecycle
+                            ?.Pregnancy
+                            ?.FatherId.Value,
                         animal.LatitudeDegrees,
                         animal.LongitudeDegrees,
                         animal.EnergyReserve,

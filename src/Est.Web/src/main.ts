@@ -5,6 +5,7 @@ import {
   Color3,
   Color4,
   DirectionalLight,
+  DynamicTexture,
   Engine,
   Mesh,
   Scene,
@@ -21,6 +22,10 @@ import {
 import {
   CreateIcoSphereVertexData,
 } from '@babylonjs/core/Meshes/Builders/icoSphereBuilder.js'
+
+import {
+  CreatePlane,
+} from '@babylonjs/core/Meshes/Builders/planeBuilder.js'
 
 import {
   EstApi,
@@ -66,6 +71,7 @@ app.innerHTML = `
     <span>R4 · procedural terrain materials</span>
     <span id="terrainStatus">preparing terrain…</span>
     <span id="lodStatus">building spherical terrain…</span>
+    <span id="faunaStatus">fauna symbols waiting for simulation session…</span>
     <span>drag to orbit · wheel to zoom</span>
   </div>
 `
@@ -220,6 +226,11 @@ const terrainStatus =
     '#terrainStatus',
   )
 
+const faunaStatus =
+  document.querySelector<HTMLSpanElement>(
+    '#faunaStatus',
+  )
+
 interface SphereDirection {
   readonly x: number
   readonly y: number
@@ -240,6 +251,340 @@ let terrainSurfaceMaterial:
 // Maximum radial extent of geometry that the camera must preserve.
 // The unit sphere is the fallback when no simulation session is active.
 let maximumPlanetRenderRadius = 1
+
+const wolfAdultSymbolUrl =
+  new URL(
+    './assets/fauna/wolf-adult.svg',
+    import.meta.url,
+  ).href
+
+const wolfPupSymbolUrl =
+  new URL(
+    './assets/fauna/wolf-pup.svg',
+    import.meta.url,
+  ).href
+
+const maleBadgeSymbolUrl =
+  new URL(
+    './assets/fauna/badge-male.svg',
+    import.meta.url,
+  ).href
+
+const femaleBadgeSymbolUrl =
+  new URL(
+    './assets/fauna/badge-female.svg',
+    import.meta.url,
+  ).href
+
+const pregnantBadgeSymbolUrl =
+  new URL(
+    './assets/fauna/badge-pregnant.svg',
+    import.meta.url,
+  ).href
+
+function geographicDegreesToSphereDirection(
+  latitudeDegrees: number,
+  longitudeDegrees: number,
+): Vector3 {
+  const degreesToRadians =
+    Math.PI / 180
+
+  const latitudeRadians =
+    latitudeDegrees *
+    degreesToRadians
+
+  const longitudeRadians =
+    longitudeDegrees *
+    degreesToRadians
+
+  const cosLatitude =
+    Math.cos(latitudeRadians)
+
+  return new Vector3(
+    cosLatitude *
+      Math.cos(longitudeRadians),
+    cosLatitude *
+      Math.sin(longitudeRadians),
+    Math.sin(latitudeRadians),
+  )
+}
+
+function createFaunaSymbolMaterial(
+  name: string,
+  _url: string,
+): StandardMaterial {
+  const material =
+    new StandardMaterial(
+      name,
+      scene,
+    )
+
+  const texture =
+    new DynamicTexture(
+      `${name}-texture`,
+      {
+        width: 128,
+        height: 128,
+      },
+      scene,
+      false,
+    )
+
+  const context =
+    texture.getContext()
+
+  const isAdultWolf =
+    name ===
+    'wolf-adult-symbol-material'
+
+  const isPup =
+    name ===
+    'wolf-pup-symbol-material'
+
+  const isFemaleBadge =
+    name ===
+    'wolf-female-badge-material'
+
+  const isMaleBadge =
+    name ===
+    'wolf-male-badge-material'
+
+  const isPregnantBadge =
+    name ===
+    'wolf-pregnant-badge-material'
+
+  if (
+    isAdultWolf ||
+    isPup
+  ) {
+    context.clearRect(
+      0,
+      0,
+      128,
+      128,
+    )
+
+    context.fillStyle =
+      isPup
+        ? '#dbeafe'
+        : '#ffffff'
+
+    /*
+     * High-contrast symbolic wolf head.
+     * This deliberately uses no external image/SVG decoding.
+     */
+    context.beginPath()
+
+    context.moveTo(
+      24,
+      40,
+    )
+
+    context.lineTo(
+      36,
+      10,
+    )
+
+    context.lineTo(
+      53,
+      34,
+    )
+
+    context.lineTo(
+      75,
+      34,
+    )
+
+    context.lineTo(
+      92,
+      10,
+    )
+
+    context.lineTo(
+      104,
+      40,
+    )
+
+    context.lineTo(
+      94,
+      86,
+    )
+
+    context.lineTo(
+      64,
+      116,
+    )
+
+    context.lineTo(
+      34,
+      86,
+    )
+
+    context.closePath()
+    context.fill()
+
+    context.fillStyle =
+      '#111827'
+
+    context.beginPath()
+
+    context.arc(
+      49,
+      61,
+      5,
+      0,
+      Math.PI * 2,
+    )
+
+    context.arc(
+      79,
+      61,
+      5,
+      0,
+      Math.PI * 2,
+    )
+
+    context.fill()
+
+    context.beginPath()
+
+    context.moveTo(
+      55,
+      87,
+    )
+
+    context.lineTo(
+      73,
+      87,
+    )
+
+    context.lineTo(
+      64,
+      99,
+    )
+
+    context.closePath()
+    context.fill()
+  } else {
+    context.clearRect(
+      0,
+      0,
+      128,
+      128,
+    )
+
+    context.fillStyle =
+      isFemaleBadge
+        ? '#db2777'
+        : isMaleBadge
+          ? '#2563eb'
+          : isPregnantBadge
+            ? '#d97706'
+            : '#475569'
+
+    context.beginPath()
+
+    context.arc(
+      64,
+      64,
+      54,
+      0,
+      Math.PI * 2,
+    )
+
+    context.fill()
+
+    context.strokeStyle =
+      '#ffffff'
+
+    context.lineWidth =
+      8
+
+    context.stroke()
+
+    context.fillStyle =
+      '#ffffff'
+
+    context.font =
+      'bold 82px sans-serif'
+
+    context.textAlign =
+      'center'
+
+    context.textBaseline =
+      'middle'
+
+    context.fillText(
+      isFemaleBadge
+        ? 'F'
+        : isMaleBadge
+          ? 'M'
+          : isPregnantBadge
+            ? 'P'
+            : '?',
+      64,
+      68,
+    )
+  }
+
+  texture.hasAlpha =
+    true
+
+  texture.update()
+
+  material.diffuseTexture =
+    texture
+
+  material.emissiveTexture =
+    texture
+
+  material.useAlphaFromDiffuseTexture =
+    true
+
+  material.emissiveColor =
+    Color3.White()
+
+  material.specularColor =
+    Color3.Black()
+
+  material.disableLighting =
+    true
+
+  material.backFaceCulling =
+    false
+
+  return material
+}
+
+const wolfAdultSymbolMaterial =
+  createFaunaSymbolMaterial(
+    'wolf-adult-symbol-material',
+    wolfAdultSymbolUrl,
+  )
+
+const wolfPupSymbolMaterial =
+  createFaunaSymbolMaterial(
+    'wolf-pup-symbol-material',
+    wolfPupSymbolUrl,
+  )
+
+const maleBadgeSymbolMaterial =
+  createFaunaSymbolMaterial(
+    'wolf-male-badge-material',
+    maleBadgeSymbolUrl,
+  )
+
+const femaleBadgeSymbolMaterial =
+  createFaunaSymbolMaterial(
+    'wolf-female-badge-material',
+    femaleBadgeSymbolUrl,
+  )
+
+const pregnantBadgeSymbolMaterial =
+  createFaunaSymbolMaterial(
+    'wolf-pregnant-badge-material',
+    pregnantBadgeSymbolUrl,
+  )
 
 if (sessionId) {
   const api =
@@ -391,13 +736,274 @@ if (sessionId) {
       )
     }
 
+  const wolfJuvenileDisplayAgeSeconds =
+    180 * 86_400
+
+  const wolfSymbolRadialLift =
+    0.006
+
+  const visibleWolves =
+    world.animals.filter(
+      animal =>
+        animal.planetId ===
+          planet.planetId &&
+        animal.species === 'Wolf',
+    )
+
+  const faunaFocusRequested =
+    new URLSearchParams(
+      window.location.search,
+    ).get('focus') === 'fauna'
+
+  if (
+    faunaFocusRequested &&
+    visibleWolves.length > 0
+  ) {
+    const focusWolf =
+      visibleWolves[0]
+
+    const focusDirection =
+      geographicDegreesToSphereDirection(
+        focusWolf.latitudeDegrees,
+        focusWolf.longitudeDegrees,
+      )
+
+    camera.setPosition(
+      focusDirection.scale(
+        3.2,
+      ),
+    )
+  }
+
+  const createBillboardPlane = (
+    name: string,
+    material: StandardMaterial,
+    position: Vector3,
+    size: number,
+  ): Mesh => {
+    const plane =
+      CreatePlane(
+        name,
+        {
+          width: size,
+          height: size,
+          sideOrientation:
+            Mesh.DOUBLESIDE,
+        },
+        scene,
+      )
+
+    plane.position =
+      position
+
+    plane.material =
+      material
+
+    plane.billboardMode =
+      Mesh.BILLBOARDMODE_ALL
+
+    plane.isPickable =
+      false
+
+    plane.renderingGroupId =
+      2
+
+    return plane
+  }
+
+  for (const wolf of visibleWolves) {
+    const direction =
+      geographicDegreesToSphereDirection(
+        wolf.latitudeDegrees,
+        wolf.longitudeDegrees,
+      )
+
+    const terrainOffset =
+      terrainRadialOffset(
+        direction,
+      )
+
+    const symbolRadius =
+      1 +
+      terrainOffset +
+      wolfSymbolRadialLift
+
+    const position =
+      direction.scale(
+        symbolRadius,
+      )
+
+    const ageSeconds =
+      Math.max(
+        0,
+        world.currentTimeSeconds -
+          wolf.birthTimeSeconds,
+      )
+
+    const isJuvenile =
+      ageSeconds <
+      wolfJuvenileDisplayAgeSeconds
+
+    const wolfSize =
+      isJuvenile
+        ? 0.022
+        : 0.030
+
+    createBillboardPlane(
+      `wolf-${wolf.animalId}`,
+      isJuvenile
+        ? wolfPupSymbolMaterial
+        : wolfAdultSymbolMaterial,
+      position,
+      wolfSize,
+    )
+
+    const longitudeRadians =
+      wolf.longitudeDegrees *
+      Math.PI / 180
+
+    const latitudeRadians =
+      wolf.latitudeDegrees *
+      Math.PI / 180
+
+    const east =
+      new Vector3(
+        -Math.sin(
+          longitudeRadians,
+        ),
+        Math.cos(
+          longitudeRadians,
+        ),
+        0,
+      )
+
+    const north =
+      new Vector3(
+        -Math.sin(
+          latitudeRadians,
+        ) *
+          Math.cos(
+            longitudeRadians,
+          ),
+        -Math.sin(
+          latitudeRadians,
+        ) *
+          Math.sin(
+            longitudeRadians,
+          ),
+        Math.cos(
+          latitudeRadians,
+        ),
+      )
+
+    const badgeRadius =
+      symbolRadius +
+      0.0015
+
+    const badgeBase =
+      direction.scale(
+        badgeRadius,
+      )
+
+    const badgeOffset =
+      isJuvenile
+        ? 0.018
+        : 0.024
+
+    const sexMaterial =
+      wolf.sex === 'Male'
+        ? maleBadgeSymbolMaterial
+        : wolf.sex === 'Female'
+          ? femaleBadgeSymbolMaterial
+          : undefined
+
+    if (sexMaterial) {
+      const sexPosition =
+        badgeBase
+          .add(
+            east.scale(
+              -badgeOffset,
+            ),
+          )
+          .add(
+            north.scale(
+              badgeOffset,
+            ),
+          )
+
+      createBillboardPlane(
+        `wolf-${wolf.animalId}-sex`,
+        sexMaterial,
+        sexPosition,
+        isJuvenile
+          ? 0.010
+          : 0.012,
+      )
+    }
+
+    if (wolf.isPregnant) {
+      const pregnancyPosition =
+        badgeBase
+          .add(
+            east.scale(
+              badgeOffset,
+            ),
+          )
+          .add(
+            north.scale(
+              badgeOffset,
+            ),
+          )
+
+      createBillboardPlane(
+        `wolf-${wolf.animalId}-pregnant`,
+        pregnantBadgeSymbolMaterial,
+        pregnancyPosition,
+        0.013,
+      )
+    }
+  }
+
+  if (faunaStatus) {
+    const adultWolfCount =
+      visibleWolves.filter(
+        wolf =>
+          Math.max(
+            0,
+            world.currentTimeSeconds -
+              wolf.birthTimeSeconds,
+          ) >=
+          wolfJuvenileDisplayAgeSeconds,
+      ).length
+
+    const juvenileWolfCount =
+      visibleWolves.length -
+      adultWolfCount
+
+    const pregnantWolfCount =
+      visibleWolves.filter(
+        wolf =>
+          wolf.isPregnant,
+      ).length
+
+    faunaStatus.textContent =
+      `wolves · ${visibleWolves.length} visible · ${adultWolfCount} adult · ${juvenileWolfCount} pup · ${pregnantWolfCount} pregnant${faunaFocusRequested ? ' · FAUNA FOCUS' : ''}`
+  }
+
   if (terrainStatus) {
     terrainStatus.textContent =
       `authoritative terrain · ${terrain.cells.length.toLocaleString()} cells · ${minimumElevationMeters.toFixed(0)} to ${maximumElevationMeters.toFixed(0)} m`
   }
-} else if (terrainStatus) {
-  terrainStatus.textContent =
-    'unit sphere · no simulation session selected'
+} else {
+  if (terrainStatus) {
+    terrainStatus.textContent =
+      'unit sphere · no simulation session selected'
+  }
+
+  if (faunaStatus) {
+    faunaStatus.textContent =
+      'fauna symbols · no simulation session selected'
+  }
 }
 
 // One immutable spherical planet.
