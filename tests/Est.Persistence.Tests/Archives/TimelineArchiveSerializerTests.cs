@@ -733,6 +733,9 @@ public class TimelineArchiveSerializerTests
             JsonNode.Parse(json)!
                 .AsObject();
 
+        node["schemaVersion"] =
+            13;
+
         node["definition"]!
             .AsObject()
             .Remove(
@@ -1100,11 +1103,8 @@ public class TimelineArchiveSerializerTests
                     AtmosphereState.Vacuum));
 
         var timeline =
-            SimulationTimeline.Create(
-                new WorldState(
-                    WorldId.New(),
-                    SimulationTime.Zero,
-                    [planet]));
+            CreateTimelineWithVegetationAndBiogeochemistry(
+                planet);
 
         var parameters =
             new VegetationModelParameters(
@@ -1123,7 +1123,9 @@ public class TimelineArchiveSerializerTests
                 maximumGrowthTemperatureKelvin:
                     315,
                 temperatureLapseRateKelvinPerMeter:
-                    0.006);
+                    0.006,
+                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                    0.025);
 
         var definition =
             new SimulationDefinition(
@@ -1152,6 +1154,69 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionThirteenDefaultsPlantNitrogenCouplingToNull()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            CreateTimelineWithVegetationAndBiogeochemistry(
+                planet);
+
+        var definition =
+            new SimulationDefinition(
+                vegetationModels:
+                [
+                    new VegetationModelDefinition(
+                        planet.Id,
+                        new VegetationModelParameters(
+                            plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                0.025))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()))!
+            .AsObject();
+
+        node["schemaVersion"] =
+            13;
+
+        node["definition"]!
+            ["vegetationModels"]!
+            .AsArray()[0]!
+            ["parameters"]!
+            .AsObject()
+            .Remove(
+                "plantNitrogenKilogramsPerKilogramLiveBiomass");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var model =
+            Assert.Single(
+                restored.Definition
+                    .VegetationModels);
+
+        Assert.Null(
+            model.Parameters
+                .PlantNitrogenKilogramsPerKilogramLiveBiomass);
     }
 
     [Fact]
@@ -1572,6 +1637,45 @@ public class TimelineArchiveSerializerTests
         Assert.Throws<ArgumentException>(
             () => TimelineArchiveSerializer.Deserialize(
                 node.ToJsonString()));
+    }
+
+    private static SimulationTimeline
+        CreateTimelineWithVegetationAndBiogeochemistry(
+            PlanetState planet)
+    {
+        var timeline =
+            CreateTimelineWithVegetation(
+                planet);
+
+        var vegetation =
+            timeline.CurrentWorld.Vegetation.Single();
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                vegetation.GridDefinition);
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                vegetation.GridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            detritalBiomassKilogramsPerSquareMeter:
+                                0,
+                            detritalNitrogenKilogramsPerSquareMeter:
+                                0,
+                            plantAvailableNitrogenKilogramsPerSquareMeter:
+                                0.05)));
+
+        return SimulationTimeline.Create(
+            timeline.CurrentWorld
+                .ReplaceBiogeochemistry(
+                [
+                    biogeochemistry
+                ]));
     }
 
     private static SimulationTimeline

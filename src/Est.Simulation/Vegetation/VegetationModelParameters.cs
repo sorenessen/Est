@@ -4,8 +4,10 @@ namespace Est.Simulation.Vegetation;
 /// Policy for first-pass plant biomass productivity.
 ///
 /// Growth is limited by available soil water, temperature suitability, and
-/// remaining carrying capacity. Regional climate, nutrient limitation,
-/// species composition, mortality, and decomposition remain future layers.
+/// remaining carrying capacity. Optional plant-tissue nitrogen policy also
+/// allows growth to consume and respond to authoritative available nitrogen.
+/// Regional climate, species composition, mortality, and decomposition remain
+/// later layers.
 /// </summary>
 public sealed record VegetationModelParameters
 {
@@ -17,7 +19,8 @@ public sealed record VegetationModelParameters
         double minimumGrowthTemperatureKelvin = 273.15,
         double optimumGrowthTemperatureKelvin = 293.15,
         double maximumGrowthTemperatureKelvin = 313.15,
-        double temperatureLapseRateKelvinPerMeter = 0.0065)
+        double temperatureLapseRateKelvinPerMeter = 0.0065,
+        double? plantNitrogenKilogramsPerKilogramLiveBiomass = null)
     {
         if (maximumIntegrationStepSeconds <= 0)
         {
@@ -53,6 +56,13 @@ public sealed record VegetationModelParameters
         ValidateNonnegativeFinite(
             temperatureLapseRateKelvinPerMeter,
             nameof(temperatureLapseRateKelvinPerMeter));
+
+        if (plantNitrogenKilogramsPerKilogramLiveBiomass is not null)
+        {
+            ValidatePositiveFinite(
+                plantNitrogenKilogramsPerKilogramLiveBiomass.Value,
+                nameof(plantNitrogenKilogramsPerKilogramLiveBiomass));
+        }
 
         if (optimumGrowthTemperatureKelvin <=
             minimumGrowthTemperatureKelvin)
@@ -93,6 +103,9 @@ public sealed record VegetationModelParameters
 
         TemperatureLapseRateKelvinPerMeter =
             temperatureLapseRateKelvinPerMeter;
+
+        PlantNitrogenKilogramsPerKilogramLiveBiomass =
+            plantNitrogenKilogramsPerKilogramLiveBiomass;
     }
 
     public long MaximumIntegrationStepSeconds { get; }
@@ -114,6 +127,11 @@ public sealed record VegetationModelParameters
     public double MaximumGrowthTemperatureKelvin { get; }
 
     public double TemperatureLapseRateKelvinPerMeter { get; }
+
+    public double? PlantNitrogenKilogramsPerKilogramLiveBiomass
+    {
+        get;
+    }
 
     private static void ValidateNonnegativeFinite(
         double value,

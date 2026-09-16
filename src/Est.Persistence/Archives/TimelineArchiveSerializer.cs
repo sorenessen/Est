@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 13;
+    public const int CurrentSchemaVersion = 14;
+    private const int VegetationNitrogenCouplingSchemaVersion = 14;
     private const int BiogeochemistryModelSchemaVersion = 13;
     private const int GrazerBehaviorSchemaVersion = 12;
     private const int GrazerModelSchemaVersion = 11;
@@ -125,6 +126,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != GrazerModelSchemaVersion &&
             archive.SchemaVersion != GrazerBehaviorSchemaVersion &&
             archive.SchemaVersion != BiogeochemistryModelSchemaVersion &&
+            archive.SchemaVersion != VegetationNitrogenCouplingSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -475,7 +477,10 @@ public static class TimelineArchiveSerializer
                                                 .MaximumGrowthTemperatureKelvin,
                                         TemperatureLapseRateKelvinPerMeter =
                                             model.Parameters
-                                                .TemperatureLapseRateKelvinPerMeter
+                                                .TemperatureLapseRateKelvinPerMeter,
+                                        PlantNitrogenKilogramsPerKilogramLiveBiomass =
+                                            model.Parameters
+                                                .PlantNitrogenKilogramsPerKilogramLiveBiomass
                                     }
                             })
                     .ToArray(),
@@ -850,7 +855,12 @@ public static class TimelineArchiveSerializer
                                     model.Parameters
                                         .MaximumGrowthTemperatureKelvin,
                                     model.Parameters
-                                        .TemperatureLapseRateKelvinPerMeter));
+                                        .TemperatureLapseRateKelvinPerMeter,
+                                    schemaVersion <
+                                        VegetationNitrogenCouplingSchemaVersion
+                                        ? null
+                                        : model.Parameters
+                                            .PlantNitrogenKilogramsPerKilogramLiveBiomass));
                         })
                     .ToArray();
         }
@@ -1520,6 +1530,12 @@ public static class TimelineArchiveSerializer
         }
 
         public required double TemperatureLapseRateKelvinPerMeter
+        {
+            get;
+            set;
+        }
+
+        public double? PlantNitrogenKilogramsPerKilogramLiveBiomass
         {
             get;
             set;

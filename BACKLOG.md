@@ -436,7 +436,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Add explicit per-planet decomposition and nutrient-cycling model policy.
   - [x] Add environmentally constrained decomposition that transfers nitrogen
         from detritus into the plant-available pool with explicit mass balance.
-  - [ ] Make plant productivity consume and respond to authoritative available
+  - [x] Make plant productivity consume and respond to authoritative available
         nitrogen without breaking existing biomass accounting.
   - [ ] Route plant mortality and biological mortality into authoritative
         detrital biomass and nitrogen rather than allowing dead matter to

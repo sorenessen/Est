@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
@@ -13,9 +14,12 @@ namespace Est.Simulation.Vegetation;
 /// temperature are suitable. Elevation modifies the current authoritative
 /// planetary mean temperature through a configurable lapse rate.
 ///
-/// Zero biomass remains zero. Colonization, seed dispersal, mortality,
-/// nutrients, decomposition, and species structure are intentionally left to
-/// later ecological systems.
+/// When plant tissue nitrogen policy is enabled, growth also requires
+/// authoritative plant-available nitrogen and consumes it atomically with
+/// biomass production.
+///
+/// Zero biomass remains zero. Colonization, seed dispersal, mortality, and
+/// species structure remain later ecological systems.
 /// </summary>
 public sealed class VegetationSystem
     : ICausalSystem
@@ -92,13 +96,30 @@ public sealed class VegetationSystem
             ?? throw new InvalidOperationException(
                 "Vegetation integration requires vegetation state for the target planet.");
 
+        var plantNitrogenRatio =
+            _parameters
+                .PlantNitrogenKilogramsPerKilogramLiveBiomass;
+
+        var biogeochemistry =
+            plantNitrogenRatio is null
+                ? null
+                : world.Biogeochemistry.FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        _planetId)
+                  ?? throw new InvalidOperationException(
+                      "Nitrogen-coupled vegetation integration requires authoritative biogeochemistry state for the target planet.");
+
         if (terrain.GridDefinition !=
                 hydrology.GridDefinition ||
             terrain.GridDefinition !=
-                vegetation.GridDefinition)
+                vegetation.GridDefinition ||
+            (biogeochemistry is not null &&
+             terrain.GridDefinition !=
+                biogeochemistry.GridDefinition))
         {
             throw new InvalidOperationException(
-                "Vegetation, hydrology, and terrain must use the same surface grid.");
+                "Vegetation, hydrology, terrain, and enabled biogeochemistry must use the same surface grid.");
         }
 
         terrain.ValidateFor(
@@ -108,6 +129,9 @@ public sealed class VegetationSystem
             planet);
 
         vegetation.ValidateFor(
+            planet);
+
+        biogeochemistry?.ValidateFor(
             planet);
 
         var grid =
@@ -130,15 +154,45 @@ public sealed class VegetationSystem
                 cell =>
                     cell.CellId);
 
+        var biogeochemistryIndexByCellId =
+            biogeochemistry?.Cells
+                .Select(
+                    (cell, index) =>
+                        new
+                        {
+                            cell.CellId,
+                            Index = index
+                        })
+                .ToDictionary(
+                    entry =>
+                        entry.CellId,
+                    entry =>
+                        entry.Index);
+
         var initialBiomassMass =
             TotalBiomassMassKilograms(
                 vegetation,
                 surfaceCellsById);
 
+        var initialAvailableNitrogenMass =
+            biogeochemistry is null
+                ? 0
+                : TotalAvailableNitrogenMassKilograms(
+                    biogeochemistry,
+                    surfaceCellsById);
+
         var current =
             vegetation;
 
-        var integrationSubsteps = 0;
+        var currentBiogeochemistry =
+            biogeochemistry;
+
+        var totalNitrogenUptakeMass =
+            0d;
+
+        var integrationSubsteps =
+            0;
+
         var remainingSeconds =
             elapsedSeconds;
 
@@ -157,6 +211,10 @@ public sealed class VegetationSystem
             var nextCells =
                 new VegetationCellState[
                     current.Cells.Length];
+
+            var nextBiogeochemistryCells =
+                currentBiogeochemistry?.Cells
+                    .ToArray();
 
             for (var index = 0;
                  index < current.Cells.Length;
@@ -217,7 +275,7 @@ public sealed class VegetationSystem
                         _parameters
                             .CarryingCapacityKilogramsPerSquareMeter);
 
-                var growth =
+                var potentialGrowth =
                     biomass *
                     _parameters
                         .MaximumRelativeGrowthRatePerDay *
@@ -225,6 +283,61 @@ public sealed class VegetationSystem
                     soilWaterFactor *
                     carryingCapacityFactor *
                     elapsedDays;
+
+                var growth =
+                    Math.Min(
+                        potentialGrowth,
+                        _parameters
+                            .CarryingCapacityKilogramsPerSquareMeter -
+                        biomass);
+
+                var nitrogenUptake =
+                    0d;
+
+                if (plantNitrogenRatio is not null)
+                {
+                    var biogeochemistryIndex =
+                        biogeochemistryIndexByCellId![
+                            cell.CellId];
+
+                    var biogeochemistryCell =
+                        currentBiogeochemistry!.Cells[
+                            biogeochemistryIndex];
+
+                    var maximumGrowthFromNitrogen =
+                        biogeochemistryCell
+                            .PlantAvailableNitrogenKilogramsPerSquareMeter /
+                        plantNitrogenRatio.Value;
+
+                    growth =
+                        Math.Min(
+                            growth,
+                            maximumGrowthFromNitrogen);
+
+                    nitrogenUptake =
+                        growth *
+                        plantNitrogenRatio.Value;
+
+                    nextBiogeochemistryCells![
+                        biogeochemistryIndex] =
+                        new BiogeochemistryCellState(
+                            biogeochemistryCell.CellId,
+                            biogeochemistryCell
+                                .DetritalBiomassKilogramsPerSquareMeter,
+                            biogeochemistryCell
+                                .DetritalNitrogenKilogramsPerSquareMeter,
+                            Math.Max(
+                                0,
+                                biogeochemistryCell
+                                    .PlantAvailableNitrogenKilogramsPerSquareMeter -
+                                nitrogenUptake));
+
+                    totalNitrogenUptakeMass +=
+                        nitrogenUptake *
+                        surfaceCellsById[
+                            cell.CellId]
+                        .AreaSquareMeters;
+                }
 
                 var nextBiomass =
                     Math.Min(
@@ -245,6 +358,15 @@ public sealed class VegetationSystem
                     vegetation.GridDefinition,
                     nextCells);
 
+            if (currentBiogeochemistry is not null)
+            {
+                currentBiogeochemistry =
+                    new PlanetBiogeochemistryState(
+                        currentBiogeochemistry.PlanetId,
+                        currentBiogeochemistry.GridDefinition,
+                        nextBiogeochemistryCells!);
+            }
+
             integrationSubsteps++;
             remainingSeconds -=
                 stepSeconds;
@@ -259,11 +381,28 @@ public sealed class VegetationSystem
             finalBiomassMass -
             initialBiomassMass;
 
+        var finalAvailableNitrogenMass =
+            currentBiogeochemistry is null
+                ? 0
+                : TotalAvailableNitrogenMassKilograms(
+                    currentBiogeochemistry,
+                    surfaceCellsById);
+
+        var operation =
+            currentBiogeochemistry is null
+                ? (ISimulationOperation)
+                    new ReplacePlanetVegetationStateOperation(
+                        current)
+                : new ReplacePlanetVegetationBiogeochemistryStateOperation(
+                    current,
+                    currentBiogeochemistry);
+
         return new SimulationChange(
-            new ReplacePlanetVegetationStateOperation(
-                current),
+            operation,
             "planetary-vegetation",
-            "Terrain, water availability, and climate changed live plant biomass.",
+            plantNitrogenRatio is null
+                ? "Terrain, water availability, and climate changed live plant biomass."
+                : "Terrain, water availability, climate, and available nitrogen changed live plant biomass.",
             planet.Id,
             elapsedSeconds,
             new Dictionary<string, double>
@@ -274,6 +413,12 @@ public sealed class VegetationSystem
                     finalBiomassMass,
                 ["biomassGrowthKilograms"] =
                     biomassGrowth,
+                ["initialAvailableNitrogenMassKilograms"] =
+                    initialAvailableNitrogenMass,
+                ["finalAvailableNitrogenMassKilograms"] =
+                    finalAvailableNitrogenMass,
+                ["nitrogenUptakeMassKilograms"] =
+                    totalNitrogenUptakeMass,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });
@@ -330,6 +475,28 @@ public sealed class VegetationSystem
         {
             total +=
                 cell.LiveBiomassKilogramsPerSquareMeter *
+                surfaceCellsById[
+                    cell.CellId]
+                .AreaSquareMeters;
+        }
+
+        return total;
+    }
+
+    private static double TotalAvailableNitrogenMassKilograms(
+        PlanetBiogeochemistryState biogeochemistry,
+        IReadOnlyDictionary<
+            SurfaceCellId,
+            SurfaceCell> surfaceCellsById)
+    {
+        var total =
+            0d;
+
+        foreach (var cell in
+                 biogeochemistry.Cells)
+        {
+            total +=
+                cell.PlantAvailableNitrogenKilogramsPerSquareMeter *
                 surfaceCellsById[
                     cell.CellId]
                 .AreaSquareMeters;

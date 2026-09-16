@@ -275,6 +275,19 @@ public sealed record SimulationDefinition
                     $"Vegetation model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
                     nameof(world));
             }
+
+            if (model.Parameters
+                    .PlantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+                !world.Biogeochemistry.Any(
+                    state =>
+                        state.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Nitrogen-coupled vegetation model for planet '{model.PlanetId.Value}' requires authoritative biogeochemistry state for that planet.",
+                    nameof(world));
+            }
         }
 
         foreach (var model in InvertebrateModels)
