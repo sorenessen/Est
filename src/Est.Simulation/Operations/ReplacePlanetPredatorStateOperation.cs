@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Animals;
 using Est.Simulation.Grazers;
 using Est.Simulation.Planets;
@@ -13,7 +14,8 @@ public sealed record ReplacePlanetPredatorStateOperation
         PlanetId planetId,
         IEnumerable<PersonState> population,
         IEnumerable<AnimalState> animals,
-        IEnumerable<GrazerCohortState> grazerCohorts)
+        IEnumerable<GrazerCohortState> grazerCohorts,
+        PlanetBiogeochemistryState? biogeochemistry = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -30,6 +32,16 @@ public sealed record ReplacePlanetPredatorStateOperation
         Population = population.ToArray();
         Animals = animals.ToArray();
         GrazerCohorts = grazerCohorts.ToArray();
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.PlanetId != planetId)
+        {
+            throw new ArgumentException(
+                "Biogeochemistry belongs to another planet.",
+                nameof(biogeochemistry));
+        }
+
+        Biogeochemistry = biogeochemistry;
 
         if (Population.Any(
                 person => person.PlanetId != planetId))
@@ -66,6 +78,8 @@ public sealed record ReplacePlanetPredatorStateOperation
     public IReadOnlyList<GrazerCohortState>
         GrazerCohorts { get; }
 
+    public PlanetBiogeochemistryState? Biogeochemistry { get; }
+
     public WorldState Apply(WorldState world)
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -89,13 +103,28 @@ public sealed record ReplacePlanetPredatorStateOperation
                 cohort =>
                     cohort.PlanetId != PlanetId);
 
-        return world
-            .ReplacePopulation(
-                preservedPopulation.Concat(Population))
-            .ReplaceAnimals(
-                preservedAnimals.Concat(Animals))
-            .ReplaceGrazerCohorts(
-                preservedGrazerCohorts.Concat(
-                    GrazerCohorts));
+        var next =
+            world
+                .ReplacePopulation(
+                    preservedPopulation.Concat(Population))
+                .ReplaceAnimals(
+                    preservedAnimals.Concat(Animals))
+                .ReplaceGrazerCohorts(
+                    preservedGrazerCohorts.Concat(
+                        GrazerCohorts));
+
+        if (Biogeochemistry is null)
+        {
+            return next;
+        }
+
+        var preservedBiogeochemistry =
+            world.Biogeochemistry.Where(
+                state =>
+                    state.PlanetId != PlanetId);
+
+        return next.ReplaceBiogeochemistry(
+            preservedBiogeochemistry.Append(
+                Biogeochemistry));
     }
 }

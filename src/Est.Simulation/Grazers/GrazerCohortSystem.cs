@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Operations;
@@ -86,6 +88,20 @@ public sealed class GrazerCohortSystem
             ?? throw new InvalidOperationException(
                 "Grazer integration requires vegetation for the target planet.");
 
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                candidate =>
+                    candidate.PlanetId ==
+                    _planetId);
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.GridDefinition !=
+                vegetation.GridDefinition)
+        {
+            throw new InvalidOperationException(
+                "Grazer mortality and biogeochemistry must use the same surface grid.");
+        }
+
         if (hydrology.GridDefinition !=
             vegetation.GridDefinition)
         {
@@ -97,6 +113,9 @@ public sealed class GrazerCohortSystem
             planet);
 
         vegetation.ValidateFor(
+            planet);
+
+        biogeochemistry?.ValidateFor(
             planet);
 
         var grid =
@@ -133,6 +152,9 @@ public sealed class GrazerCohortSystem
                         new RuntimeCohort(
                             cohort))
                 .ToList();
+
+        var mortalityDeposits =
+            new List<OrganismMortalityDeposit>();
 
         var initialCohortCount =
             cohorts.Count;
@@ -328,6 +350,9 @@ public sealed class GrazerCohortSystem
 
             foreach (var cohort in cohorts)
             {
+                var memberCountBeforeMortality =
+                    cohort.MemberCount;
+
                 var assessment =
                     assessmentsByCohortId[
                         cohort.Id];
@@ -378,6 +403,45 @@ public sealed class GrazerCohortSystem
 
                     habitatStressSteps++;
                 }
+
+                var removedMembers =
+                    Math.Max(
+                        0,
+                        memberCountBeforeMortality -
+                        cohort.MemberCount);
+
+                if (removedMembers > 0)
+                {
+                    mortalityDeposits.Add(
+                        OrganismMortalityDeposit
+                            .FromRemovedFraction(
+                                cohort.LatitudeDegrees,
+                                cohort.LongitudeDegrees,
+                                cohort.Source.Material,
+                                Math.Clamp(
+                                    removedMembers /
+                                    cohort.Source.MemberCount,
+                                    0,
+                                    1)));
+                }
+            }
+
+            foreach (var extinct in
+                     cohorts.Where(
+                         cohort =>
+                             cohort.MemberCount < 1))
+            {
+                mortalityDeposits.Add(
+                    OrganismMortalityDeposit
+                        .FromRemovedFraction(
+                            extinct.LatitudeDegrees,
+                            extinct.LongitudeDegrees,
+                            extinct.Source.Material,
+                            Math.Clamp(
+                                extinct.MemberCount /
+                                extinct.Source.MemberCount,
+                                0,
+                                1)));
             }
 
             cohorts.RemoveAll(
@@ -394,12 +458,38 @@ public sealed class GrazerCohortSystem
             cohorts
                 .Select(
                     cohort =>
-                        cohort.Source.WithSurvivalState(
+                    {
+                        var survivingMembers =
                             checked(
                                 (int)Math.Floor(
-                                    cohort.MemberCount)),
+                                    cohort.MemberCount));
+
+                        var roundingLoss =
+                            Math.Max(
+                                0,
+                                cohort.MemberCount -
+                                survivingMembers);
+
+                        if (roundingLoss > 0)
+                        {
+                            mortalityDeposits.Add(
+                                OrganismMortalityDeposit
+                                    .FromRemovedFraction(
+                                        cohort.LatitudeDegrees,
+                                        cohort.LongitudeDegrees,
+                                        cohort.Source.Material,
+                                        Math.Clamp(
+                                            roundingLoss /
+                                            cohort.Source.MemberCount,
+                                            0,
+                                            1)));
+                        }
+
+                        return cohort.Source.WithSurvivalState(
+                            survivingMembers,
                             cohort.LatitudeDegrees,
-                            cohort.LongitudeDegrees))
+                            cohort.LongitudeDegrees);
+                    })
                 .ToArray();
 
         var finalVegetation =
@@ -424,11 +514,32 @@ public sealed class GrazerCohortSystem
         var finalVegetationMass =
             vegetationMassByCellId.Values.Sum();
 
+        PlanetBiogeochemistryState?
+            nextBiogeochemistry = null;
+
+        if (mortalityDeposits.Any(
+                deposit =>
+                    !deposit.Material.IsEmpty))
+        {
+            if (biogeochemistry is null)
+            {
+                throw new InvalidOperationException(
+                    "Material-bearing grazer mortality requires authoritative biogeochemistry state for the target planet.");
+            }
+
+            nextBiogeochemistry =
+                OrganismMortalityDetritusTransfer.Apply(
+                    planet,
+                    biogeochemistry,
+                    mortalityDeposits);
+        }
+
         return new SimulationChange(
             new ReplacePlanetGrazerVegetationStateOperation(
                 _planetId,
                 finalCohorts,
-                finalVegetation),
+                finalVegetation,
+                nextBiogeochemistry),
             "planetary-grazers",
             "Grazer movement, grazing, and survival changed cohorts and live plant biomass.",
             _planetId,

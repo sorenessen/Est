@@ -1,4 +1,6 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
+using Est.Simulation.Organisms;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Worlds;
@@ -41,12 +43,20 @@ public sealed class PopulationSystem : ICausalSystem
                 nameof(elapsedSeconds));
         }
 
-        if (!world.Planets.Any(
-                planet => planet.Id == _planetId))
-        {
-            throw new InvalidOperationException(
+        var planet =
+            world.Planets.FirstOrDefault(
+                candidate =>
+                    candidate.Id == _planetId)
+            ?? throw new InvalidOperationException(
                 "The target planet does not exist in this world.");
-        }
+
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                state =>
+                    state.PlanetId == _planetId);
+
+        var mortalityDeposits =
+            new List<OrganismMortalityDeposit>();
 
         var existing = world.Population
             .Where(person => person.PlanetId == _planetId)
@@ -83,6 +93,16 @@ public sealed class PopulationSystem : ICausalSystem
                     random))
             {
                 deaths++;
+
+                if (!person.Material.IsEmpty)
+                {
+                    mortalityDeposits.Add(
+                        new OrganismMortalityDeposit(
+                            person.LatitudeDegrees,
+                            person.LongitudeDegrees,
+                            person.Material));
+                }
+
                 continue;
             }
 
@@ -107,10 +127,29 @@ public sealed class PopulationSystem : ICausalSystem
         var nextPopulation = survivors
             .ToArray();
 
+        PlanetBiogeochemistryState?
+            nextBiogeochemistry = null;
+
+        if (mortalityDeposits.Count > 0)
+        {
+            if (biogeochemistry is null)
+            {
+                throw new InvalidOperationException(
+                    "Material-bearing human mortality requires authoritative biogeochemistry state for the target planet.");
+            }
+
+            nextBiogeochemistry =
+                OrganismMortalityDetritusTransfer.Apply(
+                    planet,
+                    biogeochemistry,
+                    mortalityDeposits);
+        }
+
         var operation =
             new ReplacePlanetPopulationOperation(
                 _planetId,
-                nextPopulation);
+                nextPopulation,
+                nextBiogeochemistry);
 
         return new SimulationChange(
             operation,

@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Grazers;
 using Est.Simulation.Operations;
@@ -72,12 +74,20 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 nameof(elapsedSeconds));
         }
 
-        if (!world.Planets.Any(
-                planet => planet.Id == _planetId))
-        {
-            throw new PlanetNotFoundException(
+        var planet =
+            world.Planets.FirstOrDefault(
+                candidate =>
+                    candidate.Id == _planetId)
+            ?? throw new PlanetNotFoundException(
                 _planetId);
-        }
+
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                candidate =>
+                    candidate.PlanetId == _planetId);
+
+        var mortalityDeposits =
+            new List<OrganismMortalityDeposit>();
 
         var population =
             world.Population
@@ -627,6 +637,23 @@ public sealed class WolfPredatorSystem : ICausalSystem
                 }
             }
 
+            foreach (var deadWolf in
+                     animals.Where(
+                         animal =>
+                             animal.Species ==
+                                 AnimalSpecies.Wolf &&
+                             animal.Health <= 0))
+            {
+                if (!deadWolf.Material.IsEmpty)
+                {
+                    mortalityDeposits.Add(
+                        new OrganismMortalityDeposit(
+                            deadWolf.LatitudeDegrees,
+                            deadWolf.LongitudeDegrees,
+                            deadWolf.Material));
+                }
+            }
+
             animals.RemoveAll(
                 animal =>
                     animal.Health <= 0);
@@ -712,12 +739,31 @@ public sealed class WolfPredatorSystem : ICausalSystem
                                     ? "Wolves avoided a risky human encounter."
                                     : "Wolf activity changed.";
 
+        PlanetBiogeochemistryState?
+            nextBiogeochemistry = null;
+
+        if (mortalityDeposits.Count > 0)
+        {
+            if (biogeochemistry is null)
+            {
+                throw new InvalidOperationException(
+                    "Material-bearing wolf mortality requires authoritative biogeochemistry state for the target planet.");
+            }
+
+            nextBiogeochemistry =
+                OrganismMortalityDetritusTransfer.Apply(
+                    planet,
+                    biogeochemistry,
+                    mortalityDeposits);
+        }
+
         return new SimulationChange(
             new ReplacePlanetPredatorStateOperation(
                 _planetId,
                 population,
                 animals,
-                grazerCohorts),
+                grazerCohorts,
+                nextBiogeochemistry),
             "predation",
             summary,
             _planetId,

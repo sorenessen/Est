@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Worlds;
@@ -9,7 +10,8 @@ public sealed record ReplacePlanetPopulationOperation
 {
     public ReplacePlanetPopulationOperation(
         PlanetId planetId,
-        IEnumerable<PersonState> population)
+        IEnumerable<PersonState> population,
+        PlanetBiogeochemistryState? biogeochemistry = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -22,6 +24,16 @@ public sealed record ReplacePlanetPopulationOperation
 
         PlanetId = planetId;
         Population = population.ToArray();
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.PlanetId != planetId)
+        {
+            throw new ArgumentException(
+                "Biogeochemistry belongs to another planet.",
+                nameof(biogeochemistry));
+        }
+
+        Biogeochemistry = biogeochemistry;
 
         if (Population.Any(
                 person => person is null))
@@ -45,6 +57,8 @@ public sealed record ReplacePlanetPopulationOperation
 
     public IReadOnlyList<PersonState> Population { get; }
 
+    public PlanetBiogeochemistryState? Biogeochemistry { get; }
+
     public WorldState Apply(WorldState world)
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -61,7 +75,22 @@ public sealed record ReplacePlanetPopulationOperation
                 person =>
                     person.PlanetId != PlanetId);
 
-        return world.ReplacePopulation(
-            preserved.Concat(Population));
+        var next =
+            world.ReplacePopulation(
+                preserved.Concat(Population));
+
+        if (Biogeochemistry is null)
+        {
+            return next;
+        }
+
+        var preservedBiogeochemistry =
+            world.Biogeochemistry.Where(
+                state =>
+                    state.PlanetId != PlanetId);
+
+        return next.ReplaceBiogeochemistry(
+            preservedBiogeochemistry.Append(
+                Biogeochemistry));
     }
 }

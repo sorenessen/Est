@@ -1,3 +1,5 @@
+using Est.Simulation.Organisms;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -95,6 +97,20 @@ public sealed class BirdFlockSystem
             ?? throw new InvalidOperationException(
                 "Bird integration requires invertebrate state for the target planet.");
 
+        var biogeochemistry =
+            world.Biogeochemistry.FirstOrDefault(
+                candidate =>
+                    candidate.PlanetId ==
+                    _planetId);
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.GridDefinition !=
+                invertebrates.GridDefinition)
+        {
+            throw new InvalidOperationException(
+                "Bird mortality and biogeochemistry must use the same surface grid.");
+        }
+
         if (hydrology.GridDefinition !=
                 vegetation.GridDefinition ||
             hydrology.GridDefinition !=
@@ -111,6 +127,9 @@ public sealed class BirdFlockSystem
             planet);
 
         invertebrates.ValidateFor(
+            planet);
+
+        biogeochemistry?.ValidateFor(
             planet);
 
         var grid =
@@ -132,6 +151,9 @@ public sealed class BirdFlockSystem
                         new RuntimeFlock(
                             flock))
                 .ToList();
+
+        var mortalityDeposits =
+            new List<OrganismMortalityDeposit>();
 
         var initialFlockCount =
             flocks.Count;
@@ -248,6 +270,9 @@ public sealed class BirdFlockSystem
 
             foreach (var flock in flocks)
             {
+                var memberCountBeforeMortality =
+                    flock.MemberCount;
+
                 var occupiedCell =
                     occupiedCellsByFlockId[
                         flock.Id];
@@ -316,6 +341,45 @@ public sealed class BirdFlockSystem
 
                     habitatStressSteps++;
                 }
+
+                var removedMembers =
+                    Math.Max(
+                        0,
+                        memberCountBeforeMortality -
+                        flock.MemberCount);
+
+                if (removedMembers > 0)
+                {
+                    mortalityDeposits.Add(
+                        OrganismMortalityDeposit
+                            .FromRemovedFraction(
+                                flock.LatitudeDegrees,
+                                flock.LongitudeDegrees,
+                                flock.Source.Material,
+                                Math.Clamp(
+                                    removedMembers /
+                                    flock.Source.MemberCount,
+                                    0,
+                                    1)));
+                }
+            }
+
+            foreach (var extinct in
+                     flocks.Where(
+                         flock =>
+                             flock.MemberCount < 1))
+            {
+                mortalityDeposits.Add(
+                    OrganismMortalityDeposit
+                        .FromRemovedFraction(
+                            extinct.LatitudeDegrees,
+                            extinct.LongitudeDegrees,
+                            extinct.Source.Material,
+                            Math.Clamp(
+                                extinct.MemberCount /
+                                extinct.Source.MemberCount,
+                                0,
+                                1)));
             }
 
             flocks.RemoveAll(
@@ -332,12 +396,38 @@ public sealed class BirdFlockSystem
             flocks
                 .Select(
                     flock =>
-                        flock.Source.WithSurvivalState(
+                    {
+                        var survivingMembers =
                             checked(
                                 (int)Math.Floor(
-                                    flock.MemberCount)),
+                                    flock.MemberCount));
+
+                        var roundingLoss =
+                            Math.Max(
+                                0,
+                                flock.MemberCount -
+                                survivingMembers);
+
+                        if (roundingLoss > 0)
+                        {
+                            mortalityDeposits.Add(
+                                OrganismMortalityDeposit
+                                    .FromRemovedFraction(
+                                        flock.LatitudeDegrees,
+                                        flock.LongitudeDegrees,
+                                        flock.Source.Material,
+                                        Math.Clamp(
+                                            roundingLoss /
+                                            flock.Source.MemberCount,
+                                            0,
+                                            1)));
+                        }
+
+                        return flock.Source.WithSurvivalState(
+                            survivingMembers,
                             flock.LatitudeDegrees,
-                            flock.LongitudeDegrees))
+                            flock.LongitudeDegrees);
+                    })
                 .ToArray();
 
         var finalMemberCount =
@@ -345,10 +435,31 @@ public sealed class BirdFlockSystem
                 flock =>
                     (long)flock.MemberCount);
 
+        PlanetBiogeochemistryState?
+            nextBiogeochemistry = null;
+
+        if (mortalityDeposits.Any(
+                deposit =>
+                    !deposit.Material.IsEmpty))
+        {
+            if (biogeochemistry is null)
+            {
+                throw new InvalidOperationException(
+                    "Material-bearing bird mortality requires authoritative biogeochemistry state for the target planet.");
+            }
+
+            nextBiogeochemistry =
+                OrganismMortalityDetritusTransfer.Apply(
+                    planet,
+                    biogeochemistry,
+                    mortalityDeposits);
+        }
+
         return new SimulationChange(
             new ReplacePlanetBirdFlocksOperation(
                 _planetId,
-                finalFlocks),
+                finalFlocks,
+                nextBiogeochemistry),
             "planetary-birds",
             "Bird flock movement and survival changed.",
             _planetId,

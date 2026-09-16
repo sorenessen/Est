@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Planets;
 using Est.Simulation.Vegetation;
@@ -14,7 +15,8 @@ public sealed record ReplacePlanetGrazerVegetationStateOperation
     public ReplacePlanetGrazerVegetationStateOperation(
         PlanetId planetId,
         IEnumerable<GrazerCohortState> grazerCohorts,
-        PlanetVegetationState vegetation)
+        PlanetVegetationState vegetation,
+        PlanetBiogeochemistryState? biogeochemistry = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -64,6 +66,16 @@ public sealed record ReplacePlanetGrazerVegetationStateOperation
 
         Vegetation =
             vegetation;
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.PlanetId != planetId)
+        {
+            throw new ArgumentException(
+                "Biogeochemistry belongs to another planet.",
+                nameof(biogeochemistry));
+        }
+
+        Biogeochemistry = biogeochemistry;
     }
 
     public PlanetId PlanetId { get; }
@@ -72,6 +84,8 @@ public sealed record ReplacePlanetGrazerVegetationStateOperation
         GrazerCohorts { get; }
 
     public PlanetVegetationState Vegetation { get; }
+
+    public PlanetBiogeochemistryState? Biogeochemistry { get; }
 
     public WorldState Apply(
         WorldState world)
@@ -100,12 +114,27 @@ public sealed record ReplacePlanetGrazerVegetationStateOperation
                     vegetation.PlanetId !=
                     PlanetId);
 
-        return world
-            .ReplaceGrazerCohorts(
-                preservedCohorts.Concat(
-                    GrazerCohorts))
-            .ReplaceVegetation(
-                preservedVegetation.Append(
-                    Vegetation));
+        var next =
+            world
+                .ReplaceGrazerCohorts(
+                    preservedCohorts.Concat(
+                        GrazerCohorts))
+                .ReplaceVegetation(
+                    preservedVegetation.Append(
+                        Vegetation));
+
+        if (Biogeochemistry is null)
+        {
+            return next;
+        }
+
+        var preservedBiogeochemistry =
+            world.Biogeochemistry.Where(
+                state =>
+                    state.PlanetId != PlanetId);
+
+        return next.ReplaceBiogeochemistry(
+            preservedBiogeochemistry.Append(
+                Biogeochemistry));
     }
 }

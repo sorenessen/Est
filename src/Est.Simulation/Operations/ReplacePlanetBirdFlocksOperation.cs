@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
 using Est.Simulation.Planets;
 using Est.Simulation.Worlds;
@@ -9,7 +10,8 @@ public sealed record ReplacePlanetBirdFlocksOperation
 {
     public ReplacePlanetBirdFlocksOperation(
         PlanetId planetId,
-        IEnumerable<BirdFlockState> birdFlocks)
+        IEnumerable<BirdFlockState> birdFlocks,
+        PlanetBiogeochemistryState? biogeochemistry = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -26,6 +28,16 @@ public sealed record ReplacePlanetBirdFlocksOperation
 
         BirdFlocks =
             birdFlocks.ToArray();
+
+        if (biogeochemistry is not null &&
+            biogeochemistry.PlanetId != planetId)
+        {
+            throw new ArgumentException(
+                "Biogeochemistry belongs to another planet.",
+                nameof(biogeochemistry));
+        }
+
+        Biogeochemistry = biogeochemistry;
 
         if (BirdFlocks.Any(
                 flock =>
@@ -52,6 +64,8 @@ public sealed record ReplacePlanetBirdFlocksOperation
     public IReadOnlyList<BirdFlockState>
         BirdFlocks { get; }
 
+    public PlanetBiogeochemistryState? Biogeochemistry { get; }
+
     public WorldState Apply(
         WorldState world)
     {
@@ -73,8 +87,23 @@ public sealed record ReplacePlanetBirdFlocksOperation
                     flock.PlanetId !=
                     PlanetId);
 
-        return world.ReplaceBirdFlocks(
-            preserved.Concat(
-                BirdFlocks));
+        var next =
+            world.ReplaceBirdFlocks(
+                preserved.Concat(
+                    BirdFlocks));
+
+        if (Biogeochemistry is null)
+        {
+            return next;
+        }
+
+        var preservedBiogeochemistry =
+            world.Biogeochemistry.Where(
+                state =>
+                    state.PlanetId != PlanetId);
+
+        return next.ReplaceBiogeochemistry(
+            preservedBiogeochemistry.Append(
+                Biogeochemistry));
     }
 }
