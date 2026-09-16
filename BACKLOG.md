@@ -434,7 +434,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         surface grid, including world invariants and snapshot/archive
         persistence.
   - [x] Add explicit per-planet decomposition and nutrient-cycling model policy.
-  - [ ] Add environmentally constrained decomposition that transfers nitrogen
+  - [x] Add environmentally constrained decomposition that transfers nitrogen
         from detritus into the plant-available pool with explicit mass balance.
   - [ ] Make plant productivity consume and respond to authoritative available
         nitrogen without breaking existing biomass accounting.
