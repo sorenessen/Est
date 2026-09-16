@@ -421,7 +421,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         and snapshot/timeline persistence.
   - [x] Add explicit per-planet grazer model policy and deterministic cohort
         initialization from authoritative vegetation support.
-  - [ ] Add causal grazing, movement, and survival behavior supported by
+  - [x] Add causal grazing, movement, and survival behavior supported by
         authoritative vegetation, water, and habitat.
   - [ ] Wire grazer dynamics through the session/API boundary and validate
         configuration, persistence, and runtime behavior end to end.

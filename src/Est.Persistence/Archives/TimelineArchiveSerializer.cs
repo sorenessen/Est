@@ -17,7 +17,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 11;
+    public const int CurrentSchemaVersion = 12;
+    private const int GrazerBehaviorSchemaVersion = 12;
     private const int GrazerModelSchemaVersion = 11;
     private const int BirdBehaviorSchemaVersion = 10;
     private const int BirdModelSchemaVersion = 9;
@@ -119,6 +120,8 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != InvertebrateModelSchemaVersion &&
             archive.SchemaVersion != BirdModelSchemaVersion &&
             archive.SchemaVersion != BirdBehaviorSchemaVersion &&
+            archive.SchemaVersion != GrazerModelSchemaVersion &&
+            archive.SchemaVersion != GrazerBehaviorSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -565,7 +568,25 @@ public static class TimelineArchiveSerializer
                                                 .MinimumInitialCohortMemberCount,
                                         MaximumInitialCohortCount =
                                             model.Parameters
-                                                .MaximumInitialCohortCount
+                                                .MaximumInitialCohortCount,
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        MaximumTravelMetersPerDay =
+                                            model.Parameters
+                                                .MaximumTravelMetersPerDay,
+                                        MaximumGrazeKilogramsPerGrazerPerDay =
+                                            model.Parameters
+                                                .MaximumGrazeKilogramsPerGrazerPerDay,
+                                        FoodShortageMortalityRatePerDay =
+                                            model.Parameters
+                                                .FoodShortageMortalityRatePerDay,
+                                        WaterAbsenceMortalityRatePerDay =
+                                            model.Parameters
+                                                .WaterAbsenceMortalityRatePerDay,
+                                        HabitatAbsenceMortalityRatePerDay =
+                                            model.Parameters
+                                                .HabitatAbsenceMortalityRatePerDay
                                     }
                             })
                     .ToArray()
@@ -951,6 +972,9 @@ public static class TimelineArchiveSerializer
                                     "Grazer model parameters are required.");
                             }
 
+                            var behaviorDefaults =
+                                new GrazerModelParameters();
+
                             return new GrazerModelDefinition(
                                 new PlanetId(
                                     model.PlanetId),
@@ -962,7 +986,55 @@ public static class TimelineArchiveSerializer
                                     model.Parameters
                                         .MinimumInitialCohortMemberCount,
                                     model.Parameters
-                                        .MaximumInitialCohortCount));
+                                        .MaximumInitialCohortCount,
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .MaximumIntegrationStepSeconds
+                                        : model.Parameters
+                                            .MaximumIntegrationStepSeconds
+                                            ?? throw new JsonException(
+                                                "Grazer maximum integration step is required."),
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .MaximumTravelMetersPerDay
+                                        : model.Parameters
+                                            .MaximumTravelMetersPerDay
+                                            ?? throw new JsonException(
+                                                "Grazer maximum travel distance is required."),
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .MaximumGrazeKilogramsPerGrazerPerDay
+                                        : model.Parameters
+                                            .MaximumGrazeKilogramsPerGrazerPerDay
+                                            ?? throw new JsonException(
+                                                "Grazer maximum grazing rate is required."),
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .FoodShortageMortalityRatePerDay
+                                        : model.Parameters
+                                            .FoodShortageMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Grazer food-shortage mortality rate is required."),
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .WaterAbsenceMortalityRatePerDay
+                                        : model.Parameters
+                                            .WaterAbsenceMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Grazer water-absence mortality rate is required."),
+                                    schemaVersion <
+                                        GrazerBehaviorSchemaVersion
+                                        ? behaviorDefaults
+                                            .HabitatAbsenceMortalityRatePerDay
+                                        : model.Parameters
+                                            .HabitatAbsenceMortalityRatePerDay
+                                            ?? throw new JsonException(
+                                                "Grazer habitat-absence mortality rate is required.")));
                         })
                     .ToArray();
         }
@@ -1082,6 +1154,42 @@ public static class TimelineArchiveSerializer
         }
 
         public required int MaximumInitialCohortCount
+        {
+            get;
+            set;
+        }
+
+        public long? MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumTravelMetersPerDay
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumGrazeKilogramsPerGrazerPerDay
+        {
+            get;
+            set;
+        }
+
+        public double? FoodShortageMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double? WaterAbsenceMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double? HabitatAbsenceMortalityRatePerDay
         {
             get;
             set;

@@ -31,23 +31,24 @@ public sealed class TimelineArchiveGrazerModelTests
                 minimumInitialCohortMemberCount:
                     25,
                 maximumInitialCohortCount:
-                    12);
-
-        var definition =
-            new SimulationDefinition(
-                grazerModels:
-                [
-                    new GrazerModelDefinition(
-                        fixture.Planet.Id,
-                        parameters)
-                ]);
+                    12,
+                maximumIntegrationStepSeconds:
+                    7_200,
+                maximumTravelMetersPerDay:
+                    80_000,
+                maximumGrazeKilogramsPerGrazerPerDay:
+                    14,
+                foodShortageMortalityRatePerDay:
+                    0.08,
+                waterAbsenceMortalityRatePerDay:
+                    0.25,
+                habitatAbsenceMortalityRatePerDay:
+                    0.04);
 
         var restored =
-            TimelineArchiveSerializer.Deserialize(
-                TimelineArchiveSerializer.Serialize(
-                    fixture.Timeline,
-                    definition,
-                    CreateProvenance()));
+            RoundTrip(
+                fixture,
+                parameters);
 
         var model =
             Assert.Single(
@@ -105,6 +106,8 @@ public sealed class TimelineArchiveGrazerModelTests
                     CreateProvenance()))!
                 .AsObject();
 
+        node["schemaVersion"] = 11;
+
         node["definition"]!
             .AsObject()
             .Remove(
@@ -114,6 +117,166 @@ public sealed class TimelineArchiveGrazerModelTests
             () =>
                 TimelineArchiveSerializer.Deserialize(
                     node.ToJsonString()));
+    }
+
+    [Fact]
+    public void Deserialize_VersionElevenDefaultsGrazerBehaviorPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["schemaVersion"] = 11;
+
+        var parameters =
+            node["definition"]!["grazerModels"]![0]!["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "maximumIntegrationStepSeconds");
+
+        parameters.Remove(
+            "maximumTravelMetersPerDay");
+
+        parameters.Remove(
+            "maximumGrazeKilogramsPerGrazerPerDay");
+
+        parameters.Remove(
+            "foodShortageMortalityRatePerDay");
+
+        parameters.Remove(
+            "waterAbsenceMortalityRatePerDay");
+
+        parameters.Remove(
+            "habitatAbsenceMortalityRatePerDay");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var behavior =
+            Assert.Single(
+                    restored.Definition.GrazerModels)
+                .Parameters;
+
+        var defaults =
+            new GrazerModelParameters();
+
+        Assert.Equal(
+            defaults.MaximumIntegrationStepSeconds,
+            behavior.MaximumIntegrationStepSeconds);
+
+        Assert.Equal(
+            defaults.MaximumTravelMetersPerDay,
+            behavior.MaximumTravelMetersPerDay);
+
+        Assert.Equal(
+            defaults.MaximumGrazeKilogramsPerGrazerPerDay,
+            behavior.MaximumGrazeKilogramsPerGrazerPerDay);
+
+        Assert.Equal(
+            defaults.FoodShortageMortalityRatePerDay,
+            behavior.FoodShortageMortalityRatePerDay);
+
+        Assert.Equal(
+            defaults.WaterAbsenceMortalityRatePerDay,
+            behavior.WaterAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            defaults.HabitatAbsenceMortalityRatePerDay,
+            behavior.HabitatAbsenceMortalityRatePerDay);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwelveRequiresGrazerBehaviorPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["definition"]!["grazerModels"]![0]!["parameters"]!
+            .AsObject()
+            .Remove(
+                "maximumGrazeKilogramsPerGrazerPerDay");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwelveRequiresGrazerModels()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    SimulationDefinition.Empty,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()
+            .Remove(
+                "grazerModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    private static TimelineArchive CreateRoundTripArchive(
+        Fixture fixture,
+        GrazerModelParameters parameters)
+    {
+        return TimelineArchiveSerializer.Deserialize(
+            TimelineArchiveSerializer.Serialize(
+                fixture.Timeline,
+                new SimulationDefinition(
+                    grazerModels:
+                    [
+                        new GrazerModelDefinition(
+                            fixture.Planet.Id,
+                            parameters)
+                    ]),
+                CreateProvenance()));
+    }
+
+    private static TimelineArchive RoundTrip(
+        Fixture fixture,
+        GrazerModelParameters parameters)
+    {
+        return CreateRoundTripArchive(
+            fixture,
+            parameters);
+    }
+
+    private static JsonObject CreateCurrentGrazerArchiveNode(
+        Fixture fixture)
+    {
+        return JsonNode.Parse(
+            TimelineArchiveSerializer.Serialize(
+                fixture.Timeline,
+                new SimulationDefinition(
+                    grazerModels:
+                    [
+                        new GrazerModelDefinition(
+                            fixture.Planet.Id,
+                            new GrazerModelParameters())
+                    ]),
+                CreateProvenance()))!
+            .AsObject();
     }
 
     private static Fixture CreateFixture()

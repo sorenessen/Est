@@ -26,6 +26,30 @@ public sealed class GrazerModelParametersTests
         Assert.Equal(
             64,
             parameters.MaximumInitialCohortCount);
+
+        Assert.Equal(
+            21_600,
+            parameters.MaximumIntegrationStepSeconds);
+
+        Assert.Equal(
+            50_000,
+            parameters.MaximumTravelMetersPerDay);
+
+        Assert.Equal(
+            10,
+            parameters.MaximumGrazeKilogramsPerGrazerPerDay);
+
+        Assert.Equal(
+            0.05,
+            parameters.FoodShortageMortalityRatePerDay);
+
+        Assert.Equal(
+            0.20,
+            parameters.WaterAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            0.02,
+            parameters.HabitatAbsenceMortalityRatePerDay);
     }
 
     [Theory]
@@ -71,6 +95,56 @@ public sealed class GrazerModelParametersTests
             () =>
                 new GrazerModelParameters(
                     maximumInitialCohortCount:
+                        value));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_RejectsNonpositiveIntegrationStep(
+        long value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    maximumIntegrationStepSeconds:
+                        value));
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    public void Constructor_RejectsInvalidBehaviorRates(
+        double value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    maximumTravelMetersPerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    maximumGrazeKilogramsPerGrazerPerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    foodShortageMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    waterAbsenceMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    habitatAbsenceMortalityRatePerDay:
                         value));
     }
 }
