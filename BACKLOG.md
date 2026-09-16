@@ -392,6 +392,17 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Preserve read compatibility for snapshot schemas 4-10 by validating
         and discarding legacy food-resource payloads.
 - [ ] Add aggregate invertebrate / bug populations.
+  - [x] Add durable authoritative per-cell aggregate live-biomass state on the
+        shared surface grid, including world invariants and snapshot/timeline
+        persistence.
+  - [ ] Add explicit per-planet invertebrate model policy and deterministic
+        initialization from existing authoritative ecological state.
+  - [ ] Add causal aggregate biomass dynamics supported by authoritative
+        vegetation without assuming a trophic role that the aggregate state
+        does not encode.
+  - [ ] Wire aggregate invertebrate dynamics into the causal session order
+        after vegetation and validate configuration, persistence, and runtime
+        behavior.
 - [ ] Add bird population / flock representation.
 - [ ] Generalize terrestrial fauna beyond the current wolf-specific slice.
 - [ ] Add decomposition and nutrient cycling.
