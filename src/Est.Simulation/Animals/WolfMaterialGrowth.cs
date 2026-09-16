@@ -2,14 +2,14 @@ using Est.Simulation.Organisms;
 
 namespace Est.Simulation.Animals;
 
-public sealed record WolfJuvenileGrowthResult(
+public sealed record WolfMaterialGrowthResult(
     AnimalState Wolf,
     OrganismMaterialState AssimilatedMaterial,
     OrganismMaterialState RemainingFoodMaterial);
 
-public static class WolfJuvenileGrowth
+public static class WolfMaterialGrowth
 {
-    public static WolfJuvenileGrowthResult
+    public static WolfMaterialGrowthResult
         AssimilateTowardAgeTarget(
             AnimalState wolf,
             long currentTimeSeconds,
@@ -28,7 +28,7 @@ public static class WolfJuvenileGrowth
         if (wolf.Species != AnimalSpecies.Wolf)
         {
             throw new ArgumentException(
-                "Juvenile wolf growth requires a wolf.",
+                "Wolf material growth requires a wolf.",
                 nameof(wolf));
         }
 
@@ -56,7 +56,7 @@ public static class WolfJuvenileGrowth
         if (biomassDeficit <= 0 ||
             availableFoodMaterial.IsEmpty)
         {
-            return new WolfJuvenileGrowthResult(
+            return new WolfMaterialGrowthResult(
                 wolf,
                 new OrganismMaterialState(0, 0),
                 availableFoodMaterial);
@@ -81,7 +81,7 @@ public static class WolfJuvenileGrowth
 
         if (assimilatedFraction <= 0)
         {
-            return new WolfJuvenileGrowthResult(
+            return new WolfMaterialGrowthResult(
                 wolf,
                 new OrganismMaterialState(0, 0),
                 availableFoodMaterial);
@@ -105,7 +105,7 @@ public static class WolfJuvenileGrowth
                 assimilated
                     .LiveNitrogenKilograms);
 
-        return new WolfJuvenileGrowthResult(
+        return new WolfMaterialGrowthResult(
             wolf.WithMaterial(
                 nextMaterial),
             assimilated,

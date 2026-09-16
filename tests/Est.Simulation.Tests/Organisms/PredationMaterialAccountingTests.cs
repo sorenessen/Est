@@ -309,6 +309,132 @@ public sealed class PredationMaterialAccountingTests
     }
 
     [Fact]
+    public void GrazerPredation_AllowsAdultWolfToRecoverMaterialUpToMatureTarget()
+    {
+        var fixture =
+            CreateFixture();
+
+        var parameters =
+            new WolfLifecycleParameters();
+
+        var wolf =
+            new AnimalState(
+                new AnimalId(
+                    Guid.Parse(
+                        "00000000-0000-0000-0000-000000000401")),
+                fixture.Planet.Id,
+                AnimalSpecies.Wolf,
+                fixture.TargetCell
+                    .CenterLatitudeDegrees,
+                fixture.TargetCell
+                    .CenterLongitudeDegrees,
+                energyReserve: 0.20,
+                health: 1,
+                activity:
+                    AnimalActivity.Hunting,
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 38,
+                        liveNitrogenKilograms: 0.95),
+                birthTimeSeconds:
+                    -4 *
+                    WolfLifecycleParameters
+                        .SecondsPerYear,
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female));
+
+        var cohort =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
+                fixture.Planet.Id,
+                memberCount: 1,
+                latitudeDegrees:
+                    fixture.TargetCell
+                        .CenterLatitudeDegrees,
+                longitudeDegrees:
+                    fixture.TargetCell
+                        .CenterLongitudeDegrees,
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 250,
+                        liveNitrogenKilograms: 6.25));
+
+        var world =
+            CreateWorld(
+                fixture,
+                animals:
+                [
+                    wolf
+                ],
+                grazerCohorts:
+                [
+                    cohort
+                ]);
+
+        var change =
+            new WolfPredatorSystem(
+                    fixture.Planet.Id,
+                    parameters)
+                .Evaluate(
+                    world,
+                    OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var recoveredWolf =
+            Assert.Single(
+                changed.Animals);
+
+        Assert.Equal(
+            40,
+            recoveredWolf.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            recoveredWolf.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            2,
+            change.Metrics[
+                "preyBiomassAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            0.05,
+            change.Metrics[
+                "preyNitrogenAssimilatedKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            248,
+            change.Metrics[
+                "preyBiomassRespiredKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            6.20,
+            change.Metrics[
+                "preyNitrogenReturnedKilograms"],
+            precision: 10);
+
+        AssertBiogeochemistryMass(
+            changed,
+            fixture.Grid,
+            fixture.TargetCell,
+            expectedDetritalBiomassKilograms: 0,
+            expectedDetritalNitrogenKilograms: 0,
+            expectedPlantAvailableNitrogenKilograms:
+                6.20);
+    }
+
+    [Fact]
     public void HumanPredation_ReturnsConsumedPreyNitrogenWithoutChangingWolfMaterial()
     {
         var fixture =
@@ -569,6 +695,10 @@ public sealed class PredationMaterialAccountingTests
             energyReserve,
             health: 1,
             activity: AnimalActivity.Hunting,
+            material:
+                new OrganismMaterialState(
+                    liveBiomassKilograms: 40,
+                    liveNitrogenKilograms: 1),
             birthTimeSeconds:
                 -4 * 31_536_000L);
     }

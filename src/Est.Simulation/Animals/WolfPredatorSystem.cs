@@ -316,7 +316,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
                             grazerKills++;
 
                             var assimilated =
-                                ProvisionNearbyJuveniles(
+                                AssimilateNearbyWolfGrowth(
                                     animals,
                                     grazerTarget
                                         .LatitudeDegrees,
@@ -595,7 +595,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     predationDeaths++;
 
                     var assimilated =
-                        ProvisionNearbyJuveniles(
+                        AssimilateNearbyWolfGrowth(
                             animals,
                             target.LatitudeDegrees,
                             target.LongitudeDegrees,
@@ -1594,7 +1594,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
     }
 
     private static OrganismMaterialState
-        ProvisionNearbyJuveniles(
+        AssimilateNearbyWolfGrowth(
             List<AnimalState> animals,
             double killLatitudeDegrees,
             double killLongitudeDegrees,
@@ -1618,17 +1618,13 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var assimilatedNitrogen =
             0d;
 
-        var juveniles =
+        var recipients =
             animals
                 .Where(
                     candidate =>
                         candidate.Species ==
                             AnimalSpecies.Wolf &&
                         candidate.Health > 0 &&
-                        !CanParticipateInHunt(
-                            candidate,
-                            currentTimeSeconds,
-                            parameters) &&
                         DistanceDegrees(
                             killLatitudeDegrees,
                             killLongitudeDegrees,
@@ -1637,10 +1633,18 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         PackSupportRadiusDegrees)
                 .OrderBy(
                     candidate =>
+                        CanParticipateInHunt(
+                            candidate,
+                            currentTimeSeconds,
+                            parameters)
+                            ? 1
+                            : 0)
+                .ThenBy(
+                    candidate =>
                         candidate.Id.Value)
                 .ToArray();
 
-        foreach (var juvenile in juveniles)
+        foreach (var recipient in recipients)
         {
             if (remaining.IsEmpty)
             {
@@ -1650,7 +1654,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
             var current =
                 FindAnimal(
                     animals,
-                    juvenile.Id);
+                    recipient.Id);
 
             if (current is null ||
                 current.Health <= 0)
@@ -1659,7 +1663,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
             }
 
             var growth =
-                WolfJuvenileGrowth
+                WolfMaterialGrowth
                     .AssimilateTowardAgeTarget(
                         current,
                         currentTimeSeconds,
