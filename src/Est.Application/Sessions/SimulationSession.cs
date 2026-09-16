@@ -4,6 +4,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -79,6 +80,15 @@ public sealed class SimulationSession
                                 model.PlanetId,
                                 model.Parameters));
 
+        var invertebrateSystems =
+            definition.InvertebrateModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new InvertebrateSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var foragingSystems =
             definition.PopulationModels
                 .Where(
@@ -127,6 +137,7 @@ public sealed class SimulationSession
             energyBalanceSystems
                 .Concat(hydrologySystems)
                 .Concat(vegetationSystems)
+                .Concat(invertebrateSystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
                 .Concat(reproductionSystems)

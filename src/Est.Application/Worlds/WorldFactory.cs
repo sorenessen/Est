@@ -1,5 +1,6 @@
 using Est.Simulation.Animals;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Surface;
@@ -108,6 +109,29 @@ public static class WorldFactory
                         item!)
                 .ToArray();
 
+        var vegetationByPlanetId =
+            vegetation.ToDictionary(
+                item =>
+                    item.PlanetId);
+
+        var invertebrates =
+            specification.Planets
+                .Select(
+                    (planetSpecification, index) =>
+                        CreateInvertebrates(
+                            planets[index],
+                            vegetationByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .GeneratedInvertebrates))
+                .Where(
+                    item =>
+                        item is not null)
+                .Select(
+                    item =>
+                        item!)
+                .ToArray();
+
         return new WorldState(
             WorldId.New(),
             SimulationTime.Zero,
@@ -116,7 +140,8 @@ public static class WorldFactory
             animals,
             terrain,
             hydrology,
-            vegetation);
+            vegetation,
+            invertebrates);
     }
 
     private static PlanetState CreatePlanet(
@@ -241,6 +266,39 @@ public static class WorldFactory
                 hydrology,
                 specification
                     .InitialLiveBiomassKilogramsPerSquareMeter);
+    }
+
+    private static PlanetInvertebrateState? CreateInvertebrates(
+        PlanetState planet,
+        PlanetVegetationState? vegetation,
+        GeneratedInvertebrateCreationSpecification? specification)
+    {
+        if (specification is null)
+        {
+            return null;
+        }
+
+        if (vegetation is null)
+        {
+            throw new ArgumentException(
+                "Generated invertebrates require generated vegetation.",
+                nameof(specification));
+        }
+
+        var parameters =
+            new InvertebrateModelParameters(
+                carryingCapacityKilogramsPerKilogramLiveVegetation:
+                    specification
+                        .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                initialFractionOfLocalCarryingCapacity:
+                    specification
+                        .InitialFractionOfLocalCarryingCapacity);
+
+        return PlanetInvertebrateInitializer
+            .FromVegetationSupport(
+                planet,
+                vegetation,
+                parameters);
     }
 
     private static IEnumerable<AnimalState> CreateAnimals(

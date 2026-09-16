@@ -4,6 +4,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Time;
@@ -14,7 +15,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
+    private const int InvertebrateModelSchemaVersion = 8;
     private const int VegetationForagingSchemaVersion = 7;
     private const int VegetationModelSchemaVersion = 6;
     private const int HydrologyModelSchemaVersion = 5;
@@ -108,6 +110,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != ReproductiveBehaviorSchemaVersion &&
             archive.SchemaVersion != HydrologyModelSchemaVersion &&
             archive.SchemaVersion != VegetationModelSchemaVersion &&
+            archive.SchemaVersion != VegetationForagingSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -461,6 +464,35 @@ public static class TimelineArchiveSerializer
                                                 .TemperatureLapseRateKelvinPerMeter
                                     }
                             })
+                    .ToArray(),
+            InvertebrateModels =
+                definition.InvertebrateModels
+                    .Select(
+                        model =>
+                            new InvertebrateModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new InvertebrateModelParametersSnapshot
+                                    {
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        CarryingCapacityKilogramsPerKilogramLiveVegetation =
+                                            model.Parameters
+                                                .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                                        InitialFractionOfLocalCarryingCapacity =
+                                            model.Parameters
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                        MaximumRelativeGrowthRatePerDay =
+                                            model.Parameters
+                                                .MaximumRelativeGrowthRatePerDay,
+                                        BaselineMortalityRatePerDay =
+                                            model.Parameters
+                                                .BaselineMortalityRatePerDay
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -689,11 +721,56 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        InvertebrateModelDefinition[] invertebrateModels;
+
+        if (schemaVersion <
+            InvertebrateModelSchemaVersion)
+        {
+            invertebrateModels = [];
+        }
+        else
+        {
+            if (snapshot.InvertebrateModels is null)
+            {
+                throw new JsonException(
+                    "Invertebrate model collection is required.");
+            }
+
+            invertebrateModels =
+                snapshot.InvertebrateModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Invertebrate model parameters are required.");
+                            }
+
+                            return new InvertebrateModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new InvertebrateModelParameters(
+                                    model.Parameters
+                                        .MaximumIntegrationStepSeconds,
+                                    model.Parameters
+                                        .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                                    model.Parameters
+                                        .InitialFractionOfLocalCarryingCapacity,
+                                    model.Parameters
+                                        .MaximumRelativeGrowthRatePerDay,
+                                    model.Parameters
+                                        .BaselineMortalityRatePerDay));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
             hydrologyModels,
-            vegetationModels);
+            vegetationModels,
+            invertebrateModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -759,6 +836,55 @@ public static class TimelineArchiveSerializer
         public HydrologyModelSnapshot[]? HydrologyModels { get; set; }
 
         public VegetationModelSnapshot[]? VegetationModels { get; set; }
+
+        public InvertebrateModelSnapshot[]? InvertebrateModels { get; set; }
+    }
+
+    private sealed class InvertebrateModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required InvertebrateModelParametersSnapshot
+            Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class InvertebrateModelParametersSnapshot
+    {
+        public required long MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
+
+        public required double
+            CarryingCapacityKilogramsPerKilogramLiveVegetation
+        {
+            get;
+            set;
+        }
+
+        public required double
+            InitialFractionOfLocalCarryingCapacity
+        {
+            get;
+            set;
+        }
+
+        public required double MaximumRelativeGrowthRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public required double BaselineMortalityRatePerDay
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class VegetationModelSnapshot

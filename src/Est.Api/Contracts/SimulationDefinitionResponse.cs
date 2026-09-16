@@ -6,7 +6,9 @@ public sealed record SimulationDefinitionResponse(
     PopulationModelResponse[]
         PopulationModels,
     VegetationModelResponse[]
-        VegetationModels);
+        VegetationModels,
+    InvertebrateModelResponse[]
+        InvertebrateModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -50,3 +52,12 @@ public sealed record VegetationModelResponse(
     double OptimumGrowthTemperatureKelvin,
     double MaximumGrowthTemperatureKelvin,
     double TemperatureLapseRateKelvinPerMeter);
+
+
+public sealed record InvertebrateModelResponse(
+    Guid PlanetId,
+    long MaximumIntegrationStepSeconds,
+    double CarryingCapacityKilogramsPerKilogramLiveVegetation,
+    double InitialFractionOfLocalCarryingCapacity,
+    double MaximumRelativeGrowthRatePerDay,
+    double BaselineMortalityRatePerDay);

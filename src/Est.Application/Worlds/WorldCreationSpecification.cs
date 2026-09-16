@@ -12,7 +12,8 @@ public sealed record PlanetCreationSpecification(
     SyntheticAnimalCreationSpecification? SyntheticAnimals = null,
     GeneratedTerrainCreationSpecification? GeneratedTerrain = null,
     GeneratedHydrologyCreationSpecification? GeneratedHydrology = null,
-    GeneratedVegetationCreationSpecification? GeneratedVegetation = null);
+    GeneratedVegetationCreationSpecification? GeneratedVegetation = null,
+    GeneratedInvertebrateCreationSpecification? GeneratedInvertebrates = null);
 
 public sealed record GeneratedTerrainCreationSpecification(
     int Seed,
@@ -26,6 +27,10 @@ public sealed record GeneratedHydrologyCreationSpecification(
 
 public sealed record GeneratedVegetationCreationSpecification(
     double InitialLiveBiomassKilogramsPerSquareMeter);
+
+public sealed record GeneratedInvertebrateCreationSpecification(
+    double CarryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
+    double InitialFractionOfLocalCarryingCapacity = 0.25);
 
 public sealed record SyntheticPopulationCreationSpecification(
     int FounderCount,

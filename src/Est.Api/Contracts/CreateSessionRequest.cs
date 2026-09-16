@@ -22,7 +22,9 @@ public sealed record PlanetCreationRequest(
     GeneratedHydrologyCreationRequest? GeneratedHydrology = null,
     HydrologyModelRequest? HydrologyModel = null,
     GeneratedVegetationCreationRequest? GeneratedVegetation = null,
-    VegetationModelRequest? VegetationModel = null);
+    VegetationModelRequest? VegetationModel = null,
+    GeneratedInvertebrateCreationRequest? GeneratedInvertebrates = null,
+    InvertebrateModelRequest? InvertebrateModel = null);
 
 public sealed record GeneratedTerrainCreationRequest(
     [property: JsonRequired]
@@ -39,6 +41,41 @@ public sealed record GeneratedHydrologyCreationRequest(
 public sealed record GeneratedVegetationCreationRequest(
     [property: JsonRequired]
     double InitialLiveBiomassKilogramsPerSquareMeter);
+
+public sealed record GeneratedInvertebrateCreationRequest(
+    double CarryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
+    double InitialFractionOfLocalCarryingCapacity = 0.25);
+
+public sealed record InvertebrateModelRequest
+{
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double
+        CarryingCapacityKilogramsPerKilogramLiveVegetation
+    {
+        get;
+        init;
+    } = 0.02;
+
+    public double InitialFractionOfLocalCarryingCapacity
+    {
+        get;
+        init;
+    } = 0.25;
+
+    public double MaximumRelativeGrowthRatePerDay
+    {
+        get;
+        init;
+    } = 0.10;
+
+    public double BaselineMortalityRatePerDay
+    {
+        get;
+        init;
+    } = 0.02;
+}
 
 public sealed record VegetationModelRequest
 {

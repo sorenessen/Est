@@ -8,6 +8,7 @@ using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
 using Est.Simulation.Hydrology;
+using Est.Simulation.Invertebrates;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
@@ -183,7 +184,14 @@ app.MapPost(
                                         ? null
                                         : new GeneratedVegetationCreationSpecification(
                                             planet.GeneratedVegetation
-                                                .InitialLiveBiomassKilogramsPerSquareMeter)))
+                                                .InitialLiveBiomassKilogramsPerSquareMeter),
+                                    planet.GeneratedInvertebrates is null
+                                        ? null
+                                        : new GeneratedInvertebrateCreationSpecification(
+                                            planet.GeneratedInvertebrates
+                                                .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                                            planet.GeneratedInvertebrates
+                                                .InitialFractionOfLocalCarryingCapacity)))
                         .ToArray());
 
             var world =
@@ -311,12 +319,38 @@ app.MapPost(
                     .Cast<VegetationModelDefinition>()
                     .ToArray();
 
+            var invertebrateModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.InvertebrateModel is null
+                                ? null
+                                : new InvertebrateModelDefinition(
+                                    world.Planets[index].Id,
+                                    new InvertebrateModelParameters(
+                                        planet.InvertebrateModel
+                                            .MaximumIntegrationStepSeconds,
+                                        planet.InvertebrateModel
+                                            .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                                        planet.InvertebrateModel
+                                            .InitialFractionOfLocalCarryingCapacity,
+                                        planet.InvertebrateModel
+                                            .MaximumRelativeGrowthRatePerDay,
+                                        planet.InvertebrateModel
+                                            .BaselineMortalityRatePerDay)))
+                    .Where(
+                        model =>
+                            model is not null)
+                    .Cast<InvertebrateModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
                     populationModels,
                     hydrologyModels,
-                    vegetationModels);
+                    vegetationModels,
+                    invertebrateModels);
 
             var sessionId =
                 manager.Create(
@@ -596,6 +630,64 @@ app.MapGet(
             ToHydrologyResponse(
                 planet,
                 hydrology));
+    });
+
+app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/invertebrates",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var invertebrates =
+            session.CurrentWorld.Invertebrates
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (invertebrates is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(
+            ToInvertebrateResponse(
+                planet,
+                invertebrates));
     });
 
 app.MapGet(
@@ -1056,6 +1148,29 @@ static HydrologyResponse ToHydrologyResponse(
             .ToArray());
 }
 
+static InvertebrateResponse ToInvertebrateResponse(
+    PlanetState planet,
+    PlanetInvertebrateState invertebrates)
+{
+    invertebrates.ValidateFor(
+        planet);
+
+    return new InvertebrateResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            invertebrates.GridDefinition.Kind.ToString(),
+            invertebrates.GridDefinition.IdentityVersion,
+            invertebrates.GridDefinition.LatitudeBandCount,
+            invertebrates.GridDefinition.LongitudeBandCount),
+        invertebrates.Cells
+            .Select(
+                cell =>
+                    new InvertebrateCellResponse(
+                        cell.CellId.Value,
+                        cell.LiveBiomassKilogramsPerSquareMeter))
+            .ToArray());
+}
+
 static StandingWaterResponse ToStandingWaterResponse(
     PlanetStandingWaterState standingWater)
 {
@@ -1230,6 +1345,22 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .MaximumGrowthTemperatureKelvin,
                         model.Parameters
                             .TemperatureLapseRateKelvinPerMeter))
+            .ToArray(),
+        definition.InvertebrateModels
+            .Select(
+                model =>
+                    new InvertebrateModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .MaximumIntegrationStepSeconds,
+                        model.Parameters
+                            .CarryingCapacityKilogramsPerKilogramLiveVegetation,
+                        model.Parameters
+                            .InitialFractionOfLocalCarryingCapacity,
+                        model.Parameters
+                            .MaximumRelativeGrowthRatePerDay,
+                        model.Parameters
+                            .BaselineMortalityRatePerDay))
             .ToArray());
 }
 
