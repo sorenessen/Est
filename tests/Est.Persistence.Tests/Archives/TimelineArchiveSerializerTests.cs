@@ -1441,7 +1441,9 @@ public class TimelineArchiveSerializerTests
                         new PopulationModelParameters(
                             seed: 42,
                             newbornLiveBiomassKilograms: 4.1,
-                            newbornLiveNitrogenKilograms: 0.11))
+                            newbornLiveNitrogenKilograms: 0.11,
+                            matureLiveBiomassKilograms: 82,
+                            matureLiveNitrogenKilograms: 2.05))
                 ]);
 
         var restored =
@@ -1465,6 +1467,111 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             0.11,
             restoredParameters.NewbornMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            82,
+            restoredParameters.MatureMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            2.05,
+            restoredParameters.MatureMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+    }
+
+    [Fact]
+    public void Deserialize_Version17ArchiveUsesDefaultHumanGrowthMaterial()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Earth",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var definition =
+            new SimulationDefinition(
+                populationModels:
+                [
+                    new PopulationModelDefinition(
+                        planet.Id,
+                        new PopulationModelParameters(
+                            seed: 42,
+                            newbornLiveBiomassKilograms: 4.1,
+                            newbornLiveNitrogenKilograms: 0.11,
+                            matureLiveBiomassKilograms: 82,
+                            matureLiveNitrogenKilograms: 2.05))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] = 17;
+
+        var parameters =
+            node["definition"]!
+                ["populationModels"]!
+                .AsArray()[0]!
+                ["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "matureLiveBiomassKilograms");
+
+        parameters.Remove(
+            "matureLiveNitrogenKilograms");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                restored.Definition.PopulationModels)
+                .Parameters;
+
+        Assert.Equal(
+            4.1,
+            restoredParameters.NewbornMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            0.11,
+            restoredParameters.NewbornMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            70,
+            restoredParameters.MatureMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            1.75,
+            restoredParameters.MatureMaterial
                 .LiveNitrogenKilogramsPerUnit,
             precision: 10);
     }
@@ -1526,6 +1633,12 @@ public class TimelineArchiveSerializerTests
         parameters.Remove(
             "newbornLiveNitrogenKilograms");
 
+        parameters.Remove(
+            "matureLiveBiomassKilograms");
+
+        parameters.Remove(
+            "matureLiveNitrogenKilograms");
+
         var restored =
             TimelineArchiveSerializer.Deserialize(
                 node.ToJsonString());
@@ -1544,6 +1657,18 @@ public class TimelineArchiveSerializerTests
         Assert.Equal(
             0.0875,
             restoredParameters.NewbornMaterial
+                .LiveNitrogenKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            70,
+            restoredParameters.MatureMaterial
+                .LiveBiomassKilogramsPerUnit,
+            precision: 10);
+
+        Assert.Equal(
+            1.75,
+            restoredParameters.MatureMaterial
                 .LiveNitrogenKilogramsPerUnit,
             precision: 10);
     }

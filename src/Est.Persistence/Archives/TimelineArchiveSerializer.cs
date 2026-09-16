@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 17;
+    public const int CurrentSchemaVersion = 18;
+    private const int HumanGrowthMaterialSchemaVersion = 18;
     private const int HumanLifecycleMaterialSchemaVersion = 17;
     private const int OrganismMaterialPolicySchemaVersion = 16;
     private const int VegetationMortalitySchemaVersion = 15;
@@ -132,6 +133,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != VegetationNitrogenCouplingSchemaVersion &&
             archive.SchemaVersion != VegetationMortalitySchemaVersion &&
             archive.SchemaVersion != OrganismMaterialPolicySchemaVersion &&
+            archive.SchemaVersion != HumanLifecycleMaterialSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -393,6 +395,14 @@ public static class TimelineArchiveSerializer
                                         NewbornLiveNitrogenKilograms =
                                             model.Parameters
                                                 .NewbornMaterial
+                                                .LiveNitrogenKilogramsPerUnit,
+                                        MatureLiveBiomassKilograms =
+                                            model.Parameters
+                                                .MatureMaterial
+                                                .LiveBiomassKilogramsPerUnit,
+                                        MatureLiveNitrogenKilograms =
+                                            model.Parameters
+                                                .MatureMaterial
                                                 .LiveNitrogenKilogramsPerUnit
                                     },
                                 VegetationForaging =
@@ -788,7 +798,23 @@ public static class TimelineArchiveSerializer
                                                 .NewbornLiveNitrogenKilograms
                                                 ?? throw new JsonException(
                                                     "Human newborn live nitrogen is required.")
-                                            : 0.0875),
+                                            : 0.0875,
+                                    matureLiveBiomassKilograms:
+                                        schemaVersion >=
+                                            HumanGrowthMaterialSchemaVersion
+                                            ? model.Parameters
+                                                .MatureLiveBiomassKilograms
+                                                ?? throw new JsonException(
+                                                    "Human mature live biomass is required.")
+                                            : 70,
+                                    matureLiveNitrogenKilograms:
+                                        schemaVersion >=
+                                            HumanGrowthMaterialSchemaVersion
+                                            ? model.Parameters
+                                                .MatureLiveNitrogenKilograms
+                                                ?? throw new JsonException(
+                                                    "Human mature live nitrogen is required.")
+                                            : 1.75),
                                     vegetationForaging:
                                         schemaVersion >=
                                             VegetationForagingSchemaVersion &&
@@ -1811,6 +1837,10 @@ public static class TimelineArchiveSerializer
         public double? NewbornLiveBiomassKilograms { get; set; }
 
         public double? NewbornLiveNitrogenKilograms { get; set; }
+
+        public double? MatureLiveBiomassKilograms { get; set; }
+
+        public double? MatureLiveNitrogenKilograms { get; set; }
     }
 
     private sealed class PlanetaryEnergyBalanceModelSnapshot

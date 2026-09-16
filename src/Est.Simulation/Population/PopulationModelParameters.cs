@@ -19,7 +19,9 @@ public sealed record PopulationModelParameters
         double conceptionProbabilityPerMatingOpportunity = 0.20,
         double gestationDays = 280,
         double newbornLiveBiomassKilograms = 3.5,
-        double newbornLiveNitrogenKilograms = 0.0875)
+        double newbornLiveNitrogenKilograms = 0.0875,
+        double matureLiveBiomassKilograms = 70,
+        double matureLiveNitrogenKilograms = 1.75)
     {
         ValidateProbability(
             annualAdultMigrationRate,
@@ -103,6 +105,21 @@ public sealed record PopulationModelParameters
                 newbornLiveBiomassKilograms,
                 newbornLiveNitrogenKilograms);
 
+        var matureMaterial =
+            new OrganismMaterialComposition(
+                matureLiveBiomassKilograms,
+                matureLiveNitrogenKilograms);
+
+        if (matureMaterial.LiveBiomassKilogramsPerUnit <
+                newbornMaterial.LiveBiomassKilogramsPerUnit ||
+            matureMaterial.LiveNitrogenKilogramsPerUnit <
+                newbornMaterial.LiveNitrogenKilogramsPerUnit)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(matureLiveBiomassKilograms),
+                "Mature human material must not be less than newborn material.");
+        }
+
         Seed = seed;
         AnnualBirthRatePerEligibleFemale =
             annualBirthRatePerEligibleFemale;
@@ -125,6 +142,7 @@ public sealed record PopulationModelParameters
             conceptionProbabilityPerMatingOpportunity;
         GestationDays = gestationDays;
         NewbornMaterial = newbornMaterial;
+        MatureMaterial = matureMaterial;
     }
 
     public int Seed { get; }
@@ -154,6 +172,39 @@ public sealed record PopulationModelParameters
     public double GestationDays { get; }
 
     public OrganismMaterialComposition NewbornMaterial { get; }
+
+    public OrganismMaterialComposition MatureMaterial { get; }
+
+    public OrganismMaterialState MaterialTargetAtAgeYears(
+        double ageYears)
+    {
+        if (!double.IsFinite(ageYears) ||
+            ageYears < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(ageYears),
+                "Age must be finite and non-negative.");
+        }
+
+        var maturityFraction =
+            ReproductiveAgeMinimumYears <= 0
+                ? 1
+                : Math.Clamp(
+                    ageYears /
+                    ReproductiveAgeMinimumYears,
+                    0,
+                    1);
+
+        return new OrganismMaterialState(
+            NewbornMaterial.LiveBiomassKilogramsPerUnit +
+            (MatureMaterial.LiveBiomassKilogramsPerUnit -
+             NewbornMaterial.LiveBiomassKilogramsPerUnit) *
+            maturityFraction,
+            NewbornMaterial.LiveNitrogenKilogramsPerUnit +
+            (MatureMaterial.LiveNitrogenKilogramsPerUnit -
+             NewbornMaterial.LiveNitrogenKilogramsPerUnit) *
+            maturityFraction);
+    }
 
     private static void ValidateProbability(
         double value,
