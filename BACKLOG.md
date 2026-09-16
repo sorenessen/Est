@@ -453,17 +453,39 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Seed organism material through explicit world-creation/model policy and
         persist/expose it without hiding species composition assumptions inside
         behavior systems.
-  - [ ] Route human, wolf, bird, and grazer mortality through common detrital
+  - [x] Route human, wolf, bird, and grazer mortality through common detrital
         material-transfer semantics.
-  - [ ] Close human-foraging and grazer-grazing material leaks so consumed
+  - [x] Close human-foraging and grazer-grazing material leaks so consumed
         biomass and tracked nitrogen have explicit destinations.
-  - [ ] Replace count-and-energy-only predation with explicit prey-material
+  - [x] Replace count-and-energy-only predation with explicit prey-material
         accounting while preserving species-specific hunting behavior.
-  - [ ] Give runtime births a causal material source before inheritance depends
-        on newly created organisms.
-  - [ ] Validate material and nitrogen accounting across feeding, predation,
-        reproduction, mortality, decomposition, persistence, and session
-        advancement.
+  - [ ] Establish shared lifecycle semantics for birth/recruitment, growth,
+        maturation, reproductive eligibility, aging, seasonal state, and death
+        without forcing individual, flock, cohort, and spatial-aggregate
+        organisms into one behavioral representation.
+  - [ ] Complete individual human and wolf lifecycles, including sex and age,
+        mate seeking, reproduction, causal offspring material, juvenile growth,
+        maturation, senescence, and species-appropriate seasonal behavior.
+  - [ ] Add demographic lifecycle structure to bird flocks so breeding,
+        hatching/recruitment, juvenile maturation, mortality, migration, and
+        other species-appropriate seasonal behavior can occur without
+        materializing every bird.
+  - [ ] Add demographic lifecycle structure to grazer cohorts so mating,
+        gestation/calving or equivalent recruitment, juvenile maturation,
+        senescence, mortality, and species-appropriate seasonal behavior can
+        occur without materializing every grazer.
+  - [ ] Make invertebrate aggregate reproduction and biomass growth draw from an
+        authoritative material source rather than allowing carrying capacity to
+        create tracked biomass implicitly.
+  - [ ] Give every runtime birth, hatch, recruitment, and growth transition a
+        causal material source before inheritance depends on newly created
+        organisms.
+  - [ ] Add species-policy seasonal lifecycle strategies such as breeding
+        seasons, migration, torpor, dormancy, and hibernation where biologically
+        appropriate rather than treating any one strategy as universal.
+  - [ ] Validate material and nitrogen accounting across feeding, growth,
+        predation, reproduction, mortality, decomposition, persistence, and
+        session advancement.
 - [ ] Explore evolutionary population dynamics above the mature biosphere
       substrate.
 
