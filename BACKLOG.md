@@ -433,7 +433,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         biomass, detrital nitrogen, and plant-available nitrogen on the shared
         surface grid, including world invariants and snapshot/archive
         persistence.
-  - [ ] Add explicit per-planet decomposition and nutrient-cycling model policy.
+  - [x] Add explicit per-planet decomposition and nutrient-cycling model policy.
   - [ ] Add environmentally constrained decomposition that transfers nitrogen
         from detritus into the plant-available pool with explicit mass balance.
   - [ ] Make plant productivity consume and respond to authoritative available

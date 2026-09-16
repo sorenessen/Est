@@ -572,6 +572,179 @@ public class TimelineArchiveSerializerTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesBiogeochemistryModelDefinition()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Biogeochemistry Model World",
+                5.0e24,
+                6_000_000,
+                new PlanetEnvironment(
+                    285,
+                    0.60,
+                    0.05,
+                    AtmosphereState.Vacuum));
+
+        var gridDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                2,
+                4);
+
+        var grid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                gridDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            0)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            0,
+                            0,
+                            100,
+                            0)));
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            1,
+                            0.03,
+                            0.01)));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet],
+                    [],
+                    terrain:
+                    [
+                        terrain
+                    ],
+                    hydrology:
+                    [
+                        hydrology
+                    ],
+                    biogeochemistry:
+                    [
+                        biogeochemistry
+                    ]));
+
+        var parameters =
+            new BiogeochemistryModelParameters(
+                maximumIntegrationStepSeconds: 3_600,
+                maximumRelativeDecompositionRatePerDay: 0.08,
+                soilWaterForFullDecompositionKilogramsPerSquareMeter: 65,
+                minimumDecompositionTemperatureKelvin: 260,
+                optimumDecompositionTemperatureKelvin: 295,
+                maximumDecompositionTemperatureKelvin: 320,
+                temperatureLapseRateKelvinPerMeter: 0.006);
+
+        var definition =
+            new SimulationDefinition(
+                biogeochemistryModels:
+                [
+                    new BiogeochemistryModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()));
+
+        var model =
+            Assert.Single(
+                restored.Definition
+                    .BiogeochemistryModels);
+
+        Assert.Equal(
+            planet.Id,
+            model.PlanetId);
+
+        Assert.Equal(
+            parameters,
+            model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwelveDefaultsBiogeochemistryModelsToEmpty()
+    {
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                CreateTimelineWithHistory(),
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["schemaVersion"] = 12;
+
+        node["definition"]!
+            .AsObject()
+            .Remove(
+                "biogeochemistryModels");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Definition
+                .BiogeochemistryModels);
+    }
+
+    [Fact]
+    public void Deserialize_VersionThirteenRequiresBiogeochemistryModels()
+    {
+        var json =
+            TimelineArchiveSerializer.Serialize(
+                CreateTimelineWithHistory(),
+                SimulationDefinition.Empty,
+                CreateProvenance());
+
+        var node =
+            JsonNode.Parse(json)!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()
+            .Remove(
+                "biogeochemistryModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
+    }
+
+    [Fact]
     public void RoundTrip_PreservesCheckpointIdentities()
     {
         var timeline = CreateTimelineWithHistory();

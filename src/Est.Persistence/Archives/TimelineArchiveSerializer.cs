@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Est.Persistence.Snapshots;
 using Est.Simulation.Birds;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
@@ -17,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 12;
+    public const int CurrentSchemaVersion = 13;
+    private const int BiogeochemistryModelSchemaVersion = 13;
     private const int GrazerBehaviorSchemaVersion = 12;
     private const int GrazerModelSchemaVersion = 11;
     private const int BirdBehaviorSchemaVersion = 10;
@@ -122,6 +124,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != BirdBehaviorSchemaVersion &&
             archive.SchemaVersion != GrazerModelSchemaVersion &&
             archive.SchemaVersion != GrazerBehaviorSchemaVersion &&
+            archive.SchemaVersion != BiogeochemistryModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -589,6 +592,41 @@ public static class TimelineArchiveSerializer
                                                 .HabitatAbsenceMortalityRatePerDay
                                     }
                             })
+                    .ToArray(),
+            BiogeochemistryModels =
+                definition.BiogeochemistryModels
+                    .Select(
+                        model =>
+                            new BiogeochemistryModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new BiogeochemistryModelParametersSnapshot
+                                    {
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds,
+                                        MaximumRelativeDecompositionRatePerDay =
+                                            model.Parameters
+                                                .MaximumRelativeDecompositionRatePerDay,
+                                        SoilWaterForFullDecompositionKilogramsPerSquareMeter =
+                                            model.Parameters
+                                                .SoilWaterForFullDecompositionKilogramsPerSquareMeter,
+                                        MinimumDecompositionTemperatureKelvin =
+                                            model.Parameters
+                                                .MinimumDecompositionTemperatureKelvin,
+                                        OptimumDecompositionTemperatureKelvin =
+                                            model.Parameters
+                                                .OptimumDecompositionTemperatureKelvin,
+                                        MaximumDecompositionTemperatureKelvin =
+                                            model.Parameters
+                                                .MaximumDecompositionTemperatureKelvin,
+                                        TemperatureLapseRateKelvinPerMeter =
+                                            model.Parameters
+                                                .TemperatureLapseRateKelvinPerMeter
+                                    }
+                            })
                     .ToArray()
         };
     }
@@ -1039,6 +1077,55 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        BiogeochemistryModelDefinition[]
+            biogeochemistryModels;
+
+        if (schemaVersion <
+            BiogeochemistryModelSchemaVersion)
+        {
+            biogeochemistryModels = [];
+        }
+        else
+        {
+            if (snapshot.BiogeochemistryModels is null)
+            {
+                throw new JsonException(
+                    "Biogeochemistry model collection is required.");
+            }
+
+            biogeochemistryModels =
+                snapshot.BiogeochemistryModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Biogeochemistry model parameters are required.");
+                            }
+
+                            return new BiogeochemistryModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new BiogeochemistryModelParameters(
+                                    model.Parameters
+                                        .MaximumIntegrationStepSeconds,
+                                    model.Parameters
+                                        .MaximumRelativeDecompositionRatePerDay,
+                                    model.Parameters
+                                        .SoilWaterForFullDecompositionKilogramsPerSquareMeter,
+                                    model.Parameters
+                                        .MinimumDecompositionTemperatureKelvin,
+                                    model.Parameters
+                                        .OptimumDecompositionTemperatureKelvin,
+                                    model.Parameters
+                                        .MaximumDecompositionTemperatureKelvin,
+                                    model.Parameters
+                                        .TemperatureLapseRateKelvinPerMeter));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
@@ -1046,7 +1133,8 @@ public static class TimelineArchiveSerializer
             vegetationModels,
             invertebrateModels,
             birdModels,
-            grazerModels);
+            grazerModels,
+            biogeochemistryModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -1118,6 +1206,66 @@ public static class TimelineArchiveSerializer
         public BirdModelSnapshot[]? BirdModels { get; set; }
 
         public GrazerModelSnapshot[]? GrazerModels { get; set; }
+
+        public BiogeochemistryModelSnapshot[]?
+            BiogeochemistryModels { get; set; }
+    }
+
+    private sealed class BiogeochemistryModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required BiogeochemistryModelParametersSnapshot Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class BiogeochemistryModelParametersSnapshot
+    {
+        public required long MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
+
+        public required double MaximumRelativeDecompositionRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SoilWaterForFullDecompositionKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double MinimumDecompositionTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double OptimumDecompositionTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double MaximumDecompositionTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double TemperatureLapseRateKelvinPerMeter
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class GrazerModelSnapshot

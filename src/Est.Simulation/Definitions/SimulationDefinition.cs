@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Est.Simulation.Birds;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -18,7 +19,8 @@ public sealed record SimulationDefinition
         IEnumerable<VegetationModelDefinition>? vegetationModels = null,
         IEnumerable<InvertebrateModelDefinition>? invertebrateModels = null,
         IEnumerable<BirdModelDefinition>? birdModels = null,
-        IEnumerable<GrazerModelDefinition>? grazerModels = null)
+        IEnumerable<GrazerModelDefinition>? grazerModels = null,
+        IEnumerable<BiogeochemistryModelDefinition>? biogeochemistryModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -47,6 +49,10 @@ public sealed record SimulationDefinition
         var grazers = grazerModels?
             .ToImmutableArray()
             ?? ImmutableArray<GrazerModelDefinition>.Empty;
+
+        var biogeochemistry = biogeochemistryModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<BiogeochemistryModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -95,6 +101,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null grazer model definitions.",
                 nameof(grazerModels));
+        }
+
+        if (biogeochemistry.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null biogeochemistry model definitions.",
+                nameof(biogeochemistryModels));
         }
 
         if (models
@@ -160,6 +173,15 @@ public sealed record SimulationDefinition
                 nameof(grazerModels));
         }
 
+        if (biogeochemistry
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one biogeochemistry model definition.",
+                nameof(biogeochemistryModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
@@ -167,6 +189,7 @@ public sealed record SimulationDefinition
         InvertebrateModels = invertebrates;
         BirdModels = birds;
         GrazerModels = grazers;
+        BiogeochemistryModels = biogeochemistry;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -189,6 +212,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<GrazerModelDefinition>
         GrazerModels { get; }
+
+    public ImmutableArray<BiogeochemistryModelDefinition>
+        BiogeochemistryModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -307,6 +333,26 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Grazer model for planet '{model.PlanetId.Value}' requires authoritative vegetation state for that planet.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in BiogeochemistryModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Biogeochemistry model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+
+            if (!world.Biogeochemistry.Any(
+                    state =>
+                        state.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Biogeochemistry model for planet '{model.PlanetId.Value}' requires authoritative biogeochemistry state for that planet.",
                     nameof(world));
             }
         }
