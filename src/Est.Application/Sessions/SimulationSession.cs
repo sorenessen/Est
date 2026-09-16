@@ -1,4 +1,5 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Birds;
 using Est.Simulation.Causality;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
@@ -89,6 +90,15 @@ public sealed class SimulationSession
                                 model.PlanetId,
                                 model.Parameters));
 
+        var birdSystems =
+            definition.BirdModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new BirdFlockSystem(
+                                model.PlanetId,
+                                model.Parameters));
+
         var foragingSystems =
             definition.PopulationModels
                 .Where(
@@ -138,6 +148,7 @@ public sealed class SimulationSession
                 .Concat(hydrologySystems)
                 .Concat(vegetationSystems)
                 .Concat(invertebrateSystems)
+                .Concat(birdSystems)
                 .Concat(foragingSystems)
                 .Concat(predatorSystems)
                 .Concat(reproductionSystems)

@@ -24,7 +24,9 @@ public sealed record PlanetCreationRequest(
     GeneratedVegetationCreationRequest? GeneratedVegetation = null,
     VegetationModelRequest? VegetationModel = null,
     GeneratedInvertebrateCreationRequest? GeneratedInvertebrates = null,
-    InvertebrateModelRequest? InvertebrateModel = null);
+    InvertebrateModelRequest? InvertebrateModel = null,
+    GeneratedBirdCreationRequest? GeneratedBirds = null,
+    BirdModelRequest? BirdModel = null);
 
 public sealed record GeneratedTerrainCreationRequest(
     [property: JsonRequired]
@@ -45,6 +47,50 @@ public sealed record GeneratedVegetationCreationRequest(
 public sealed record GeneratedInvertebrateCreationRequest(
     double CarryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
     double InitialFractionOfLocalCarryingCapacity = 0.25);
+
+public sealed record GeneratedBirdCreationRequest(
+    double CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass =
+        0.000001,
+    double InitialFractionOfLocalCarryingCapacity = 0.25,
+    int MinimumInitialFlockMemberCount = 10,
+    int MaximumInitialFlockCount = 64);
+
+public sealed record BirdModelRequest
+{
+    public double
+        CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass
+    {
+        get;
+        init;
+    } = 0.000001;
+
+    public double InitialFractionOfLocalCarryingCapacity
+    {
+        get;
+        init;
+    } = 0.25;
+
+    public int MinimumInitialFlockMemberCount { get; init; } =
+        10;
+
+    public int MaximumInitialFlockCount { get; init; } =
+        64;
+
+    public long MaximumIntegrationStepSeconds { get; init; } =
+        21_600;
+
+    public double MaximumTravelMetersPerDay { get; init; } =
+        250_000;
+
+    public double FoodShortageMortalityRatePerDay { get; init; } =
+        0.05;
+
+    public double WaterAbsenceMortalityRatePerDay { get; init; } =
+        0.20;
+
+    public double HabitatAbsenceMortalityRatePerDay { get; init; } =
+        0.02;
+}
 
 public sealed record InvertebrateModelRequest
 {

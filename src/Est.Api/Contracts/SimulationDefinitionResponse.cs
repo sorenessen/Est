@@ -8,7 +8,9 @@ public sealed record SimulationDefinitionResponse(
     VegetationModelResponse[]
         VegetationModels,
     InvertebrateModelResponse[]
-        InvertebrateModels);
+        InvertebrateModels,
+    BirdModelResponse[]
+        BirdModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -61,3 +63,15 @@ public sealed record InvertebrateModelResponse(
     double InitialFractionOfLocalCarryingCapacity,
     double MaximumRelativeGrowthRatePerDay,
     double BaselineMortalityRatePerDay);
+
+public sealed record BirdModelResponse(
+    Guid PlanetId,
+    double CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+    double InitialFractionOfLocalCarryingCapacity,
+    int MinimumInitialFlockMemberCount,
+    int MaximumInitialFlockCount,
+    long MaximumIntegrationStepSeconds,
+    double MaximumTravelMetersPerDay,
+    double FoodShortageMortalityRatePerDay,
+    double WaterAbsenceMortalityRatePerDay,
+    double HabitatAbsenceMortalityRatePerDay);

@@ -4,6 +4,7 @@ using Est.Persistence.Archives;
 using Est.Persistence.Storage;
 using Est.Application.Sessions;
 using Est.Application.Worlds;
+using Est.Simulation.Birds;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Ecology;
@@ -191,7 +192,18 @@ app.MapPost(
                                             planet.GeneratedInvertebrates
                                                 .CarryingCapacityKilogramsPerKilogramLiveVegetation,
                                             planet.GeneratedInvertebrates
-                                                .InitialFractionOfLocalCarryingCapacity)))
+                                                .InitialFractionOfLocalCarryingCapacity),
+                                    planet.GeneratedBirds is null
+                                        ? null
+                                        : new GeneratedBirdCreationSpecification(
+                                            planet.GeneratedBirds
+                                                .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                                            planet.GeneratedBirds
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                            planet.GeneratedBirds
+                                                .MinimumInitialFlockMemberCount,
+                                            planet.GeneratedBirds
+                                                .MaximumInitialFlockCount)))
                         .ToArray());
 
             var world =
@@ -344,13 +356,56 @@ app.MapPost(
                     .Cast<InvertebrateModelDefinition>()
                     .ToArray();
 
+            var birdModels =
+                request.Planets
+                    .Select(
+                        (planet, index) =>
+                            planet.BirdModel is null
+                                ? null
+                                : new BirdModelDefinition(
+                                    world.Planets[index].Id,
+                                    new BirdModelParameters(
+                                        carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                                            planet.BirdModel
+                                                .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                                        initialFractionOfLocalCarryingCapacity:
+                                            planet.BirdModel
+                                                .InitialFractionOfLocalCarryingCapacity,
+                                        minimumInitialFlockMemberCount:
+                                            planet.BirdModel
+                                                .MinimumInitialFlockMemberCount,
+                                        maximumInitialFlockCount:
+                                            planet.BirdModel
+                                                .MaximumInitialFlockCount,
+                                        maximumIntegrationStepSeconds:
+                                            planet.BirdModel
+                                                .MaximumIntegrationStepSeconds,
+                                        maximumTravelMetersPerDay:
+                                            planet.BirdModel
+                                                .MaximumTravelMetersPerDay,
+                                        foodShortageMortalityRatePerDay:
+                                            planet.BirdModel
+                                                .FoodShortageMortalityRatePerDay,
+                                        waterAbsenceMortalityRatePerDay:
+                                            planet.BirdModel
+                                                .WaterAbsenceMortalityRatePerDay,
+                                        habitatAbsenceMortalityRatePerDay:
+                                            planet.BirdModel
+                                                .HabitatAbsenceMortalityRatePerDay)))
+                    .Where(
+                        model =>
+                            model is not null)
+                    .Cast<BirdModelDefinition>()
+                    .ToArray();
+
             var definition =
                 new SimulationDefinition(
                     energyBalanceModels,
                     populationModels,
                     hydrologyModels,
                     vegetationModels,
-                    invertebrateModels);
+                    invertebrateModels,
+                    birdModels);
 
             var sessionId =
                 manager.Create(
@@ -688,6 +743,71 @@ app.MapGet(
             ToInvertebrateResponse(
                 planet,
                 invertebrates));
+    });
+
+app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/bird-flocks",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(
+                id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var flocks =
+            session.CurrentWorld.BirdFlocks
+                .Where(
+                    flock =>
+                        flock.PlanetId ==
+                        planetIdentity)
+                .OrderBy(
+                    flock =>
+                        flock.Id.Value)
+                .Select(
+                    flock =>
+                        new BirdFlockResponse(
+                            flock.Id.Value,
+                            flock.MemberCount,
+                            flock.LatitudeDegrees,
+                            flock.LongitudeDegrees))
+                .ToArray();
+
+        return Results.Ok(
+            new BirdFlocksResponse(
+                planetIdentity.Value,
+                flocks));
     });
 
 app.MapGet(
@@ -1361,6 +1481,30 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .MaximumRelativeGrowthRatePerDay,
                         model.Parameters
                             .BaselineMortalityRatePerDay))
+            .ToArray(),
+        definition.BirdModels
+            .Select(
+                model =>
+                    new BirdModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass,
+                        model.Parameters
+                            .InitialFractionOfLocalCarryingCapacity,
+                        model.Parameters
+                            .MinimumInitialFlockMemberCount,
+                        model.Parameters
+                            .MaximumInitialFlockCount,
+                        model.Parameters
+                            .MaximumIntegrationStepSeconds,
+                        model.Parameters
+                            .MaximumTravelMetersPerDay,
+                        model.Parameters
+                            .FoodShortageMortalityRatePerDay,
+                        model.Parameters
+                            .WaterAbsenceMortalityRatePerDay,
+                        model.Parameters
+                            .HabitatAbsenceMortalityRatePerDay))
             .ToArray());
 }
 
