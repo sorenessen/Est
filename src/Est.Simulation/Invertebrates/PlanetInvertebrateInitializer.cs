@@ -35,12 +35,20 @@ public static class PlanetInvertebrateInitializer
             vegetation.GridDefinition,
             vegetation.Cells.Select(
                 cell =>
-                    new InvertebrateCellState(
-                        cell.CellId,
-                        cell.LiveBiomassKilogramsPerSquareMeter *
-                        parameters
-                            .CarryingCapacityKilogramsPerKilogramLiveVegetation *
-                        parameters
-                            .InitialFractionOfLocalCarryingCapacity)));
+                    {
+                        var liveBiomass =
+                            cell.LiveBiomassKilogramsPerSquareMeter *
+                            parameters
+                                .CarryingCapacityKilogramsPerKilogramLiveVegetation *
+                            parameters
+                                .InitialFractionOfLocalCarryingCapacity;
+
+                        return new InvertebrateCellState(
+                            cell.CellId,
+                            liveBiomass,
+                            liveBiomass *
+                            parameters
+                                .LiveNitrogenKilogramsPerKilogramLiveBiomass);
+                    }));
     }
 }

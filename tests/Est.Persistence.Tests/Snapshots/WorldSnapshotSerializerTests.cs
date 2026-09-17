@@ -1408,7 +1408,10 @@ public class WorldSnapshotSerializerTests
                         new InvertebrateCellState(
                             cell.Id,
                             0.05 +
-                            index * 0.01)));
+                            index * 0.01,
+                            (0.05 +
+                             index * 0.01) *
+                            0.025)));
 
         var world =
             new WorldState(
@@ -1454,6 +1457,38 @@ public class WorldSnapshotSerializerTests
         restoredInvertebrates.ValidateFor(
             Assert.Single(
                 restored.Planets));
+
+        var legacyNode =
+            JsonNode.Parse(
+                json)!
+            .AsObject();
+
+        legacyNode["schemaVersion"] = 19;
+
+        foreach (var cell in
+                 legacyNode["invertebrates"]!
+                     .AsArray()[0]!
+                     ["cells"]!
+                     .AsArray())
+        {
+            cell!
+                .AsObject()
+                .Remove(
+                    "liveNitrogenKilogramsPerSquareMeter");
+        }
+
+        var legacyRestored =
+            WorldSnapshotSerializer.Deserialize(
+                legacyNode.ToJsonString());
+
+        Assert.All(
+            Assert.Single(
+                    legacyRestored.Invertebrates)
+                .Cells,
+            cell =>
+                Assert.Equal(
+                    0,
+                    cell.LiveNitrogenKilogramsPerSquareMeter));
     }
 
     [Fact]

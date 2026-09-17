@@ -31,6 +31,26 @@ public sealed class InvertebrateModelParametersTests
         Assert.Equal(
             0.02,
             parameters.BaselineMortalityRatePerDay);
+
+        Assert.Equal(
+            0,
+            parameters
+                .LiveNitrogenKilogramsPerKilogramLiveBiomass);
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(1.01)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void Constructor_RejectsInvalidLiveNitrogenRatio(
+        double ratio)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new InvertebrateModelParameters(
+                    liveNitrogenKilogramsPerKilogramLiveBiomass:
+                        ratio));
     }
 
     [Theory]

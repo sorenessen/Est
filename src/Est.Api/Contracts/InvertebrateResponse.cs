@@ -7,4 +7,5 @@ public sealed record InvertebrateResponse(
 
 public sealed record InvertebrateCellResponse(
     Guid SurfaceCellId,
-    double LiveBiomassKilogramsPerSquareMeter);
+    double LiveBiomassKilogramsPerSquareMeter,
+    double LiveNitrogenKilogramsPerSquareMeter);

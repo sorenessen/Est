@@ -446,7 +446,10 @@ public static class WorldFactory
                         .CarryingCapacityKilogramsPerKilogramLiveVegetation,
                 initialFractionOfLocalCarryingCapacity:
                     specification
-                        .InitialFractionOfLocalCarryingCapacity);
+                        .InitialFractionOfLocalCarryingCapacity,
+                liveNitrogenKilogramsPerKilogramLiveBiomass:
+                    specification
+                        .LiveNitrogenKilogramsPerKilogramLiveBiomass);
 
         return PlanetInvertebrateInitializer
             .FromVegetationSupport(

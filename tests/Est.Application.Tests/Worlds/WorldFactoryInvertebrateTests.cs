@@ -33,7 +33,9 @@ public sealed class WorldFactoryInvertebrateTests
                                 CarryingCapacityKilogramsPerKilogramLiveVegetation:
                                     0.04,
                                 InitialFractionOfLocalCarryingCapacity:
-                                    0.25))
+                                    0.25,
+                                LiveNitrogenKilogramsPerKilogramLiveBiomass:
+                                    0.025))
                 ]));
 
         var vegetation =
@@ -51,14 +53,26 @@ public sealed class WorldFactoryInvertebrateTests
         foreach (var vegetationCell in
                  vegetation.Cells)
         {
-            Assert.Equal(
+            var invertebrateCell =
+                invertebrates.GetCell(
+                    vegetationCell.CellId);
+
+            var expectedBiomass =
                 vegetationCell.LiveBiomassKilogramsPerSquareMeter *
                 0.04 *
-                0.25,
-                invertebrates
-                    .GetCell(
-                        vegetationCell.CellId)
+                0.25;
+
+            Assert.Equal(
+                expectedBiomass,
+                invertebrateCell
                     .LiveBiomassKilogramsPerSquareMeter,
+                12);
+
+            Assert.Equal(
+                expectedBiomass *
+                0.025,
+                invertebrateCell
+                    .LiveNitrogenKilogramsPerSquareMeter,
                 12);
         }
     }

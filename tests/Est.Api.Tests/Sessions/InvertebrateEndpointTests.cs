@@ -46,6 +46,16 @@ public sealed class InvertebrateEndpointTests
                     GeneratedVegetation:
                         new GeneratedVegetationCreationRequest(
                             1),
+                    VegetationModel:
+                        new VegetationModelRequest
+                        {
+                            MaximumRelativeGrowthRatePerDay =
+                                0,
+                            PlantNitrogenKilogramsPerKilogramLiveBiomass =
+                                0.025,
+                            BaselineMortalityRatePerDay =
+                                0
+                        },
                     GeneratedInvertebrates:
                         new GeneratedInvertebrateCreationRequest(
                             CarryingCapacityKilogramsPerKilogramLiveVegetation:
@@ -64,8 +74,18 @@ public sealed class InvertebrateEndpointTests
                             MaximumRelativeGrowthRatePerDay =
                                 0.20,
                             BaselineMortalityRatePerDay =
-                                0
-                        })
+                                0,
+                            LiveNitrogenKilogramsPerKilogramLiveBiomass =
+                                0.025
+                        },
+                    GeneratedBiogeochemistry:
+                        new GeneratedBiogeochemistryCreationRequest(
+                            InitialDetritalBiomassKilogramsPerSquareMeter:
+                                0,
+                            InitialDetritalNitrogenKilogramsPerSquareMeter:
+                                0,
+                            InitialPlantAvailableNitrogenKilogramsPerSquareMeter:
+                                0.10))
             ]);
 
         var createResponse =
@@ -116,6 +136,10 @@ public sealed class InvertebrateEndpointTests
             0,
             model.BaselineMortalityRatePerDay);
 
+        Assert.Equal(
+            0.025,
+            model.LiveNitrogenKilogramsPerKilogramLiveBiomass);
+
         var world =
             await client.GetFromJsonAsync<WorldResponse>(
                 $"/sessions/{created.SessionId}/world");
@@ -141,10 +165,17 @@ public sealed class InvertebrateEndpointTests
         Assert.All(
             before.Cells,
             cell =>
+            {
                 Assert.Equal(
                     0.005,
                     cell.LiveBiomassKilogramsPerSquareMeter,
-                    12));
+                    12);
+
+                Assert.Equal(
+                    0.000125,
+                    cell.LiveNitrogenKilogramsPerSquareMeter,
+                    12);
+            });
 
         var advanceResponse =
             await client.PostAsJsonAsync(
@@ -184,9 +215,21 @@ public sealed class InvertebrateEndpointTests
         Assert.All(
             after.Cells,
             cell =>
+            {
                 Assert.True(
                     cell.LiveBiomassKilogramsPerSquareMeter >
-                    0.005));
+                    0.005);
+
+                Assert.True(
+                    cell.LiveNitrogenKilogramsPerSquareMeter >
+                    0.000125);
+
+                Assert.Equal(
+                    cell.LiveBiomassKilogramsPerSquareMeter *
+                    0.025,
+                    cell.LiveNitrogenKilogramsPerSquareMeter,
+                    12);
+            });
     }
 
     [Fact]

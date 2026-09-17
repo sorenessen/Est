@@ -18,7 +18,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 19;
+    public const int CurrentSchemaVersion = 20;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -38,6 +38,7 @@ public static class WorldSnapshotSerializer
     private const int AnimalLifecycleSchemaVersion = 17;
     private const int WolfLifecycleSchemaVersion = 18;
     private const int GrazerRecruitmentSchemaVersion = 19;
+    private const int InvertebrateMaterialSchemaVersion = 20;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -127,6 +128,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != OrganismMaterialSchemaVersion &&
             snapshot.SchemaVersion != AnimalLifecycleSchemaVersion &&
             snapshot.SchemaVersion != WolfLifecycleSchemaVersion &&
+            snapshot.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -318,7 +320,11 @@ public static class WorldSnapshotSerializer
             }
 
             invertebrates = snapshot.Invertebrates
-                .Select(FromSnapshot)
+                .Select(
+                    invertebrate =>
+                        FromSnapshot(
+                            invertebrate,
+                            snapshot.SchemaVersion))
                 .ToArray();
         }
 
@@ -588,14 +594,17 @@ public static class WorldSnapshotSerializer
                             SurfaceCellId =
                                 cell.CellId.Value,
                             LiveBiomassKilogramsPerSquareMeter =
-                                cell.LiveBiomassKilogramsPerSquareMeter
+                                cell.LiveBiomassKilogramsPerSquareMeter,
+                            LiveNitrogenKilogramsPerSquareMeter =
+                                cell.LiveNitrogenKilogramsPerSquareMeter
                         })
                 .ToArray()
         };
     }
 
     private static PlanetInvertebrateState FromSnapshot(
-        PlanetInvertebrateSnapshot snapshot)
+        PlanetInvertebrateSnapshot snapshot,
+        int schemaVersion)
     {
         if (snapshot.GridDefinition is null)
         {
@@ -624,7 +633,14 @@ public static class WorldSnapshotSerializer
                     new InvertebrateCellState(
                         new SurfaceCellId(
                             cell.SurfaceCellId),
-                        cell.LiveBiomassKilogramsPerSquareMeter)));
+                        cell.LiveBiomassKilogramsPerSquareMeter,
+                        schemaVersion >=
+                                InvertebrateMaterialSchemaVersion
+                            ? cell.LiveNitrogenKilogramsPerSquareMeter
+                                ?? throw new JsonException(
+                                    "Live invertebrate nitrogen is required.")
+                            : cell.LiveNitrogenKilogramsPerSquareMeter
+                                ?? 0)));
     }
 
     private static PlanetVegetationSnapshot ToSnapshot(
@@ -1373,6 +1389,13 @@ public static class WorldSnapshotSerializer
 
         public required double
             LiveBiomassKilogramsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public double?
+            LiveNitrogenKilogramsPerSquareMeter
         {
             get;
             set;

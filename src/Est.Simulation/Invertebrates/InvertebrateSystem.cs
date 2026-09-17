@@ -1,8 +1,10 @@
 using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Surface;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
 namespace Est.Simulation.Invertebrates;
@@ -10,11 +12,12 @@ namespace Est.Simulation.Invertebrates;
 /// <summary>
 /// First-pass causal aggregate invertebrate biomass model.
 ///
-/// Local live vegetation establishes carrying capacity. Existing invertebrate
-/// biomass can reproduce toward that support ceiling while baseline loss
-/// continuously removes biomass. When authoritative biogeochemistry is present,
-/// realized mortality biomass enters the detrital pool. Vegetation is not
-/// directly consumed by this aggregate model.
+/// Local live vegetation establishes carrying capacity and supplies material
+/// for realized invertebrate growth. Existing invertebrate biomass can reproduce
+/// toward that support ceiling while baseline loss continuously removes biomass.
+/// Nitrogen-bearing growth requires an authoritative plant-tissue nitrogen policy
+/// and biogeochemistry state. Realized mortality material enters the detrital pool
+/// when authoritative biogeochemistry is present.
 /// </summary>
 public sealed class InvertebrateSystem
     : ICausalSystem
@@ -24,10 +27,15 @@ public sealed class InvertebrateSystem
 
     private readonly PlanetId _planetId;
     private readonly InvertebrateModelParameters _parameters;
+    private readonly double?
+        _plantNitrogenKilogramsPerKilogramLiveBiomass;
 
     public InvertebrateSystem(
         PlanetId planetId,
-        InvertebrateModelParameters parameters)
+        InvertebrateModelParameters parameters,
+        double?
+            plantNitrogenKilogramsPerKilogramLiveBiomass =
+                null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -39,11 +47,26 @@ public sealed class InvertebrateSystem
         ArgumentNullException.ThrowIfNull(
             parameters);
 
+        if (plantNitrogenKilogramsPerKilogramLiveBiomass
+                is not null &&
+            (!double.IsFinite(
+                plantNitrogenKilogramsPerKilogramLiveBiomass.Value) ||
+             plantNitrogenKilogramsPerKilogramLiveBiomass.Value <= 0))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    plantNitrogenKilogramsPerKilogramLiveBiomass),
+                "Plant-tissue nitrogen ratio must be finite and greater than zero.");
+        }
+
         _planetId =
             planetId;
 
         _parameters =
             parameters;
+
+        _plantNitrogenKilogramsPerKilogramLiveBiomass =
+            plantNitrogenKilogramsPerKilogramLiveBiomass;
     }
 
     public SimulationChange Evaluate(
@@ -123,10 +146,12 @@ public sealed class InvertebrateSystem
                 cell =>
                     cell.Id);
 
-        var vegetationByCellId =
+        var vegetationBiomassByCellId =
             vegetation.Cells.ToDictionary(
                 cell =>
-                    cell.CellId);
+                    cell.CellId,
+                cell =>
+                    cell.LiveBiomassKilogramsPerSquareMeter);
 
         var initialBiomassMass =
             TotalBiomassMassKilograms(
@@ -140,7 +165,23 @@ public sealed class InvertebrateSystem
                 cell =>
                     cell.DetritalBiomassKilogramsPerSquareMeter);
 
+        var detritalNitrogenByCellId =
+            biogeochemistry?.Cells.ToDictionary(
+                cell =>
+                    cell.CellId,
+                cell =>
+                    cell.DetritalNitrogenKilogramsPerSquareMeter);
+
+        var feedingMaterialTransfers =
+            new List<VegetationFeedingEvent>();
+
         var totalMortalityDetritalBiomassMass =
+            0d;
+
+        var totalMortalityDetritalNitrogenMass =
+            0d;
+
+        var totalAssimilatedNitrogenMass =
             0d;
 
         var current =
@@ -187,9 +228,8 @@ public sealed class InvertebrateSystem
                 }
 
                 var vegetationBiomass =
-                    vegetationByCellId[
-                        cell.CellId]
-                    .LiveBiomassKilogramsPerSquareMeter;
+                    vegetationBiomassByCellId[
+                        cell.CellId];
 
                 var carryingCapacity =
                     vegetationBiomass *
@@ -218,37 +258,187 @@ public sealed class InvertebrateSystem
                         elapsedDays;
                 }
 
+                var targetNitrogenRatio =
+                    _parameters
+                        .LiveNitrogenKilogramsPerKilogramLiveBiomass;
+
+                var maximumMaterialBackedGrowth =
+                    vegetationBiomass;
+
+                if (growth > 0 &&
+                    targetNitrogenRatio > 0)
+                {
+                    var plantNitrogenRatio =
+                        _plantNitrogenKilogramsPerKilogramLiveBiomass
+                        ?? throw new InvalidOperationException(
+                            "Nitrogen-bearing invertebrate growth requires an authoritative plant-tissue nitrogen policy.");
+
+                    if (biogeochemistry is null)
+                    {
+                        throw new InvalidOperationException(
+                            "Nitrogen-bearing invertebrate growth requires authoritative biogeochemistry state for the target planet.");
+                    }
+
+                    maximumMaterialBackedGrowth =
+                        Math.Min(
+                            maximumMaterialBackedGrowth,
+                            vegetationBiomass *
+                            plantNitrogenRatio /
+                            targetNitrogenRatio);
+                }
+
+                var realizedGrowth =
+                    Math.Min(
+                        growth,
+                        Math.Min(
+                            maximumMaterialBackedGrowth,
+                            Math.Max(
+                                0,
+                                carryingCapacity -
+                                biomass)));
+
+                var assimilatedNitrogen =
+                    realizedGrowth *
+                    targetNitrogenRatio;
+
+                var consumedVegetation =
+                    realizedGrowth;
+
+                if (realizedGrowth > 0 &&
+                    targetNitrogenRatio > 0)
+                {
+                    var plantNitrogenRatio =
+                        _plantNitrogenKilogramsPerKilogramLiveBiomass!.Value;
+
+                    consumedVegetation =
+                        Math.Max(
+                            realizedGrowth,
+                            assimilatedNitrogen /
+                            plantNitrogenRatio);
+                }
+
+                vegetationBiomassByCellId[
+                    cell.CellId] =
+                    Math.Max(
+                        0,
+                        vegetationBiomass -
+                        consumedVegetation);
+
+                if (consumedVegetation > 0 &&
+                    _plantNitrogenKilogramsPerKilogramLiveBiomass
+                        is double feedingPlantNitrogenRatio)
+                {
+                    var surfaceCell =
+                        surfaceCellsById[
+                            cell.CellId];
+
+                    var consumedBiomassKilograms =
+                        consumedVegetation *
+                        surfaceCell.AreaSquareMeters;
+
+                    var assimilatedBiomassKilograms =
+                        realizedGrowth *
+                        surfaceCell.AreaSquareMeters;
+
+                    var availablePlantNitrogenKilograms =
+                        consumedBiomassKilograms *
+                        feedingPlantNitrogenRatio;
+
+                    var assimilatedNitrogenKilograms =
+                        Math.Min(
+                            assimilatedNitrogen *
+                            surfaceCell.AreaSquareMeters,
+                            availablePlantNitrogenKilograms);
+
+                    assimilatedNitrogen =
+                        assimilatedNitrogenKilograms /
+                        surfaceCell.AreaSquareMeters;
+
+                    feedingMaterialTransfers.Add(
+                        new VegetationFeedingEvent(
+                            cell.CellId,
+                            consumedBiomassKilograms,
+                            assimilatedBiomassKilograms,
+                            assimilatedNitrogenKilograms));
+
+                    totalAssimilatedNitrogenMass +=
+                        assimilatedNitrogenKilograms;
+                }
+
                 var nominalLoss =
                     biomass *
                     _parameters
                         .BaselineMortalityRatePerDay *
                     elapsedDays;
 
+                var biomassBeforeLoss =
+                    biomass +
+                    realizedGrowth;
+
+                var nitrogenBeforeLoss =
+                    cell.LiveNitrogenKilogramsPerSquareMeter +
+                    assimilatedNitrogen;
+
                 var realizedLoss =
                     Math.Min(
-                        biomass +
-                        growth,
+                        biomassBeforeLoss,
                         nominalLoss);
+
+                var mortalityFraction =
+                    biomassBeforeLoss <= 0
+                        ? 0
+                        : Math.Clamp(
+                            realizedLoss /
+                            biomassBeforeLoss,
+                            0,
+                            1);
+
+                var realizedNitrogenLoss =
+                    nitrogenBeforeLoss *
+                    mortalityFraction;
 
                 var nextBiomass =
                     Math.Max(
                         0,
-                        biomass +
-                        growth -
+                        biomassBeforeLoss -
                         realizedLoss);
 
-                if (detritalBiomassByCellId is not null &&
-                    realizedLoss > 0)
-                {
-                    detritalBiomassByCellId[
-                        cell.CellId] +=
-                        realizedLoss;
+                var nextNitrogen =
+                    Math.Max(
+                        0,
+                        nitrogenBeforeLoss -
+                        realizedNitrogenLoss);
 
-                    totalMortalityDetritalBiomassMass +=
-                        realizedLoss *
-                        surfaceCellsById[
-                            cell.CellId]
-                        .AreaSquareMeters;
+                if (realizedLoss > 0)
+                {
+                    if (detritalBiomassByCellId is not null &&
+                        detritalNitrogenByCellId is not null)
+                    {
+                        detritalBiomassByCellId[
+                            cell.CellId] +=
+                            realizedLoss;
+
+                        detritalNitrogenByCellId[
+                            cell.CellId] +=
+                            realizedNitrogenLoss;
+
+                        var surfaceCell =
+                            surfaceCellsById[
+                                cell.CellId];
+
+                        totalMortalityDetritalBiomassMass +=
+                            realizedLoss *
+                            surfaceCell.AreaSquareMeters;
+
+                        totalMortalityDetritalNitrogenMass +=
+                            realizedNitrogenLoss *
+                            surfaceCell.AreaSquareMeters;
+                    }
+                    else if (realizedNitrogenLoss > 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Material-bearing invertebrate mortality requires authoritative biogeochemistry state for the target planet.");
+                    }
                 }
 
                 if (nextBiomass >
@@ -264,7 +454,8 @@ public sealed class InvertebrateSystem
                 nextCells[index] =
                     new InvertebrateCellState(
                         cell.CellId,
-                        nextBiomass);
+                        nextBiomass,
+                        nextNitrogen);
             }
 
             current =
@@ -283,29 +474,82 @@ public sealed class InvertebrateSystem
                 current,
                 surfaceCellsById);
 
-        var finalBiogeochemistry =
-            biogeochemistry is null
-                ? null
-                : new PlanetBiogeochemistryState(
-                    biogeochemistry.PlanetId,
-                    biogeochemistry.GridDefinition,
-                    biogeochemistry.Cells.Select(
-                        cell =>
-                            new BiogeochemistryCellState(
-                                cell.CellId,
-                                detritalBiomassByCellId![
-                                    cell.CellId],
-                                cell.DetritalNitrogenKilogramsPerSquareMeter,
-                                cell.PlantAvailableNitrogenKilogramsPerSquareMeter)));
+        var finalVegetation =
+            new PlanetVegetationState(
+                vegetation.PlanetId,
+                vegetation.GridDefinition,
+                vegetation.Cells.Select(
+                    cell =>
+                        new VegetationCellState(
+                            cell.CellId,
+                            vegetationBiomassByCellId[
+                                cell.CellId])));
 
-        var operation =
-            finalBiogeochemistry is null
-                ? (ISimulationOperation)
-                    new ReplacePlanetInvertebrateStateOperation(
-                        current)
-                : new ReplacePlanetInvertebrateBiogeochemistryStateOperation(
+        PlanetBiogeochemistryState?
+            finalBiogeochemistry =
+                biogeochemistry is null
+                    ? null
+                    : new PlanetBiogeochemistryState(
+                        biogeochemistry.PlanetId,
+                        biogeochemistry.GridDefinition,
+                        biogeochemistry.Cells.Select(
+                            cell =>
+                                new BiogeochemistryCellState(
+                                    cell.CellId,
+                                    detritalBiomassByCellId![
+                                        cell.CellId],
+                                    detritalNitrogenByCellId![
+                                        cell.CellId],
+                                    cell.PlantAvailableNitrogenKilogramsPerSquareMeter)));
+
+        if (feedingMaterialTransfers.Count > 0)
+        {
+            var plantNitrogenRatio =
+                _plantNitrogenKilogramsPerKilogramLiveBiomass
+                ?? throw new InvalidOperationException(
+                    "Nitrogen-coupled invertebrate feeding requires an authoritative plant-tissue nitrogen policy.");
+
+            finalBiogeochemistry =
+                VegetationFeedingMaterialTransfer
+                    .ReturnConsumedNitrogen(
+                        planet,
+                        finalBiogeochemistry
+                        ?? throw new InvalidOperationException(
+                            "Nitrogen-coupled invertebrate feeding requires authoritative biogeochemistry state for the target planet."),
+                        feedingMaterialTransfers,
+                        plantNitrogenRatio);
+        }
+
+        var vegetationChanged =
+            vegetation.Cells.Any(
+                cell =>
+                    vegetationBiomassByCellId[
+                        cell.CellId] !=
+                    cell.LiveBiomassKilogramsPerSquareMeter);
+
+        ISimulationOperation operation;
+
+        if (vegetationChanged)
+        {
+            operation =
+                new ReplacePlanetInvertebrateVegetationStateOperation(
+                    current,
+                    finalVegetation,
+                    finalBiogeochemistry);
+        }
+        else if (finalBiogeochemistry is null)
+        {
+            operation =
+                new ReplacePlanetInvertebrateStateOperation(
+                    current);
+        }
+        else
+        {
+            operation =
+                new ReplacePlanetInvertebrateBiogeochemistryStateOperation(
                     current,
                     finalBiogeochemistry);
+        }
 
         return new SimulationChange(
             operation,
@@ -324,6 +568,10 @@ public sealed class InvertebrateSystem
                     initialBiomassMass,
                 ["mortalityDetritalBiomassKilograms"] =
                     totalMortalityDetritalBiomassMass,
+                ["mortalityDetritalNitrogenKilograms"] =
+                    totalMortalityDetritalNitrogenMass,
+                ["assimilatedNitrogenKilograms"] =
+                    totalAssimilatedNitrogenMass,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });

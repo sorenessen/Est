@@ -40,7 +40,9 @@ public sealed class PlanetInvertebrateInitializerTests
                 carryingCapacityKilogramsPerKilogramLiveVegetation:
                     0.04,
                 initialFractionOfLocalCarryingCapacity:
-                    0.25);
+                    0.25,
+                liveNitrogenKilogramsPerKilogramLiveBiomass:
+                    0.025);
 
         var invertebrates =
             PlanetInvertebrateInitializer
@@ -61,12 +63,21 @@ public sealed class PlanetInvertebrateInitializerTests
                 0.04 *
                 0.25;
 
+            var invertebrateCell =
+                invertebrates.GetCell(
+                    cell.CellId);
+
             Assert.Equal(
                 expected,
-                invertebrates
-                    .GetCell(
-                        cell.CellId)
+                invertebrateCell
                     .LiveBiomassKilogramsPerSquareMeter,
+                12);
+
+            Assert.Equal(
+                expected *
+                0.025,
+                invertebrateCell
+                    .LiveNitrogenKilogramsPerSquareMeter,
                 12);
         }
     }

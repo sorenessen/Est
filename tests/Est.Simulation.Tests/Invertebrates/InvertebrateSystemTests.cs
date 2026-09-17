@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -12,7 +13,7 @@ namespace Est.Simulation.Tests.Invertebrates;
 public sealed class InvertebrateSystemTests
 {
     [Fact]
-    public void Evaluate_GrowsSupportedBiomassWithoutConsumingVegetation()
+    public void Evaluate_GrowthConsumesVegetationBiomass()
     {
         var fixture =
             CreateWorld(
@@ -23,6 +24,8 @@ public sealed class InvertebrateSystemTests
             new InvertebrateSystem(
                 fixture.Planet.Id,
                 new InvertebrateModelParameters(
+                    maximumIntegrationStepSeconds:
+                        86_400,
                     carryingCapacityKilogramsPerKilogramLiveVegetation:
                         0.02,
                     maximumRelativeGrowthRatePerDay:
@@ -30,41 +33,238 @@ public sealed class InvertebrateSystemTests
                     baselineMortalityRatePerDay:
                         0));
 
-        var change =
-            system.Evaluate(
-                fixture.World,
-                86_400);
-
         var changed =
-            change.Operation.Apply(
-                fixture.World);
+            system.Evaluate(
+                    fixture.World,
+                    86_400)
+                .Operation
+                .Apply(
+                    fixture.World);
 
-        var final =
+        var initialInvertebrates =
+            Assert.Single(
+                fixture.World.Invertebrates);
+
+        var finalInvertebrates =
             Assert.Single(
                 changed.Invertebrates);
 
-        Assert.All(
-            final.Cells,
-            cell =>
-            {
-                Assert.True(
-                    cell.LiveBiomassKilogramsPerSquareMeter >
-                    0.005);
+        var finalVegetation =
+            Assert.Single(
+                changed.Vegetation);
 
-                Assert.True(
-                    cell.LiveBiomassKilogramsPerSquareMeter <=
-                    0.02);
-            });
+        var initialInvertebrateCell =
+            initialInvertebrates.Cells[0];
+
+        var initialVegetationCell =
+            fixture.Vegetation.GetCell(
+                initialInvertebrateCell.CellId);
+
+        var finalInvertebrateCell =
+            finalInvertebrates.GetCell(
+                initialInvertebrateCell.CellId);
+
+        var finalVegetationCell =
+            finalVegetation.GetCell(
+                initialInvertebrateCell.CellId);
 
         Assert.True(
-            fixture.Vegetation.Cells.SequenceEqual(
-                Assert.Single(
-                        changed.Vegetation)
-                    .Cells));
+            finalInvertebrateCell
+                .LiveBiomassKilogramsPerSquareMeter >
+            initialInvertebrateCell
+                .LiveBiomassKilogramsPerSquareMeter);
+
+        Assert.True(
+            finalVegetationCell
+                .LiveBiomassKilogramsPerSquareMeter <
+            initialVegetationCell
+                .LiveBiomassKilogramsPerSquareMeter);
+
+        Assert.Equal(
+            initialVegetationCell
+                .LiveBiomassKilogramsPerSquareMeter +
+            initialInvertebrateCell
+                .LiveBiomassKilogramsPerSquareMeter,
+            finalVegetationCell
+                .LiveBiomassKilogramsPerSquareMeter +
+            finalInvertebrateCell
+                .LiveBiomassKilogramsPerSquareMeter,
+            12);
 
         Assert.Equal(
             "planetary-invertebrates",
-            change.Cause);
+            system.Evaluate(
+                    fixture.World,
+                    86_400)
+                .Cause);
+    }
+
+    [Fact]
+    public void Evaluate_NitrogenBearingGrowthAssimilatesPlantNitrogen()
+    {
+        var fixture =
+            CreateWorld(
+                vegetationBiomass: 1,
+                invertebrateBiomass: 0.005,
+                invertebrateNitrogen: 0.000125,
+                includeBiogeochemistry: true);
+
+        var system =
+            new InvertebrateSystem(
+                fixture.Planet.Id,
+                new InvertebrateModelParameters(
+                    maximumIntegrationStepSeconds:
+                        86_400,
+                    carryingCapacityKilogramsPerKilogramLiveVegetation:
+                        0.02,
+                    maximumRelativeGrowthRatePerDay:
+                        0.20,
+                    baselineMortalityRatePerDay:
+                        0,
+                    liveNitrogenKilogramsPerKilogramLiveBiomass:
+                        0.025),
+                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                    0.025);
+
+        var changed =
+            system.Evaluate(
+                    fixture.World,
+                    86_400)
+                .Operation
+                .Apply(
+                    fixture.World);
+
+        var initialInvertebrate =
+            Assert.Single(
+                    fixture.World.Invertebrates)
+                .Cells[0];
+
+        var finalInvertebrate =
+            Assert.Single(
+                    changed.Invertebrates)
+                .GetCell(
+                    initialInvertebrate.CellId);
+
+        var initialVegetation =
+            fixture.Vegetation.GetCell(
+                initialInvertebrate.CellId);
+
+        var finalVegetation =
+            Assert.Single(
+                    changed.Vegetation)
+                .GetCell(
+                    initialInvertebrate.CellId);
+
+        var biomassGrowth =
+            finalInvertebrate
+                .LiveBiomassKilogramsPerSquareMeter -
+            initialInvertebrate
+                .LiveBiomassKilogramsPerSquareMeter;
+
+        var nitrogenGrowth =
+            finalInvertebrate
+                .LiveNitrogenKilogramsPerSquareMeter -
+            initialInvertebrate
+                .LiveNitrogenKilogramsPerSquareMeter;
+
+        Assert.True(
+            biomassGrowth > 0);
+
+        Assert.Equal(
+            biomassGrowth,
+            initialVegetation
+                .LiveBiomassKilogramsPerSquareMeter -
+            finalVegetation
+                .LiveBiomassKilogramsPerSquareMeter,
+            12);
+
+        Assert.Equal(
+            biomassGrowth * 0.025,
+            nitrogenGrowth,
+            12);
+
+        Assert.Equal(
+            finalInvertebrate
+                .LiveBiomassKilogramsPerSquareMeter *
+            0.025,
+            finalInvertebrate
+                .LiveNitrogenKilogramsPerSquareMeter,
+            12);
+    }
+
+    [Fact]
+    public void Evaluate_NitrogenBearingGrowthWithoutPlantNitrogenPolicyIsRejected()
+    {
+        var fixture =
+            CreateWorld(
+                vegetationBiomass: 1,
+                invertebrateBiomass: 0.005,
+                invertebrateNitrogen: 0.000125,
+                includeBiogeochemistry: true);
+
+        var system =
+            new InvertebrateSystem(
+                fixture.Planet.Id,
+                new InvertebrateModelParameters(
+                    maximumIntegrationStepSeconds:
+                        86_400,
+                    carryingCapacityKilogramsPerKilogramLiveVegetation:
+                        0.02,
+                    maximumRelativeGrowthRatePerDay:
+                        0.20,
+                    baselineMortalityRatePerDay:
+                        0,
+                    liveNitrogenKilogramsPerKilogramLiveBiomass:
+                        0.025));
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    system.Evaluate(
+                        fixture.World,
+                        86_400));
+
+        Assert.Equal(
+            "Nitrogen-bearing invertebrate growth requires an authoritative plant-tissue nitrogen policy.",
+            exception.Message);
+    }
+
+    [Fact]
+    public void Evaluate_NitrogenBearingGrowthWithoutBiogeochemistryIsRejected()
+    {
+        var fixture =
+            CreateWorld(
+                vegetationBiomass: 1,
+                invertebrateBiomass: 0.005,
+                invertebrateNitrogen: 0.000125);
+
+        var system =
+            new InvertebrateSystem(
+                fixture.Planet.Id,
+                new InvertebrateModelParameters(
+                    maximumIntegrationStepSeconds:
+                        86_400,
+                    carryingCapacityKilogramsPerKilogramLiveVegetation:
+                        0.02,
+                    maximumRelativeGrowthRatePerDay:
+                        0.20,
+                    baselineMortalityRatePerDay:
+                        0,
+                    liveNitrogenKilogramsPerKilogramLiveBiomass:
+                        0.025),
+                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                    0.025);
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    system.Evaluate(
+                        fixture.World,
+                        86_400));
+
+        Assert.Equal(
+            "Nitrogen-bearing invertebrate growth requires authoritative biogeochemistry state for the target planet.",
+            exception.Message);
     }
 
     [Fact]
@@ -104,7 +304,9 @@ public sealed class InvertebrateSystemTests
 
     private static Fixture CreateWorld(
         double vegetationBiomass,
-        double invertebrateBiomass)
+        double invertebrateBiomass,
+        double invertebrateNitrogen = 0,
+        bool includeBiogeochemistry = false)
     {
         var planet =
             new PlanetState(
@@ -169,7 +371,8 @@ public sealed class InvertebrateSystemTests
                     cell =>
                         new InvertebrateCellState(
                             cell.Id,
-                            invertebrateBiomass)));
+                            invertebrateBiomass,
+                            invertebrateNitrogen)));
 
         var world =
             new WorldState(
@@ -182,6 +385,28 @@ public sealed class InvertebrateSystemTests
                 [hydrology],
                 [vegetation],
                 [invertebrates]);
+
+        if (includeBiogeochemistry)
+        {
+            var biogeochemistry =
+                new PlanetBiogeochemistryState(
+                    planet.Id,
+                    definition,
+                    grid.Cells.Select(
+                        cell =>
+                            new BiogeochemistryCellState(
+                                cell.Id,
+                                detritalBiomassKilogramsPerSquareMeter:
+                                    0,
+                                detritalNitrogenKilogramsPerSquareMeter:
+                                    0,
+                                plantAvailableNitrogenKilogramsPerSquareMeter:
+                                    0.10)));
+
+            world =
+                world.ReplaceBiogeochemistry(
+                    [biogeochemistry]);
+        }
 
         return new Fixture(
             planet,

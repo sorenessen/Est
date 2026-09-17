@@ -1,5 +1,6 @@
 using Est.Application.Sessions;
 using Est.Simulation.Definitions;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
@@ -79,7 +80,23 @@ public sealed class SimulationSessionInvertebrateTests
                     cell =>
                         new InvertebrateCellState(
                             cell.Id,
-                            0.005)));
+                            0.005,
+                            0.000125)));
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                gridDefinition,
+                grid.Cells.Select(
+                    cell =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            detritalBiomassKilogramsPerSquareMeter:
+                                0,
+                            detritalNitrogenKilogramsPerSquareMeter:
+                                0,
+                            plantAvailableNitrogenKilogramsPerSquareMeter:
+                                0.10)));
 
         var world =
             new WorldState(
@@ -93,6 +110,10 @@ public sealed class SimulationSessionInvertebrateTests
                 [vegetation],
                 [invertebrates]);
 
+        world =
+            world.ReplaceBiogeochemistry(
+                [biogeochemistry]);
+
         var definition =
             new SimulationDefinition(
                 vegetationModels:
@@ -101,7 +122,9 @@ public sealed class SimulationSessionInvertebrateTests
                         planet.Id,
                         new VegetationModelParameters(
                             maximumRelativeGrowthRatePerDay:
-                                0))
+                                0,
+                            plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                0.025))
                 ],
                 invertebrateModels:
                 [
@@ -113,7 +136,9 @@ public sealed class SimulationSessionInvertebrateTests
                             maximumRelativeGrowthRatePerDay:
                                 0.20,
                             baselineMortalityRatePerDay:
-                                0))
+                                0,
+                            liveNitrogenKilogramsPerKilogramLiveBiomass:
+                                0.025))
                 ]);
 
         var session =
@@ -149,12 +174,24 @@ public sealed class SimulationSessionInvertebrateTests
             invertebrateIndex >
             vegetationIndex);
 
-        Assert.True(
+        var finalCell =
             Assert.Single(
                     session.CurrentWorld.Invertebrates)
-                .Cells[0]
-                .LiveBiomassKilogramsPerSquareMeter >
+                .Cells[0];
+
+        Assert.True(
+            finalCell.LiveBiomassKilogramsPerSquareMeter >
             0.005);
+
+        Assert.True(
+            finalCell.LiveNitrogenKilogramsPerSquareMeter >
+            0.000125);
+
+        Assert.Equal(
+            finalCell.LiveBiomassKilogramsPerSquareMeter *
+            0.025,
+            finalCell.LiveNitrogenKilogramsPerSquareMeter,
+            12);
     }
 
     [Fact]

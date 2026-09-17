@@ -68,7 +68,8 @@ public sealed record InvertebrateModelResponse(
     double CarryingCapacityKilogramsPerKilogramLiveVegetation,
     double InitialFractionOfLocalCarryingCapacity,
     double MaximumRelativeGrowthRatePerDay,
-    double BaselineMortalityRatePerDay);
+    double BaselineMortalityRatePerDay,
+    double LiveNitrogenKilogramsPerKilogramLiveBiomass);
 
 public sealed record BirdModelResponse(
     Guid PlanetId,

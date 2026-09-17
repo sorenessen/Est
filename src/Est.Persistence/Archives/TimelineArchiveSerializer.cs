@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 20;
+    public const int CurrentSchemaVersion = 21;
+    private const int InvertebrateMaterialSchemaVersion = 21;
     private const int GrazerRecruitmentSchemaVersion = 20;
     private const int GrazerSurfaceWaterMovementSchemaVersion = 19;
     private const int HumanGrowthMaterialSchemaVersion = 18;
@@ -138,6 +139,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != HumanLifecycleMaterialSchemaVersion &&
             archive.SchemaVersion != HumanGrowthMaterialSchemaVersion &&
             archive.SchemaVersion != GrazerSurfaceWaterMovementSchemaVersion &&
+            archive.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -539,7 +541,10 @@ public static class TimelineArchiveSerializer
                                                 .MaximumRelativeGrowthRatePerDay,
                                         BaselineMortalityRatePerDay =
                                             model.Parameters
-                                                .BaselineMortalityRatePerDay
+                                                .BaselineMortalityRatePerDay,
+                                        LiveNitrogenKilogramsPerKilogramLiveBiomass =
+                                            model.Parameters
+                                                .LiveNitrogenKilogramsPerKilogramLiveBiomass
                                     }
                             })
                     .ToArray(),
@@ -995,7 +1000,16 @@ public static class TimelineArchiveSerializer
                                     model.Parameters
                                         .MaximumRelativeGrowthRatePerDay,
                                     model.Parameters
-                                        .BaselineMortalityRatePerDay));
+                                        .BaselineMortalityRatePerDay,
+                                    schemaVersion >=
+                                            InvertebrateMaterialSchemaVersion
+                                        ? model.Parameters
+                                            .LiveNitrogenKilogramsPerKilogramLiveBiomass
+                                            ?? throw new JsonException(
+                                                "Live invertebrate nitrogen ratio is required.")
+                                        : model.Parameters
+                                            .LiveNitrogenKilogramsPerKilogramLiveBiomass
+                                            ?? 0));
                         })
                     .ToArray();
         }
@@ -1650,6 +1664,13 @@ public static class TimelineArchiveSerializer
         }
 
         public required double BaselineMortalityRatePerDay
+        {
+            get;
+            set;
+        }
+
+        public double?
+            LiveNitrogenKilogramsPerKilogramLiveBiomass
         {
             get;
             set;

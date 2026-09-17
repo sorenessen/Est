@@ -50,7 +50,8 @@ public sealed record GeneratedVegetationCreationRequest(
 
 public sealed record GeneratedInvertebrateCreationRequest(
     double CarryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
-    double InitialFractionOfLocalCarryingCapacity = 0.25);
+    double InitialFractionOfLocalCarryingCapacity = 0.25,
+    double? LiveNitrogenKilogramsPerKilogramLiveBiomass = null);
 
 public sealed record GeneratedBirdCreationRequest(
     double CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass =
@@ -202,6 +203,13 @@ public sealed record InvertebrateModelRequest
         get;
         init;
     } = 0.02;
+
+    public double
+        LiveNitrogenKilogramsPerKilogramLiveBiomass
+    {
+        get;
+        init;
+    } = 0;
 }
 
 public sealed record VegetationModelRequest

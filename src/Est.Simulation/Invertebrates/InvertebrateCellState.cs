@@ -13,7 +13,8 @@ public sealed record InvertebrateCellState
 {
     public InvertebrateCellState(
         SurfaceCellId cellId,
-        double liveBiomassKilogramsPerSquareMeter)
+        double liveBiomassKilogramsPerSquareMeter,
+        double liveNitrogenKilogramsPerSquareMeter = 0)
     {
         if (!double.IsFinite(
                 liveBiomassKilogramsPerSquareMeter) ||
@@ -24,16 +25,35 @@ public sealed record InvertebrateCellState
                 "Live invertebrate biomass must be finite and nonnegative.");
         }
 
+        if (!double.IsFinite(
+                liveNitrogenKilogramsPerSquareMeter) ||
+            liveNitrogenKilogramsPerSquareMeter < 0 ||
+            liveNitrogenKilogramsPerSquareMeter >
+                liveBiomassKilogramsPerSquareMeter)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(liveNitrogenKilogramsPerSquareMeter),
+                "Live invertebrate nitrogen must be finite, nonnegative, and cannot exceed live biomass.");
+        }
+
         CellId =
             cellId;
 
         LiveBiomassKilogramsPerSquareMeter =
             liveBiomassKilogramsPerSquareMeter;
+
+        LiveNitrogenKilogramsPerSquareMeter =
+            liveNitrogenKilogramsPerSquareMeter;
     }
 
     public SurfaceCellId CellId { get; }
 
     public double LiveBiomassKilogramsPerSquareMeter
+    {
+        get;
+    }
+
+    public double LiveNitrogenKilogramsPerSquareMeter
     {
         get;
     }

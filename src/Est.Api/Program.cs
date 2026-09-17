@@ -202,7 +202,12 @@ app.MapPost(
                                             planet.GeneratedInvertebrates
                                                 .CarryingCapacityKilogramsPerKilogramLiveVegetation,
                                             planet.GeneratedInvertebrates
-                                                .InitialFractionOfLocalCarryingCapacity),
+                                                  .InitialFractionOfLocalCarryingCapacity,
+                                              planet.GeneratedInvertebrates
+                                                  .LiveNitrogenKilogramsPerKilogramLiveBiomass
+                                              ?? planet.InvertebrateModel
+                                                  ?.LiveNitrogenKilogramsPerKilogramLiveBiomass
+                                              ?? 0),
                                     planet.GeneratedBirds is null
                                         ? null
                                         : new GeneratedBirdCreationSpecification(
@@ -391,7 +396,9 @@ app.MapPost(
                                         planet.InvertebrateModel
                                             .MaximumRelativeGrowthRatePerDay,
                                         planet.InvertebrateModel
-                                            .BaselineMortalityRatePerDay)))
+                                            .BaselineMortalityRatePerDay,
+                                        planet.InvertebrateModel
+                                            .LiveNitrogenKilogramsPerKilogramLiveBiomass)))
                     .Where(
                         model =>
                             model is not null)
@@ -1578,7 +1585,8 @@ static InvertebrateResponse ToInvertebrateResponse(
                 cell =>
                     new InvertebrateCellResponse(
                         cell.CellId.Value,
-                        cell.LiveBiomassKilogramsPerSquareMeter))
+                        cell.LiveBiomassKilogramsPerSquareMeter,
+                        cell.LiveNitrogenKilogramsPerSquareMeter))
             .ToArray());
 }
 
@@ -1793,7 +1801,9 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                         model.Parameters
                             .MaximumRelativeGrowthRatePerDay,
                         model.Parameters
-                            .BaselineMortalityRatePerDay))
+                            .BaselineMortalityRatePerDay,
+                        model.Parameters
+                            .LiveNitrogenKilogramsPerKilogramLiveBiomass))
             .ToArray(),
         definition.BirdModels
             .Select(

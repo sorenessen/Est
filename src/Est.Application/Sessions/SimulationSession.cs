@@ -102,7 +102,15 @@ public sealed class SimulationSession
                         (ICausalSystem)
                             new InvertebrateSystem(
                                 model.PlanetId,
-                                model.Parameters));
+                                model.Parameters,
+                                plantNitrogenKilogramsPerKilogramLiveBiomass:
+                                    definition.VegetationModels
+                                        .FirstOrDefault(
+                                            vegetationModel =>
+                                                vegetationModel.PlanetId ==
+                                                model.PlanetId)
+                                        ?.Parameters
+                                        .PlantNitrogenKilogramsPerKilogramLiveBiomass));
 
         var birdSystems =
             definition.BirdModels

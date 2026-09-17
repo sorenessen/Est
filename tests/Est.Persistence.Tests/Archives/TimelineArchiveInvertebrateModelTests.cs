@@ -28,7 +28,9 @@ public sealed class TimelineArchiveInvertebrateModelTests
                 carryingCapacityKilogramsPerKilogramLiveVegetation: 0.04,
                 initialFractionOfLocalCarryingCapacity: 0.30,
                 maximumRelativeGrowthRatePerDay: 0.25,
-                baselineMortalityRatePerDay: 0.03);
+                baselineMortalityRatePerDay: 0.03,
+                liveNitrogenKilogramsPerKilogramLiveBiomass:
+                    0.025);
 
         var definition =
             new SimulationDefinition(
@@ -57,6 +59,36 @@ public sealed class TimelineArchiveInvertebrateModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+
+        var legacyNode =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    definition,
+                    CreateProvenance()))!
+            .AsObject();
+
+        legacyNode["schemaVersion"] = 20;
+
+        legacyNode["definition"]!
+            ["invertebrateModels"]!
+            .AsArray()[0]!
+            ["parameters"]!
+            .AsObject()
+            .Remove(
+                "liveNitrogenKilogramsPerKilogramLiveBiomass");
+
+        var legacyRestored =
+            TimelineArchiveSerializer.Deserialize(
+                legacyNode.ToJsonString());
+
+        Assert.Equal(
+            0,
+            Assert.Single(
+                    legacyRestored.Definition
+                        .InvertebrateModels)
+                .Parameters
+                .LiveNitrogenKilogramsPerKilogramLiveBiomass);
     }
 
     [Fact]

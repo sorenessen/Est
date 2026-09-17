@@ -6,7 +6,7 @@ namespace Est.Simulation.Tests.Invertebrates;
 public sealed class InvertebrateCellStateTests
 {
     [Fact]
-    public void Constructor_PreservesBiomass()
+    public void Constructor_PreservesBiomassAndNitrogen()
     {
         var cellId =
             new SurfaceCellId(Guid.NewGuid());
@@ -14,7 +14,8 @@ public sealed class InvertebrateCellStateTests
         var state =
             new InvertebrateCellState(
                 cellId,
-                0.25);
+                0.25,
+                0.0125);
 
         Assert.Equal(
             cellId,
@@ -23,6 +24,26 @@ public sealed class InvertebrateCellStateTests
         Assert.Equal(
             0.25,
             state.LiveBiomassKilogramsPerSquareMeter);
+
+        Assert.Equal(
+            0.0125,
+            state.LiveNitrogenKilogramsPerSquareMeter);
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(0.26)]
+    public void Constructor_RejectsInvalidNitrogen(
+        double nitrogen)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new InvertebrateCellState(
+                    new SurfaceCellId(Guid.NewGuid()),
+                    0.25,
+                    nitrogen));
     }
 
     [Theory]

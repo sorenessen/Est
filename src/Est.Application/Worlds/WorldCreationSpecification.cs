@@ -33,7 +33,8 @@ public sealed record GeneratedVegetationCreationSpecification(
 
 public sealed record GeneratedInvertebrateCreationSpecification(
     double CarryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
-    double InitialFractionOfLocalCarryingCapacity = 0.25);
+    double InitialFractionOfLocalCarryingCapacity = 0.25,
+    double LiveNitrogenKilogramsPerKilogramLiveBiomass = 0);
 
 public sealed record GeneratedBirdCreationSpecification(
     double CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass =

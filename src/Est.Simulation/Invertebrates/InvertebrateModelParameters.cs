@@ -15,7 +15,8 @@ public sealed record InvertebrateModelParameters
         double carryingCapacityKilogramsPerKilogramLiveVegetation = 0.02,
         double initialFractionOfLocalCarryingCapacity = 0.25,
         double maximumRelativeGrowthRatePerDay = 0.10,
-        double baselineMortalityRatePerDay = 0.02)
+        double baselineMortalityRatePerDay = 0.02,
+        double liveNitrogenKilogramsPerKilogramLiveBiomass = 0)
     {
         if (maximumIntegrationStepSeconds <= 0)
         {
@@ -46,6 +47,19 @@ public sealed record InvertebrateModelParameters
             baselineMortalityRatePerDay,
             nameof(baselineMortalityRatePerDay));
 
+        ValidateNonnegativeFinite(
+            liveNitrogenKilogramsPerKilogramLiveBiomass,
+            nameof(
+                liveNitrogenKilogramsPerKilogramLiveBiomass));
+
+        if (liveNitrogenKilogramsPerKilogramLiveBiomass > 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(
+                    liveNitrogenKilogramsPerKilogramLiveBiomass),
+                "Live invertebrate nitrogen cannot exceed live biomass.");
+        }
+
         MaximumIntegrationStepSeconds =
             maximumIntegrationStepSeconds;
 
@@ -60,6 +74,9 @@ public sealed record InvertebrateModelParameters
 
         BaselineMortalityRatePerDay =
             baselineMortalityRatePerDay;
+
+        LiveNitrogenKilogramsPerKilogramLiveBiomass =
+            liveNitrogenKilogramsPerKilogramLiveBiomass;
     }
 
     public long MaximumIntegrationStepSeconds { get; }
@@ -78,6 +95,12 @@ public sealed record InvertebrateModelParameters
     public double MaximumRelativeGrowthRatePerDay { get; }
 
     public double BaselineMortalityRatePerDay { get; }
+
+    public double
+        LiveNitrogenKilogramsPerKilogramLiveBiomass
+    {
+        get;
+    }
 
     private static void ValidateNonnegativeFinite(
         double value,

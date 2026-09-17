@@ -17,7 +17,7 @@ public sealed class InvertebrateMortalityDetritusTests
         86_400;
 
     [Fact]
-    public void Evaluate_MortalityAddsRealizedBiomassLossToDetritus()
+    public void Evaluate_MortalityAddsRealizedMaterialLossToDetritus()
     {
         var setup =
             CreateWorld(
@@ -25,6 +25,8 @@ public sealed class InvertebrateMortalityDetritusTests
                     true,
                 invertebrateBiomass:
                     0.01,
+                invertebrateNitrogen:
+                    0.00025,
                 detritalBiomass:
                     0.20,
                 detritalNitrogen:
@@ -66,13 +68,19 @@ public sealed class InvertebrateMortalityDetritusTests
             12);
 
         Assert.Equal(
+            0.000225,
+            invertebrateCell
+                .LiveNitrogenKilogramsPerSquareMeter,
+            12);
+
+        Assert.Equal(
             0.201,
             biogeochemistryCell
                 .DetritalBiomassKilogramsPerSquareMeter,
             12);
 
         Assert.Equal(
-            0.005,
+            0.005025,
             biogeochemistryCell
                 .DetritalNitrogenKilogramsPerSquareMeter,
             12);
@@ -178,6 +186,7 @@ public sealed class InvertebrateMortalityDetritusTests
     private static TestWorld CreateWorld(
         bool includeBiogeochemistry,
         double invertebrateBiomass,
+        double invertebrateNitrogen = 0,
         double detritalBiomass = 0,
         double detritalNitrogen = 0,
         double availableNitrogen = 0)
@@ -252,7 +261,8 @@ public sealed class InvertebrateMortalityDetritusTests
                     cell =>
                         new InvertebrateCellState(
                             cell.Id,
-                            invertebrateBiomass)));
+                            invertebrateBiomass,
+                            invertebrateNitrogen)));
 
         var biogeochemistry =
             includeBiogeochemistry
