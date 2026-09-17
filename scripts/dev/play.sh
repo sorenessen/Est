@@ -14,7 +14,7 @@ payload='{
   "planets": [
     {
       "name": "Earth",
-      "massKilograms": 5.9722e24,
+      "massKilograms": 5.9722e+24,
       "meanRadiusMeters": 6371000,
       "environment": {
         "meanSurfaceTemperatureKelvin": 288.15,
@@ -28,24 +28,6 @@ payload='{
             "Ar": 0.01
           }
         }
-      },
-      "syntheticPopulation": {
-        "founderCount": 100,
-        "seed": 42,
-        "centerLatitudeDegrees": 0,
-        "centerLongitudeDegrees": 25,
-        "spreadDegrees": 3,
-        "minimumAgeYears": 18,
-        "maximumAgeYears": 35
-      },
-      "syntheticFood": {
-        "patchCount": 250,
-        "seed": 84,
-        "centerLatitudeDegrees": 0,
-        "centerLongitudeDegrees": 25,
-        "spreadDegrees": 20,
-        "energyPerPatch": 20,
-        "recoveryEnergyPerDay": 0.03
       },
       "syntheticAnimals": {
         "wolfCount": 8,
@@ -62,9 +44,28 @@ payload='{
         "continentalPlateFraction": 0.45
       },
       "generatedHydrology": {
-        "surfaceLiquidWaterInventoryKilograms": 1.4e21
+        "surfaceLiquidWaterInventoryKilograms": 1.4e+21
       },
-      "hydrologyModel": {}
+      "hydrologyModel": {},
+      "generatedVegetation": {
+        "initialLiveBiomassKilogramsPerSquareMeter": 2.0
+      },
+      "vegetationModel": {},
+      "generatedGrazers": {
+        "carryingCapacityGrazersPerKilogramLiveVegetationBiomass": 1e-06,
+        "initialFractionOfLocalCarryingCapacity": 0.25,
+        "minimumInitialCohortMemberCount": 10,
+        "maximumInitialCohortCount": 256,
+        "liveBiomassKilogramsPerGrazer": 250,
+        "liveNitrogenKilogramsPerGrazer": 6.25
+      },
+      "grazerModel": {},
+      "generatedBiogeochemistry": {
+        "initialDetritalBiomassKilogramsPerSquareMeter": 0,
+        "initialDetritalNitrogenKilogramsPerSquareMeter": 0,
+        "initialPlantAvailableNitrogenKilogramsPerSquareMeter": 0
+      },
+      "biogeochemistryModel": {}
     }
   ]
 }'
