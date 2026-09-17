@@ -1,4 +1,4 @@
-# Multi-Scale Presentation
+# ADR 0003: Multi-Scale Presentation
 
 ## Status
 

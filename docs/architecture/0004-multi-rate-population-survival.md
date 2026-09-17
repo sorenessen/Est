@@ -1,4 +1,4 @@
-# Multi-Rate Population Survival Integration
+# ADR 0004: Multi-Rate Population Survival Integration
 
 ## Status
 
@@ -45,9 +45,14 @@ The current population implementation separates responsibilities as follows:
 
 `PopulationSystem`
 
-- demographic births
 - baseline mortality
 - broad demographic migration
+
+`ReproductionSystem`
+
+- partner seeking and mating
+- conception and gestation
+- materially sourced births
 
 `ForagingSystem`
 

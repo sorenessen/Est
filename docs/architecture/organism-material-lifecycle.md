@@ -193,9 +193,12 @@ and prey material flows must be made explicit underneath them.
    every individual.
 10. **Implemented.** Aggregate invertebrate growth consumes authoritative
     vegetation material rather than creating biomass from carrying capacity.
-11. **Next lifecycle capability.** Activate species-policy seasonal strategies
-    such as breeding seasons, migration, torpor, dormancy, or hibernation only
-    where biologically appropriate.
+11. **Next lifecycle capability.** Build the dormant seasonal-control
+    foundation defined by ADR 0007, preserving disabled, derived, and explicit
+    override modes without changing current simulation behavior. Species-policy
+    strategies such as breeding seasons, migration, torpor, dormancy, or
+    hibernation activate only after that common context exists and only where
+    biologically appropriate.
 12. **Pending validation gate.** Validate material and nitrogen accounting
     across feeding, growth, predation, reproduction, mortality, decomposition,
     snapshot restore, and session advancement as one cross-system substrate.

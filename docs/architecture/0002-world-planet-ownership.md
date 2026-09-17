@@ -1,4 +1,4 @@
-# World and Planet Ownership
+# ADR 0002: World and Planet Ownership
 
 ## Status
 
