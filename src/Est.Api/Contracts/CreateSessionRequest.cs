@@ -155,7 +155,7 @@ public sealed record GrazerModelRequest
         0.05;
 
     public double WaterAbsenceMortalityRatePerDay { get; init; } =
-        0.20;
+        0;
 
     public double HabitatAbsenceMortalityRatePerDay { get; init; } =
         0.02;

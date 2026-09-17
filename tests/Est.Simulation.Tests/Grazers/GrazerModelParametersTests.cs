@@ -44,7 +44,7 @@ public sealed class GrazerModelParametersTests
             parameters.FoodShortageMortalityRatePerDay);
 
         Assert.Equal(
-            0.20,
+            0,
             parameters.WaterAbsenceMortalityRatePerDay);
 
         Assert.Equal(
