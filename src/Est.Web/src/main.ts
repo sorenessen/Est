@@ -231,6 +231,58 @@ const faunaStatus =
     '#faunaStatus',
   )
 
+
+const reportPlanetStartupStage = (
+  stage: string,
+): void => {
+  console.log(
+    `[Est Babylon] ${stage}`,
+  )
+
+  if (terrainStatus) {
+    terrainStatus.textContent =
+      stage
+  }
+}
+
+window.addEventListener(
+  'error',
+  event => {
+    const message =
+      event.error instanceof Error
+        ? `${event.error.name}: ${event.error.message}`
+        : event.message
+
+    reportPlanetStartupStage(
+      `ERROR · ${message}`,
+    )
+
+    console.error(
+      '[Est Babylon] uncaught error',
+      event.error ?? event.message,
+    )
+  },
+)
+
+window.addEventListener(
+  'unhandledrejection',
+  event => {
+    const reason =
+      event.reason instanceof Error
+        ? `${event.reason.name}: ${event.reason.message}`
+        : String(event.reason)
+
+    reportPlanetStartupStage(
+      `ERROR · ${reason}`,
+    )
+
+    console.error(
+      '[Est Babylon] unhandled rejection',
+      event.reason,
+    )
+  },
+)
+
 interface SphereDirection {
   readonly x: number
   readonly y: number
@@ -508,10 +560,16 @@ function createFaunaSymbolMaterial(
     context.font =
       'bold 82px sans-serif'
 
-    context.textAlign =
+    const alignedContext =
+      context as unknown as {
+        textAlign: CanvasTextAlign
+        textBaseline: CanvasTextBaseline
+      }
+
+    alignedContext.textAlign =
       'center'
 
-    context.textBaseline =
+    alignedContext.textBaseline =
       'middle'
 
     context.fillText(
@@ -587,6 +645,10 @@ const pregnantBadgeSymbolMaterial =
   )
 
 if (sessionId) {
+  reportPlanetStartupStage(
+    'loading simulation world…',
+  )
+
   const api =
     new EstApi('/api')
 
@@ -594,6 +656,10 @@ if (sessionId) {
     await api.getWorld(
       sessionId,
     )
+
+  reportPlanetStartupStage(
+    'world loaded · resolving planet…',
+  )
 
   const planet =
     world.planets[0]
@@ -615,6 +681,10 @@ if (sessionId) {
     )
   }
 
+  reportPlanetStartupStage(
+    'loading surface + terrain + standing water…',
+  )
+
   const [
     surface,
     terrain,
@@ -635,6 +705,10 @@ if (sessionId) {
       ),
     ])
 
+  reportPlanetStartupStage(
+    'planet data loaded · validating responses…',
+  )
+
   if (
     surface.planetId !==
       planet.planetId ||
@@ -647,6 +721,10 @@ if (sessionId) {
       'Authoritative planetary responses do not match the active planet.',
     )
   }
+
+  reportPlanetStartupStage(
+    'building terrain height field…',
+  )
 
   const heightField =
     createTerrainHeightField(
@@ -669,6 +747,10 @@ if (sessionId) {
   const meanRadiusMeters =
     planet.meanRadiusMeters
 
+  reportPlanetStartupStage(
+    'building standing-water mesh…',
+  )
+
   createStandingWaterMesh(
     scene,
     {
@@ -677,6 +759,10 @@ if (sessionId) {
       standingWater,
       sphereSubdivisions: 64,
     },
+  )
+
+  reportPlanetStartupStage(
+    'creating terrain material…',
   )
 
   terrainSurfaceMaterial =
@@ -1015,8 +1101,12 @@ if (sessionId) {
 // once for each spherical vertex and baked into that fixed geometry.
 const sphereSubdivisions = 64
 
-const planetVertexData =
-  CreateIcoSphereVertexData({
+  reportPlanetStartupStage(
+    'building Babylon planet sphere…',
+  )
+
+  const planetVertexData =
+    CreateIcoSphereVertexData({
     radius: 1,
     subdivisions: sphereSubdivisions,
     flat: false,
