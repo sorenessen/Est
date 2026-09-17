@@ -46,6 +46,14 @@ public sealed class BirdModelParametersTests
         Assert.Equal(
             0.02,
             parameters.HabitatAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            0,
+            parameters.MaximumPreyConsumptionKilogramsPerBirdPerDay);
+
+        Assert.Equal(
+            0,
+            parameters.MaximumRecruitmentRatePerDay);
     }
 
     [Theory]
@@ -135,6 +143,18 @@ public sealed class BirdModelParametersTests
             () =>
                 new BirdModelParameters(
                     habitatAbsenceMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    maximumPreyConsumptionKilogramsPerBirdPerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdModelParameters(
+                    maximumRecruitmentRatePerDay:
                         value));
     }
 }

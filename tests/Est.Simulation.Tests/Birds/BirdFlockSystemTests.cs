@@ -1,3 +1,4 @@
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
@@ -309,6 +310,483 @@ public sealed class BirdFlockSystemTests
             changed.BirdFlocks.Sum(
                 flock =>
                     flock.MemberCount));
+    }
+
+    [Fact]
+    public void Evaluate_AbundantInvertebratePreyCanRecruitMaterialBackedMember()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var parameters =
+            new BirdModelParameters(
+                carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                    10,
+                maximumIntegrationStepSeconds:
+                    86_400,
+                maximumTravelMetersPerDay:
+                    0,
+                maximumPreyConsumptionKilogramsPerBirdPerDay:
+                    2,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerBird:
+                    1,
+                liveNitrogenKilogramsPerBird:
+                    0,
+                maximumRecruitmentRatePerDay:
+                    0.1);
+
+        var world =
+            CreateWorld(
+                fixture,
+                startCell,
+                memberCount:
+                    10,
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    _ =>
+                        1,
+                invertebrates:
+                    cell =>
+                        cell.Id ==
+                        startCell.Id
+                            ? 20 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        var source =
+            Assert.Single(
+                world.BirdFlocks);
+
+        world =
+            world.ReplaceBirdFlocks(
+            [
+                new BirdFlockState(
+                    source.Id,
+                    source.PlanetId,
+                    source.MemberCount,
+                    source.LatitudeDegrees,
+                    source.LongitudeDegrees,
+                    parameters
+                        .MaterialPerBird
+                        .ForUnits(
+                            source.MemberCount))
+            ]);
+
+        var initialPrey =
+            Assert.Single(
+                    world.Invertebrates)
+                .GetCell(
+                    startCell.Id)
+                .LiveBiomassKilogramsPerSquareMeter *
+            startCell.AreaSquareMeters;
+
+        var system =
+            new BirdFlockSystem(
+                fixture.Planet.Id,
+                parameters);
+
+        var change =
+            system.Evaluate(
+                world,
+                86_400);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var flock =
+            Assert.Single(
+                changed.BirdFlocks);
+
+        var finalPrey =
+            Assert.Single(
+                    changed.Invertebrates)
+                .GetCell(
+                    startCell.Id)
+                .LiveBiomassKilogramsPerSquareMeter *
+            startCell.AreaSquareMeters;
+
+        Assert.Equal(
+            20,
+            initialPrey,
+            6);
+
+        Assert.Equal(
+            11,
+            flock.MemberCount);
+
+        Assert.Equal(
+            11,
+            flock.Material.LiveBiomassKilograms,
+            6);
+
+        Assert.Equal(
+            0,
+            finalPrey,
+            6);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "recruitedMembers"]);
+    }
+
+    [Fact]
+    public void Evaluate_NitrogenBearingPreyRecruitmentConservesTrackedMaterial()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var parameters =
+            new BirdModelParameters(
+                carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                    10,
+                maximumIntegrationStepSeconds:
+                    86_400,
+                maximumTravelMetersPerDay:
+                    0,
+                maximumPreyConsumptionKilogramsPerBirdPerDay:
+                    2,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerBird:
+                    1,
+                liveNitrogenKilogramsPerBird:
+                    0.025,
+                maximumRecruitmentRatePerDay:
+                    0.1);
+
+        var world =
+            CreateWorld(
+                fixture,
+                startCell,
+                memberCount:
+                    10,
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    _ =>
+                        1,
+                invertebrates:
+                    cell =>
+                        cell.Id ==
+                        startCell.Id
+                            ? 20 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        world =
+            world.ReplaceInvertebrates(
+            [
+                new PlanetInvertebrateState(
+                    fixture.Planet.Id,
+                    fixture.GridDefinition,
+                    fixture.Grid.Cells.Select(
+                        cell =>
+                            new InvertebrateCellState(
+                                cell.Id,
+                                cell.Id ==
+                                startCell.Id
+                                    ? 20 /
+                                      cell.AreaSquareMeters
+                                    : 0,
+                                cell.Id ==
+                                startCell.Id
+                                    ? 1 /
+                                      cell.AreaSquareMeters
+                                    : 0)))
+            ]);
+
+        world =
+            world.ReplaceBiogeochemistry(
+            [
+                new PlanetBiogeochemistryState(
+                    fixture.Planet.Id,
+                    fixture.GridDefinition,
+                    fixture.Grid.Cells.Select(
+                        cell =>
+                            new BiogeochemistryCellState(
+                                cell.Id,
+                                detritalBiomassKilogramsPerSquareMeter:
+                                    0,
+                                detritalNitrogenKilogramsPerSquareMeter:
+                                    0,
+                                plantAvailableNitrogenKilogramsPerSquareMeter:
+                                    0)))
+            ]);
+
+        var source =
+            Assert.Single(
+                world.BirdFlocks);
+
+        world =
+            world.ReplaceBirdFlocks(
+            [
+                new BirdFlockState(
+                    source.Id,
+                    source.PlanetId,
+                    source.MemberCount,
+                    source.LatitudeDegrees,
+                    source.LongitudeDegrees,
+                    parameters
+                        .MaterialPerBird
+                        .ForUnits(
+                            source.MemberCount))
+            ]);
+
+        var system =
+            new BirdFlockSystem(
+                fixture.Planet.Id,
+                parameters);
+
+        var change =
+            system.Evaluate(
+                world,
+                86_400);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var flock =
+            Assert.Single(
+                changed.BirdFlocks);
+
+        var prey =
+            Assert.Single(
+                    changed.Invertebrates)
+                .GetCell(
+                    startCell.Id);
+
+        var biogeochemistry =
+            Assert.Single(
+                    changed.Biogeochemistry)
+                .GetCell(
+                    startCell.Id);
+
+        Assert.Equal(
+            11,
+            flock.MemberCount);
+
+        Assert.Equal(
+            11,
+            flock.Material.LiveBiomassKilograms,
+            8);
+
+        Assert.Equal(
+            0.275,
+            flock.Material.LiveNitrogenKilograms,
+            8);
+
+        Assert.Equal(
+            0,
+            prey.LiveBiomassKilogramsPerSquareMeter *
+            startCell.AreaSquareMeters,
+            8);
+
+        Assert.Equal(
+            0,
+            prey.LiveNitrogenKilogramsPerSquareMeter *
+            startCell.AreaSquareMeters,
+            8);
+
+        Assert.Equal(
+            0.975,
+            biogeochemistry
+                .PlantAvailableNitrogenKilogramsPerSquareMeter *
+            startCell.AreaSquareMeters,
+            8);
+
+        Assert.Equal(
+            20,
+            change.Metrics[
+                "preyBiomassConsumedKilograms"],
+            8);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "preyNitrogenConsumedKilograms"],
+            8);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "preyBiomassAssimilatedKilograms"],
+            8);
+
+        Assert.Equal(
+            0.025,
+            change.Metrics[
+                "preyNitrogenAssimilatedKilograms"],
+            8);
+
+        Assert.Equal(
+            19,
+            change.Metrics[
+                "preyBiomassRespiredKilograms"],
+            8);
+
+        Assert.Equal(
+            0.975,
+            change.Metrics[
+                "preyNitrogenReturnedKilograms"],
+            8);
+    }
+
+    [Fact]
+    public void Evaluate_FractionalRecruitmentAccumulatesAcrossAdvances()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var parameters =
+            new BirdModelParameters(
+                carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                    100,
+                maximumIntegrationStepSeconds:
+                    86_400,
+                maximumTravelMetersPerDay:
+                    0,
+                maximumPreyConsumptionKilogramsPerBirdPerDay:
+                    2,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerBird:
+                    1,
+                liveNitrogenKilogramsPerBird:
+                    0,
+                maximumRecruitmentRatePerDay:
+                    0.05);
+
+        var world =
+            CreateWorld(
+                fixture,
+                startCell,
+                memberCount:
+                    10,
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    _ =>
+                        1,
+                invertebrates:
+                    cell =>
+                        cell.Id ==
+                        startCell.Id
+                            ? 100 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        var source =
+            Assert.Single(
+                world.BirdFlocks);
+
+        world =
+            world.ReplaceBirdFlocks(
+            [
+                new BirdFlockState(
+                    source.Id,
+                    source.PlanetId,
+                    source.MemberCount,
+                    source.LatitudeDegrees,
+                    source.LongitudeDegrees,
+                    parameters
+                        .MaterialPerBird
+                        .ForUnits(
+                            source.MemberCount))
+            ]);
+
+        var system =
+            new BirdFlockSystem(
+                fixture.Planet.Id,
+                parameters);
+
+        var firstChange =
+            system.Evaluate(
+                world,
+                86_400);
+
+        var afterFirst =
+            firstChange.Operation.Apply(
+                world);
+
+        var firstFlock =
+            Assert.Single(
+                afterFirst.BirdFlocks);
+
+        Assert.Equal(
+            10,
+            firstFlock.MemberCount);
+
+        Assert.Equal(
+            0.5,
+            firstFlock.RecruitmentAccumulator,
+            6);
+
+        Assert.Equal(
+            0,
+            firstChange.Metrics[
+                "recruitedMembers"]);
+
+        var secondChange =
+            system.Evaluate(
+                afterFirst,
+                86_400);
+
+        var afterSecond =
+            secondChange.Operation.Apply(
+                afterFirst);
+
+        var secondFlock =
+            Assert.Single(
+                afterSecond.BirdFlocks);
+
+        Assert.Equal(
+            11,
+            secondFlock.MemberCount);
+
+        Assert.Equal(
+            11,
+            secondFlock.Material.LiveBiomassKilograms,
+            6);
+
+        Assert.Equal(
+            0,
+            secondFlock.RecruitmentAccumulator,
+            6);
+
+        Assert.Equal(
+            1,
+            secondChange.Metrics[
+                "recruitedMembers"]);
     }
 
     [Fact]

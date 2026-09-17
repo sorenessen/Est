@@ -22,7 +22,9 @@ public sealed class WorldSnapshotBirdFlockTests
                 planet.Id,
                 275,
                 41.25,
-                -72.75);
+                -72.75,
+                recruitmentAccumulator:
+                    0.375);
 
         var world =
             new WorldState(
@@ -53,6 +55,58 @@ public sealed class WorldSnapshotBirdFlockTests
             flock,
             Assert.Single(
                 restored.BirdFlocks));
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyDefaultsBirdRecruitmentAccumulator()
+    {
+        var planet =
+            CreatePlanet();
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                birdFlocks:
+                [
+                    new BirdFlockState(
+                        BirdFlockId.New(),
+                        planet.Id,
+                        20,
+                        10,
+                        20,
+                        recruitmentAccumulator:
+                            0.75)
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] =
+            20;
+
+        var flock =
+            node["birdFlocks"]!
+                .AsArray()[0]!
+                .AsObject();
+
+        flock.Remove(
+            "recruitmentAccumulator");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Equal(
+            0,
+            Assert.Single(
+                    restored.BirdFlocks)
+                .RecruitmentAccumulator);
     }
 
     [Fact]

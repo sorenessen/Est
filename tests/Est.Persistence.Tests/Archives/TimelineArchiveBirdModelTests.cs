@@ -46,7 +46,11 @@ public sealed class TimelineArchiveBirdModelTests
                 liveBiomassKilogramsPerBird:
                     0.75,
                 liveNitrogenKilogramsPerBird:
-                    0.01875);
+                    0.01875,
+                maximumPreyConsumptionKilogramsPerBirdPerDay:
+                    0.42,
+                maximumRecruitmentRatePerDay:
+                    0.015);
 
         var definition =
             new SimulationDefinition(
@@ -75,6 +79,68 @@ public sealed class TimelineArchiveBirdModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyOneDefaultsBirdRecruitmentPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var definition =
+            new SimulationDefinition(
+                birdModels:
+                [
+                    new BirdModelDefinition(
+                        fixture.Planet.Id,
+                        new BirdModelParameters(
+                            maximumPreyConsumptionKilogramsPerBirdPerDay:
+                                0.42,
+                            maximumRecruitmentRatePerDay:
+                                0.015))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    fixture.Timeline,
+                    definition,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] =
+            21;
+
+        var parameters =
+            node["definition"]!
+                .AsObject()["birdModels"]!
+                .AsArray()[0]!["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "maximumPreyConsumptionKilogramsPerBirdPerDay");
+
+        parameters.Remove(
+            "maximumRecruitmentRatePerDay");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.BirdModels)
+                .Parameters;
+
+        Assert.Equal(
+            0,
+            restoredParameters
+                .MaximumPreyConsumptionKilogramsPerBirdPerDay);
+
+        Assert.Equal(
+            0,
+            restoredParameters
+                .MaximumRecruitmentRatePerDay);
     }
 
     [Fact]

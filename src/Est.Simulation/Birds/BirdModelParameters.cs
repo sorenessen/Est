@@ -5,9 +5,9 @@ namespace Est.Simulation.Birds;
 /// <summary>
 /// Policy for coarse bird-flock initialization and causal behavior.
 ///
-/// Aggregate invertebrate biomass is an ecological support / prey-availability
-/// proxy. It is not assumed to be wholly edible, and the current bird model
-/// does not consume that biomass.
+/// Aggregate invertebrate biomass provides both local population support and
+/// authoritative prey material. Configured feeding can consume that biomass,
+/// while recruitment is limited by the material required for new members.
 ///
 /// Live vegetation currently provides coarse habitat presence. Surface liquid
 /// water provides coarse water availability. These first-pass signals remain
@@ -27,7 +27,9 @@ public sealed record BirdModelParameters
         double waterAbsenceMortalityRatePerDay = 0.20,
         double habitatAbsenceMortalityRatePerDay = 0.02,
         double liveBiomassKilogramsPerBird = 1,
-        double liveNitrogenKilogramsPerBird = 0.025)
+        double liveNitrogenKilogramsPerBird = 0.025,
+        double maximumPreyConsumptionKilogramsPerBirdPerDay = 0,
+        double maximumRecruitmentRatePerDay = 0)
     {
         if (!double.IsFinite(
                 carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass) ||
@@ -86,6 +88,14 @@ public sealed record BirdModelParameters
             habitatAbsenceMortalityRatePerDay,
             nameof(habitatAbsenceMortalityRatePerDay));
 
+        ValidateNonnegativeFinite(
+            maximumPreyConsumptionKilogramsPerBirdPerDay,
+            nameof(maximumPreyConsumptionKilogramsPerBirdPerDay));
+
+        ValidateNonnegativeFinite(
+            maximumRecruitmentRatePerDay,
+            nameof(maximumRecruitmentRatePerDay));
+
         CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass =
             carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass;
 
@@ -112,6 +122,12 @@ public sealed record BirdModelParameters
 
         HabitatAbsenceMortalityRatePerDay =
             habitatAbsenceMortalityRatePerDay;
+
+        MaximumPreyConsumptionKilogramsPerBirdPerDay =
+            maximumPreyConsumptionKilogramsPerBirdPerDay;
+
+        MaximumRecruitmentRatePerDay =
+            maximumRecruitmentRatePerDay;
 
         MaterialPerBird =
             new OrganismMaterialComposition(
@@ -140,6 +156,10 @@ public sealed record BirdModelParameters
     public double WaterAbsenceMortalityRatePerDay { get; }
 
     public double HabitatAbsenceMortalityRatePerDay { get; }
+
+    public double MaximumPreyConsumptionKilogramsPerBirdPerDay { get; }
+
+    public double MaximumRecruitmentRatePerDay { get; }
 
     public OrganismMaterialComposition MaterialPerBird { get; }
 

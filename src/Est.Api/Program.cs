@@ -446,7 +446,13 @@ app.MapPost(
                                                 .LiveBiomassKilogramsPerBird,
                                         liveNitrogenKilogramsPerBird:
                                             planet.BirdModel
-                                                .LiveNitrogenKilogramsPerBird)))
+                                                .LiveNitrogenKilogramsPerBird,
+                                        maximumPreyConsumptionKilogramsPerBirdPerDay:
+                                            planet.BirdModel
+                                                .MaximumPreyConsumptionKilogramsPerBirdPerDay,
+                                        maximumRecruitmentRatePerDay:
+                                            planet.BirdModel
+                                                .MaximumRecruitmentRatePerDay)))
                     .Where(
                         model =>
                             model is not null)
@@ -1006,7 +1012,8 @@ app.MapGet(
                             flock.LongitudeDegrees,
                             new OrganismMaterialResponse(
                                 flock.Material.LiveBiomassKilograms,
-                                flock.Material.LiveNitrogenKilograms)))
+                                flock.Material.LiveNitrogenKilograms),
+                            flock.RecruitmentAccumulator))
                 .ToArray();
 
         return Results.Ok(
@@ -1833,7 +1840,11 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .LiveBiomassKilogramsPerUnit,
                         model.Parameters
                             .MaterialPerBird
-                            .LiveNitrogenKilogramsPerUnit))
+                            .LiveNitrogenKilogramsPerUnit,
+                        model.Parameters
+                            .MaximumPreyConsumptionKilogramsPerBirdPerDay,
+                        model.Parameters
+                            .MaximumRecruitmentRatePerDay))
             .ToArray(),
         definition.GrazerModels
             .Select(

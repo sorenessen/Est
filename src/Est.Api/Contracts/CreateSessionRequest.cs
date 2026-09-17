@@ -117,6 +117,19 @@ public sealed record BirdModelRequest
 
     public double LiveNitrogenKilogramsPerBird { get; init; } =
         0.025;
+
+    public double MaximumPreyConsumptionKilogramsPerBirdPerDay
+    {
+        get;
+        init;
+    } = 0;
+
+    public double MaximumRecruitmentRatePerDay
+    {
+        get;
+        init;
+    } = 0;
+
 }
 
 public sealed record GrazerModelRequest

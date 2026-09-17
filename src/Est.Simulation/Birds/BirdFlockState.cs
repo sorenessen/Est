@@ -19,7 +19,8 @@ public sealed record BirdFlockState
         int memberCount,
         double latitudeDegrees,
         double longitudeDegrees,
-        OrganismMaterialState? material = null)
+        OrganismMaterialState? material = null,
+        double recruitmentAccumulator = 0)
     {
         if (id.Value == Guid.Empty)
         {
@@ -58,6 +59,14 @@ public sealed record BirdFlockState
                 nameof(longitudeDegrees));
         }
 
+        if (!double.IsFinite(recruitmentAccumulator) ||
+            recruitmentAccumulator < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(recruitmentAccumulator),
+                "Bird recruitment accumulator must be finite and non-negative.");
+        }
+
         Id =
             id;
 
@@ -78,6 +87,9 @@ public sealed record BirdFlockState
             new OrganismMaterialState(
                 liveBiomassKilograms: 0,
                 liveNitrogenKilograms: 0);
+
+        RecruitmentAccumulator =
+            recruitmentAccumulator;
     }
 
     public BirdFlockId Id { get; }
@@ -91,6 +103,8 @@ public sealed record BirdFlockState
     public double LongitudeDegrees { get; }
 
     public OrganismMaterialState Material { get; }
+
+    public double RecruitmentAccumulator { get; }
 
     public BirdFlockState WithSurvivalState(
         int survivingMemberCount,
@@ -115,6 +129,8 @@ public sealed record BirdFlockState
             latitudeDegrees,
             longitudeDegrees,
             Material.RetainFraction(
-                retainedFraction));
+                retainedFraction),
+            RecruitmentAccumulator *
+            retainedFraction);
     }
 }

@@ -104,7 +104,11 @@ public sealed class BirdFlockEndpointTests
                             LiveBiomassKilogramsPerBird =
                                 0.9,
                             LiveNitrogenKilogramsPerBird =
-                                0.0225
+                                0.0225,
+                            MaximumPreyConsumptionKilogramsPerBirdPerDay =
+                                0.42,
+                            MaximumRecruitmentRatePerDay =
+                                0.015
                         })
             ]);
 
@@ -180,6 +184,14 @@ public sealed class BirdFlockEndpointTests
             0.0225,
             model.LiveNitrogenKilogramsPerBird);
 
+        Assert.Equal(
+            0.42,
+            model.MaximumPreyConsumptionKilogramsPerBirdPerDay);
+
+        Assert.Equal(
+            0.015,
+            model.MaximumRecruitmentRatePerDay);
+
         var world =
             await client.GetFromJsonAsync<WorldResponse>(
                 $"/sessions/{created.SessionId}/world");
@@ -221,6 +233,10 @@ public sealed class BirdFlockEndpointTests
                 Assert.Equal(
                     flock.MemberCount * 0.02,
                     flock.Material.LiveNitrogenKilograms);
+
+                Assert.Equal(
+                    0,
+                    flock.RecruitmentAccumulator);
             });
 
         var beforeById =

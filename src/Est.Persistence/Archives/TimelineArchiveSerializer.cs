@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 21;
+    public const int CurrentSchemaVersion = 22;
+    private const int BirdRecruitmentSchemaVersion = 22;
     private const int InvertebrateMaterialSchemaVersion = 21;
     private const int GrazerRecruitmentSchemaVersion = 20;
     private const int GrazerSurfaceWaterMovementSchemaVersion = 19;
@@ -140,6 +141,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != HumanGrowthMaterialSchemaVersion &&
             archive.SchemaVersion != GrazerSurfaceWaterMovementSchemaVersion &&
             archive.SchemaVersion != GrazerRecruitmentSchemaVersion &&
+            archive.SchemaVersion != InvertebrateMaterialSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -593,7 +595,13 @@ public static class TimelineArchiveSerializer
                                         LiveNitrogenKilogramsPerBird =
                                             model.Parameters
                                                 .MaterialPerBird
-                                                .LiveNitrogenKilogramsPerUnit
+                                                .LiveNitrogenKilogramsPerUnit,
+                                        MaximumPreyConsumptionKilogramsPerBirdPerDay =
+                                            model.Parameters
+                                                .MaximumPreyConsumptionKilogramsPerBirdPerDay,
+                                        MaximumRecruitmentRatePerDay =
+                                            model.Parameters
+                                                .MaximumRecruitmentRatePerDay
                                     }
                             })
                     .ToArray(),
@@ -1114,7 +1122,25 @@ public static class TimelineArchiveSerializer
                                             : model.Parameters
                                                 .LiveNitrogenKilogramsPerBird
                                                 ?? throw new JsonException(
-                                                    "Bird live nitrogen per bird is required.")));
+                                                    "Bird live nitrogen per bird is required."),
+                                    maximumPreyConsumptionKilogramsPerBirdPerDay:
+                                        schemaVersion <
+                                            BirdRecruitmentSchemaVersion
+                                            ? behaviorDefaults
+                                                .MaximumPreyConsumptionKilogramsPerBirdPerDay
+                                            : model.Parameters
+                                                .MaximumPreyConsumptionKilogramsPerBirdPerDay
+                                                ?? throw new JsonException(
+                                                    "Bird maximum prey-consumption rate is required."),
+                                    maximumRecruitmentRatePerDay:
+                                        schemaVersion <
+                                            BirdRecruitmentSchemaVersion
+                                            ? behaviorDefaults
+                                                .MaximumRecruitmentRatePerDay
+                                            : model.Parameters
+                                                .MaximumRecruitmentRatePerDay
+                                                ?? throw new JsonException(
+                                                    "Bird maximum recruitment rate is required.")));
                         })
                     .ToArray();
         }
@@ -1617,6 +1643,18 @@ public static class TimelineArchiveSerializer
         }
 
         public double? LiveNitrogenKilogramsPerBird
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumPreyConsumptionKilogramsPerBirdPerDay
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumRecruitmentRatePerDay
         {
             get;
             set;

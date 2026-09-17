@@ -9,4 +9,5 @@ public sealed record BirdFlockResponse(
     int MemberCount,
     double LatitudeDegrees,
     double LongitudeDegrees,
-    OrganismMaterialResponse Material);
+    OrganismMaterialResponse Material,
+    double RecruitmentAccumulator);

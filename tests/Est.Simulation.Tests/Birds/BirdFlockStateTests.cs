@@ -41,6 +41,10 @@ public sealed class BirdFlockStateTests
         Assert.Equal(
             -77.0,
             flock.LongitudeDegrees);
+
+        Assert.Equal(
+            0,
+            flock.RecruitmentAccumulator);
     }
 
     [Theory]
@@ -57,6 +61,24 @@ public sealed class BirdFlockStateTests
                     memberCount,
                     0,
                     0));
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    public void Constructor_RejectsInvalidRecruitmentAccumulator(
+        double value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new BirdFlockState(
+                    BirdFlockId.New(),
+                    PlanetId.New(),
+                    10,
+                    0,
+                    0,
+                    recruitmentAccumulator:
+                        value));
     }
 
     [Theory]

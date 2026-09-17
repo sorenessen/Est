@@ -83,7 +83,9 @@ public sealed record BirdModelResponse(
     double WaterAbsenceMortalityRatePerDay,
     double HabitatAbsenceMortalityRatePerDay,
     double LiveBiomassKilogramsPerBird,
-    double LiveNitrogenKilogramsPerBird);
+    double LiveNitrogenKilogramsPerBird,
+    double MaximumPreyConsumptionKilogramsPerBirdPerDay,
+    double MaximumRecruitmentRatePerDay);
 
 public sealed record GrazerModelResponse(
     Guid PlanetId,

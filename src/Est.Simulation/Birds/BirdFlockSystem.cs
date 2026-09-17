@@ -12,15 +12,16 @@ using Est.Simulation.Worlds;
 namespace Est.Simulation.Birds;
 
 /// <summary>
-/// First-pass causal flock movement and survival.
+/// Causal flock movement, prey consumption, recruitment, and survival.
 ///
 /// Flocks use authoritative surface topology to seek locally better ecological
 /// conditions. Surface liquid water is a water-availability constraint, live
 /// vegetation is a coarse habitat-presence signal, and aggregate invertebrate
-/// biomass establishes local population support.
+/// biomass provides both local population support and consumable prey.
 ///
-/// This system does not consume invertebrate biomass, reproduce birds, split
-/// or merge flocks, or materialize individual birds.
+/// Recruitment is material-backed and consumes authoritative prey biomass and
+/// nitrogen. The system does not split or merge flocks or materialize
+/// individual birds.
 /// </summary>
 public sealed class BirdFlockSystem
     : ICausalSystem
@@ -137,6 +138,31 @@ public sealed class BirdFlockSystem
                 planet,
                 invertebrates.GridDefinition);
 
+        var surfaceCellsById =
+            grid.Cells.ToDictionary(
+                cell =>
+                    cell.Id);
+
+        var invertebrateBiomassByCellId =
+            invertebrates.Cells.ToDictionary(
+                cell =>
+                    cell.CellId,
+                cell =>
+                    cell.LiveBiomassKilogramsPerSquareMeter *
+                    surfaceCellsById[
+                        cell.CellId]
+                        .AreaSquareMeters);
+
+        var invertebrateNitrogenByCellId =
+            invertebrates.Cells.ToDictionary(
+                cell =>
+                    cell.CellId,
+                cell =>
+                    cell.LiveNitrogenKilogramsPerSquareMeter *
+                    surfaceCellsById[
+                        cell.CellId]
+                        .AreaSquareMeters);
+
         var flocks =
             world.BirdFlocks
                 .Where(
@@ -175,6 +201,27 @@ public sealed class BirdFlockSystem
         var habitatStressSteps =
             0;
 
+        var preyConsumptionSteps =
+            0;
+
+        var recruitedMembers =
+            0L;
+
+        var preyBiomassConsumedKilograms =
+            0d;
+
+        var preyNitrogenConsumedKilograms =
+            0d;
+
+        var preyBiomassAssimilatedKilograms =
+            0d;
+
+        var preyNitrogenAssimilatedKilograms =
+            0d;
+
+        var preyConsumptionEvents =
+            new List<OrganismConsumptionEvent>();
+
         var integrationSubsteps =
             0;
 
@@ -208,7 +255,7 @@ public sealed class BirdFlockSystem
                         grid,
                         hydrology,
                         vegetation,
-                        invertebrates);
+                        invertebrateBiomassByCellId);
 
                 if (target.Cell.Id ==
                     currentCell.Id)
@@ -268,6 +315,238 @@ public sealed class BirdFlockSystem
                                 flock =>
                                     flock.MemberCount));
 
+            if (_parameters
+                    .MaximumPreyConsumptionKilogramsPerBirdPerDay >
+                0)
+            {
+                foreach (var group in
+                         flocks.GroupBy(
+                             flock =>
+                                 occupiedCellsByFlockId[
+                                     flock.Id]
+                                     .Id))
+                {
+                    var cellId =
+                        group.Key;
+
+                    var totalDemandKilograms =
+                        group.Sum(
+                            flock =>
+                                PreyConsumptionDemandKilograms(
+                                    flock.MemberCount,
+                                    elapsedDays));
+
+                    if (!double.IsFinite(
+                            totalDemandKilograms))
+                    {
+                        throw new InvalidOperationException(
+                            "Bird integration produced a non-finite prey-consumption demand.");
+                    }
+
+                    if (totalDemandKilograms <= 0)
+                    {
+                        continue;
+                    }
+
+                    var availableBiomassKilograms =
+                        invertebrateBiomassByCellId[
+                            cellId];
+
+                    var availableNitrogenKilograms =
+                        invertebrateNitrogenByCellId[
+                            cellId];
+
+                    var consumedBiomassKilograms =
+                        Math.Min(
+                            availableBiomassKilograms,
+                            totalDemandKilograms);
+
+                    var consumedNitrogenKilograms =
+                        availableBiomassKilograms <= 0
+                            ? 0
+                            : Math.Min(
+                                availableNitrogenKilograms,
+                                availableNitrogenKilograms *
+                                consumedBiomassKilograms /
+                                availableBiomassKilograms);
+
+                    invertebrateBiomassByCellId[
+                        cellId] =
+                        Math.Max(
+                            0,
+                            availableBiomassKilograms -
+                            consumedBiomassKilograms);
+
+                    invertebrateNitrogenByCellId[
+                        cellId] =
+                        Math.Max(
+                            0,
+                            availableNitrogenKilograms -
+                            consumedNitrogenKilograms);
+
+                    preyBiomassConsumedKilograms +=
+                        consumedBiomassKilograms;
+
+                    preyNitrogenConsumedKilograms +=
+                        consumedNitrogenKilograms;
+
+                    if (consumedBiomassKilograms > 0)
+                    {
+                        preyConsumptionSteps++;
+                    }
+
+                    var supportFraction =
+                        Math.Clamp(
+                            consumedBiomassKilograms /
+                            totalDemandKilograms,
+                            0,
+                            1);
+
+                    foreach (var flock in group)
+                    {
+                        var flockDemandKilograms =
+                            PreyConsumptionDemandKilograms(
+                                flock.MemberCount,
+                                elapsedDays);
+
+                        var flockConsumedBiomassKilograms =
+                            flockDemandKilograms *
+                            supportFraction;
+
+                        var flockConsumedNitrogenKilograms =
+                            consumedBiomassKilograms <= 0
+                                ? 0
+                                : consumedNitrogenKilograms *
+                                  flockConsumedBiomassKilograms /
+                                  consumedBiomassKilograms;
+
+                        if (_parameters
+                                .MaximumRecruitmentRatePerDay >
+                            0 &&
+                            supportFraction >
+                            0)
+                        {
+                            flock.RecruitmentAccumulator +=
+                                flock.MemberCount *
+                                _parameters
+                                    .MaximumRecruitmentRatePerDay *
+                                elapsedDays *
+                                supportFraction;
+                        }
+
+                        var recruitmentCapacity =
+                            flock.RecruitmentAccumulator;
+
+                        var biomassPerBird =
+                            _parameters.MaterialPerBird
+                                .LiveBiomassKilogramsPerUnit;
+
+                        if (biomassPerBird > 0)
+                        {
+                            recruitmentCapacity =
+                                Math.Min(
+                                    recruitmentCapacity,
+                                    flockConsumedBiomassKilograms /
+                                    biomassPerBird);
+                        }
+
+                        var nitrogenPerBird =
+                            _parameters.MaterialPerBird
+                                .LiveNitrogenKilogramsPerUnit;
+
+                        if (nitrogenPerBird > 0)
+                        {
+                            recruitmentCapacity =
+                                Math.Min(
+                                    recruitmentCapacity,
+                                    flockConsumedNitrogenKilograms /
+                                    nitrogenPerBird);
+                        }
+
+                        var integerCapacity =
+                            Math.Max(
+                                0,
+                                int.MaxValue -
+                                (int)Math.Min(
+                                    int.MaxValue,
+                                    Math.Floor(
+                                        flock.MemberCount)));
+
+                        var newMembers =
+                            (int)Math.Floor(
+                                Math.Min(
+                                    recruitmentCapacity,
+                                    integerCapacity));
+
+                        var recruitedMaterial =
+                            _parameters.MaterialPerBird
+                                .ForUnits(
+                                    newMembers);
+
+                        if (newMembers > 0)
+                        {
+                            flock.MemberCount +=
+                                newMembers;
+
+                            flock.RecruitmentAccumulator -=
+                                newMembers;
+
+                            flock.Material =
+                                new OrganismMaterialState(
+                                    flock.Material
+                                        .LiveBiomassKilograms +
+                                    recruitedMaterial
+                                        .LiveBiomassKilograms,
+                                    flock.Material
+                                        .LiveNitrogenKilograms +
+                                    recruitedMaterial
+                                        .LiveNitrogenKilograms);
+
+                            recruitedMembers +=
+                                newMembers;
+
+                            preyBiomassAssimilatedKilograms +=
+                                recruitedMaterial
+                                    .LiveBiomassKilograms;
+
+                            preyNitrogenAssimilatedKilograms +=
+                                recruitedMaterial
+                                    .LiveNitrogenKilograms;
+                        }
+
+                        if (flockConsumedBiomassKilograms > 0)
+                        {
+                            preyConsumptionEvents.Add(
+                                new OrganismConsumptionEvent(
+                                    flock.LatitudeDegrees,
+                                    flock.LongitudeDegrees,
+                                    new OrganismMaterialState(
+                                        flockConsumedBiomassKilograms,
+                                        flockConsumedNitrogenKilograms),
+                                    recruitedMaterial
+                                        .LiveBiomassKilograms,
+                                    recruitedMaterial
+                                        .LiveNitrogenKilograms));
+                        }
+                    }
+                }
+
+                totalMembersByCellId =
+                    flocks
+                        .GroupBy(
+                            flock =>
+                                occupiedCellsByFlockId[
+                                    flock.Id]
+                                    .Id)
+                        .ToDictionary(
+                            group =>
+                                group.Key,
+                            group =>
+                                group.Sum(
+                                    flock =>
+                                        flock.MemberCount));
+            }
+
             foreach (var flock in flocks)
             {
                 var memberCountBeforeMortality =
@@ -282,7 +561,7 @@ public sealed class BirdFlockSystem
                         occupiedCell,
                         hydrology,
                         vegetation,
-                        invertebrates);
+                        invertebrateBiomassByCellId);
 
                 var totalMembersInCell =
                     totalMembersByCellId[
@@ -348,19 +627,35 @@ public sealed class BirdFlockSystem
                         memberCountBeforeMortality -
                         flock.MemberCount);
 
-                if (removedMembers > 0)
+                if (removedMembers > 0 &&
+                    memberCountBeforeMortality > 0)
                 {
+                    var removedFraction =
+                        Math.Clamp(
+                            removedMembers /
+                            memberCountBeforeMortality,
+                            0,
+                            1);
+
                     mortalityDeposits.Add(
                         OrganismMortalityDeposit
                             .FromRemovedFraction(
                                 flock.LatitudeDegrees,
                                 flock.LongitudeDegrees,
-                                flock.Source.Material,
-                                Math.Clamp(
-                                    removedMembers /
-                                    flock.Source.MemberCount,
-                                    0,
-                                    1)));
+                                flock.Material,
+                                removedFraction));
+
+                    var retainedFraction =
+                        1 -
+                        removedFraction;
+
+                    flock.Material =
+                        flock.Material
+                            .RetainFraction(
+                                retainedFraction);
+
+                    flock.RecruitmentAccumulator *=
+                        retainedFraction;
                 }
             }
 
@@ -369,17 +664,16 @@ public sealed class BirdFlockSystem
                          flock =>
                              flock.MemberCount < 1))
             {
-                mortalityDeposits.Add(
-                    OrganismMortalityDeposit
-                        .FromRemovedFraction(
-                            extinct.LatitudeDegrees,
-                            extinct.LongitudeDegrees,
-                            extinct.Source.Material,
-                            Math.Clamp(
-                                extinct.MemberCount /
-                                extinct.Source.MemberCount,
-                                0,
-                                1)));
+                if (!extinct.Material.IsEmpty)
+                {
+                    mortalityDeposits.Add(
+                        OrganismMortalityDeposit
+                            .FromRemovedFraction(
+                                extinct.LatitudeDegrees,
+                                extinct.LongitudeDegrees,
+                                extinct.Material,
+                                1));
+                }
             }
 
             flocks.RemoveAll(
@@ -408,27 +702,66 @@ public sealed class BirdFlockSystem
                                 flock.MemberCount -
                                 survivingMembers);
 
-                        if (roundingLoss > 0)
+                        if (roundingLoss > 0 &&
+                            flock.MemberCount > 0)
                         {
+                            var removedFraction =
+                                Math.Clamp(
+                                    roundingLoss /
+                                    flock.MemberCount,
+                                    0,
+                                    1);
+
                             mortalityDeposits.Add(
                                 OrganismMortalityDeposit
                                     .FromRemovedFraction(
                                         flock.LatitudeDegrees,
                                         flock.LongitudeDegrees,
-                                        flock.Source.Material,
-                                        Math.Clamp(
-                                            roundingLoss /
-                                            flock.Source.MemberCount,
-                                            0,
-                                            1)));
+                                        flock.Material,
+                                        removedFraction));
+
+                            var retainedFraction =
+                                1 -
+                                removedFraction;
+
+                            flock.Material =
+                                flock.Material
+                                    .RetainFraction(
+                                        retainedFraction);
+
+                            flock.RecruitmentAccumulator *=
+                                retainedFraction;
                         }
 
-                        return flock.Source.WithSurvivalState(
+                        return new BirdFlockState(
+                            flock.Id,
+                            flock.Source.PlanetId,
                             survivingMembers,
                             flock.LatitudeDegrees,
-                            flock.LongitudeDegrees);
+                            flock.LongitudeDegrees,
+                            flock.Material,
+                            flock.RecruitmentAccumulator);
                     })
                 .ToArray();
+
+        var finalInvertebrates =
+            new PlanetInvertebrateState(
+                invertebrates.PlanetId,
+                invertebrates.GridDefinition,
+                invertebrates.Cells.Select(
+                    original =>
+                        new InvertebrateCellState(
+                            original.CellId,
+                            invertebrateBiomassByCellId[
+                                original.CellId] /
+                            surfaceCellsById[
+                                original.CellId]
+                                .AreaSquareMeters,
+                            invertebrateNitrogenByCellId[
+                                original.CellId] /
+                            surfaceCellsById[
+                                original.CellId]
+                                .AreaSquareMeters)));
 
         var finalMemberCount =
             finalFlocks.Sum(
@@ -437,6 +770,27 @@ public sealed class BirdFlockSystem
 
         PlanetBiogeochemistryState?
             nextBiogeochemistry = null;
+
+        var returnedPreyNitrogenKilograms =
+            preyConsumptionEvents.Sum(
+                consumption =>
+                    consumption.ReturnedNitrogenKilograms);
+
+        if (returnedPreyNitrogenKilograms > 0)
+        {
+            if (biogeochemistry is null)
+            {
+                throw new InvalidOperationException(
+                    "Nitrogen-bearing bird prey consumption requires authoritative biogeochemistry state for the target planet.");
+            }
+
+            nextBiogeochemistry =
+                OrganismConsumptionMaterialTransfer
+                    .ReturnConsumedNitrogen(
+                        planet,
+                        biogeochemistry,
+                        preyConsumptionEvents);
+        }
 
         if (mortalityDeposits.Any(
                 deposit =>
@@ -448,20 +802,33 @@ public sealed class BirdFlockSystem
                     "Material-bearing bird mortality requires authoritative biogeochemistry state for the target planet.");
             }
 
+            var mortalityBiogeochemistry =
+                nextBiogeochemistry ??
+                biogeochemistry;
+
             nextBiogeochemistry =
                 OrganismMortalityDetritusTransfer.Apply(
                     planet,
-                    biogeochemistry,
+                    mortalityBiogeochemistry,
                     mortalityDeposits);
         }
 
+        ISimulationOperation operation =
+            preyBiomassConsumedKilograms > 0
+                ? new ReplacePlanetBirdInvertebrateStateOperation(
+                    _planetId,
+                    finalFlocks,
+                    finalInvertebrates,
+                    nextBiogeochemistry)
+                : new ReplacePlanetBirdFlocksOperation(
+                    _planetId,
+                    finalFlocks,
+                    nextBiogeochemistry);
+
         return new SimulationChange(
-            new ReplacePlanetBirdFlocksOperation(
-                _planetId,
-                finalFlocks,
-                nextBiogeochemistry),
+            operation,
             "planetary-birds",
-            "Bird flock movement and survival changed.",
+            "Bird flock movement, prey consumption, recruitment, and survival changed.",
             _planetId,
             elapsedSeconds,
             new Dictionary<string, double>
@@ -480,6 +847,23 @@ public sealed class BirdFlockSystem
                 ["memberChange"] =
                     finalMemberCount -
                     initialMemberCount,
+                ["recruitedMembers"] =
+                    recruitedMembers,
+                ["preyBiomassConsumedKilograms"] =
+                    preyBiomassConsumedKilograms,
+                ["preyNitrogenConsumedKilograms"] =
+                    preyNitrogenConsumedKilograms,
+                ["preyBiomassAssimilatedKilograms"] =
+                    preyBiomassAssimilatedKilograms,
+                ["preyNitrogenAssimilatedKilograms"] =
+                    preyNitrogenAssimilatedKilograms,
+                ["preyBiomassRespiredKilograms"] =
+                    Math.Max(
+                        0,
+                        preyBiomassConsumedKilograms -
+                        preyBiomassAssimilatedKilograms),
+                ["preyNitrogenReturnedKilograms"] =
+                    returnedPreyNitrogenKilograms,
                 ["movementSteps"] =
                     movementSteps,
                 ["foodStressSteps"] =
@@ -488,6 +872,8 @@ public sealed class BirdFlockSystem
                     waterStressSteps,
                 ["habitatStressSteps"] =
                     habitatStressSteps,
+                ["preyConsumptionSteps"] =
+                    preyConsumptionSteps,
                 ["integrationSubsteps"] =
                     integrationSubsteps
             });
@@ -499,14 +885,15 @@ public sealed class BirdFlockSystem
         IPlanetSurfaceGrid grid,
         PlanetHydrologyState hydrology,
         PlanetVegetationState vegetation,
-        PlanetInvertebrateState invertebrates)
+        IReadOnlyDictionary<SurfaceCellId, double>
+            invertebrateBiomassByCellId)
     {
         var current =
             AssessCell(
                 currentCell,
                 hydrology,
                 vegetation,
-                invertebrates);
+                invertebrateBiomassByCellId);
 
         if (current.HasSurfaceWater &&
             current.HasVegetationHabitat &&
@@ -529,7 +916,7 @@ public sealed class BirdFlockSystem
                         neighborId),
                     hydrology,
                     vegetation,
-                    invertebrates);
+                    invertebrateBiomassByCellId);
 
             if (IsBetter(
                     candidate,
@@ -548,7 +935,8 @@ public sealed class BirdFlockSystem
         SurfaceCell cell,
         PlanetHydrologyState hydrology,
         PlanetVegetationState vegetation,
-        PlanetInvertebrateState invertebrates)
+        IReadOnlyDictionary<SurfaceCellId, double>
+            invertebrateBiomassByCellId)
     {
         var hydrologyCell =
             hydrology.GetCell(
@@ -558,14 +946,9 @@ public sealed class BirdFlockSystem
             vegetation.GetCell(
                 cell.Id);
 
-        var invertebrateCell =
-            invertebrates.GetCell(
-                cell.Id);
-
         var totalInvertebrateBiomassKilograms =
-            invertebrateCell
-                .LiveBiomassKilogramsPerSquareMeter *
-            cell.AreaSquareMeters;
+            invertebrateBiomassByCellId[
+                cell.Id];
 
         var supportCapacityBirds =
             totalInvertebrateBiomassKilograms *
@@ -830,6 +1213,12 @@ public sealed class BirdFlockSystem
 
             MemberCount =
                 source.MemberCount;
+
+            Material =
+                source.Material;
+
+            RecruitmentAccumulator =
+                source.RecruitmentAccumulator;
         }
 
         public BirdFlockState Source { get; }
@@ -841,6 +1230,21 @@ public sealed class BirdFlockSystem
         public double LongitudeDegrees { get; set; }
 
         public double MemberCount { get; set; }
+
+        public OrganismMaterialState Material { get; set; }
+
+        public double RecruitmentAccumulator { get; set; }
+    }
+
+    private double PreyConsumptionDemandKilograms(
+        double memberCount,
+        double elapsedDays)
+    {
+        return
+            memberCount *
+            _parameters
+                .MaximumPreyConsumptionKilogramsPerBirdPerDay *
+            elapsedDays;
     }
 
     private sealed record CellAssessment(
