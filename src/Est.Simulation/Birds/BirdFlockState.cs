@@ -6,9 +6,13 @@ namespace Est.Simulation.Birds;
 /// <summary>
 /// Durable authoritative state for one coarse bird flock.
 ///
-/// This first representation intentionally stores flock identity, membership,
-/// and geographic center only. Species, individual birds, energy, health,
-/// movement, predation, reproduction, and migration remain later model
+/// The aggregate representation stores flock identity, membership, geographic
+/// center, tracked organism material, and fractional recruitment progress.
+/// Runtime movement, survival, prey consumption, and material-backed aggregate
+/// recruitment are handled without materializing every bird.
+///
+/// Species identity, individual-bird state, energy and health, predation,
+/// detailed reproductive behavior, and seasonal migration remain later model
 /// concerns.
 /// </summary>
 public sealed record BirdFlockState

@@ -2,8 +2,12 @@
 
 ## Status
 
-Organism-material foundation implemented. Lifecycle material transfers remain
-an implementation prerequisite for evolutionary population dynamics.
+Organism-material foundation and the current material-backed lifecycle
+transfers are implemented across humans, wolves, bird flocks, grazer cohorts,
+and aggregate invertebrates.
+
+Species-policy seasonal activation and end-to-end cross-system conservation
+validation remain prerequisites for evolutionary population dynamics.
 
 ## Problem
 
@@ -143,8 +147,17 @@ source even when individual organisms are not materialized.
 
 ### Birds
 
-Current bird use of invertebrate biomass is ecological support only. Do not
-remove invertebrate material until actual bird consumption is modeled.
+Configured bird feeding now consumes authoritative invertebrate biomass and
+tracked nitrogen. Aggregate recruitment is material-backed: new flock members
+can be created only from the consumed prey material allocated to recruitment.
+
+Consumed prey material not retained as bird tissue leaves tracked organic
+biomass through the explicit metabolic accounting path, while unassimilated
+tracked nitrogen returns to authoritative plant-available nitrogen.
+
+Bird initialization remains non-consuming. Initial carrying-capacity support
+may be derived from invertebrate biomass without removing that biomass; causal
+consumption begins only during runtime bird-system evaluation.
 
 ## Existing energy and health state
 
@@ -157,34 +170,38 @@ and prey material flows must be made explicit underneath them.
 
 ## Implementation sequence
 
-1. Add a shared organism-material value object that supports both individual and
-   aggregate representations.
-2. Attach authoritative material state to humans, wolves, bird flocks, and
-   grazer cohorts without collapsing their behavioral representations.
-3. Add explicit world-creation policy, persistence, API exposure, and backward
-   compatibility for organism material.
-4. Route human, wolf, bird, and grazer mortality through common detrital
-   material-transfer semantics.
-5. Close human-foraging and grazer-grazing material leaks, including tracked
-   nitrogen.
-6. Replace count-and-energy-only predation with explicit prey-material
-   accounting while preserving species-specific hunting behavior.
-7. Add shared lifecycle semantics for birth/recruitment, growth, maturation,
-   reproductive eligibility, aging, seasonal state, and death without forcing
-   species into one behavioral representation.
-8. Complete individual lifecycle state and reproduction for humans and wolves,
-   including causal offspring material and post-birth growth.
-9. Add demographic lifecycle structure and causal reproduction/recruitment for
-   bird flocks and grazer cohorts without materializing every individual.
-10. Make aggregate invertebrate reproduction/growth consume an authoritative
-    material source rather than treating carrying capacity as material creation.
-11. Add species-policy seasonal lifecycle strategies such as breeding seasons,
-    migration, torpor, dormancy, or hibernation where biologically appropriate.
-12. Validate material and nitrogen accounting across feeding, growth,
-    predation, reproduction, mortality, decomposition, snapshot restore, and
-    session advancement.
-13. Begin evolutionary inheritance and selection only after this substrate is
-    green.
+1. **Implemented.** Shared organism-material value objects support individual
+   and aggregate representations.
+2. **Implemented.** Humans, wolves, bird flocks, and grazer cohorts carry
+   authoritative material without collapsing their behavioral representations.
+3. **Implemented.** World creation, persistence, API exposure, and backward
+   compatibility cover current organism-material state.
+4. **Implemented.** Human, wolf, bird, and grazer mortality uses common
+   detrital material-transfer semantics.
+5. **Implemented.** Human foraging and grazer grazing consume authoritative
+   vegetation with tracked material and nitrogen accounting.
+6. **Implemented.** Wolf predation uses explicit prey-material accounting while
+   preserving species-specific hunting behavior.
+7. **Implemented.** Shared lifecycle vocabulary covers birth/recruitment,
+   growth, maturation, reproductive eligibility, aging, seasonal strategy, and
+   death without forcing species into one behavioral representation.
+8. **Implemented for the current individual models.** Human and wolf
+   reproduction uses causal offspring material, and wolf post-birth growth is
+   materially sourced.
+9. **Implemented for the current aggregate models.** Bird flocks and grazer
+   cohorts support causal, material-backed recruitment without materializing
+   every individual.
+10. **Implemented.** Aggregate invertebrate growth consumes authoritative
+    vegetation material rather than creating biomass from carrying capacity.
+11. **Next lifecycle capability.** Activate species-policy seasonal strategies
+    such as breeding seasons, migration, torpor, dormancy, or hibernation only
+    where biologically appropriate.
+12. **Pending validation gate.** Validate material and nitrogen accounting
+    across feeding, growth, predation, reproduction, mortality, decomposition,
+    snapshot restore, and session advancement as one cross-system substrate.
+13. **Blocked on the preceding gates.** Begin evolutionary inheritance and
+    selection only after seasonal policy and cross-system material validation
+    are green.
 
 ## Non-goals
 

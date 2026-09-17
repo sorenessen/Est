@@ -39,7 +39,7 @@ From the repository root:
 dotnet test Est.slnx
 ```
 
-Latest verified result: September 8, 2026, `dotnet test Est.slnx`: 222 passed, 0 failed, 0 skipped. The web production build also passed with `npm run build`.
+Latest verified .NET result: September 17, 2026: 744 passed, 0 failed, 0 skipped. The latest recorded web production build also passed with `npm run build`.
 
 ## Repository Inspection
 

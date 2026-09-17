@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted for implementation.
+Accepted.
+
+The foundational shared-surface, terrain, hydrology, vegetation, and current
+biosphere-integration phases are implemented. Later ecological, climate, soil,
+decomposition, and evolutionary layers continue to build on this substrate.
 
 ## Renderer clarification — 2026-09-16
 
@@ -44,18 +48,33 @@ Snapshots from schemas 4 through 10 remain readable: their legacy
 and then discarded rather than restored into current authoritative world
 state.
 
-The next biological layers require shared environmental state:
+## Biosphere implementation update - 2026-09-17
 
-- plants require water, climate, soil, and light;
-- invertebrates require plants, moisture, detritus, and other
-  invertebrates;
-- birds and terrestrial animals require vegetation, prey, water, and
-  habitat;
-- decomposition eventually requires dead biomass, fungi, microbes, and
-  nutrient cycling.
+The shared surface substrate is now carrying causal biological state rather
+than serving only as future infrastructure.
 
-Water is the first missing physical cycle underneath all of those
-systems.
+Current authoritative integration includes:
+
+- terrain and hydrology on the common surface topology;
+- live vegetation and plant-material consumption;
+- biogeochemical detritus and plant-available nitrogen;
+- aggregate invertebrate biomass with material-backed growth;
+- grazer cohorts with vegetation-backed recruitment;
+- bird flocks with invertebrate-prey consumption and material-backed
+  recruitment;
+- individual wolves with explicit prey-material accounting, provisioning,
+  reproduction, and post-birth material growth;
+- human foraging against authoritative vegetation;
+- common mortality transfer of tracked biomass and nitrogen into detrital
+  pools.
+
+The temporary synthetic food-resource layer has therefore been superseded by
+authoritative vegetation and consumer material flows.
+
+Regional climate, richer soils, detailed decomposition, species-specific
+seasonal behavior, and evolutionary dynamics remain later layers. Those later
+systems must continue to consume the same authoritative surface and material
+state rather than introducing parallel ecological truth.
 
 The current `PlanetEnvironment` contains deliberately coarse planetary
 properties:
@@ -69,21 +88,21 @@ Those values are planetary boundary state. They are not sufficient to
 represent evolving regional hydrology such as precipitation, soil
 moisture, runoff, drought, snowpack, or groundwater.
 
-Est also currently has no common spatial substrate for environmental
-fields. Adding one bespoke coordinate model for hydrology, another for
-vegetation, and another for small-animal populations would create
-avoidable architectural fragmentation.
+At the time this ADR was adopted, Est also had no common spatial substrate
+for environmental fields. Adding one bespoke coordinate model for hydrology,
+another for vegetation, and another for small-animal populations would have
+created avoidable architectural fragmentation.
 
 ## Presentation clarification — 2026-09-15
 
 The reusable surface grid in this ADR remains authoritative simulation topology
-for terrain, hydrology, vegetation, regional climate, and later ecosystem
-state. It is not the visual planet mesh.
+for terrain, hydrology, vegetation, ecosystem state, and future regional
+climate. It is not the visual planet mesh.
 
 The current production browser renderer uses one immutable spherical
 presentation mesh. Authoritative terrain is sampled from Est state and baked
-radially into that independent visual sphere. Hydrology and later biosphere
-state remain owned by simulation systems regardless of how they are presented.
+radially into that independent visual sphere. Hydrology and biosphere state
+remain owned by simulation systems regardless of how they are presented.
 
 Earlier cube-sphere/quadtree renderer work and Cesium evaluation work are
 preserved as future presentation evidence. Their preservation does not change
@@ -91,15 +110,16 @@ the simulation ownership model established here.
 
 ## Decision
 
-Est will introduce a reusable planet-surface grid abstraction before
-building detailed hydrology.
+Est uses a reusable planet-surface grid abstraction underneath detailed
+hydrology and biological surface state.
 
-The surface grid will provide stable cell identity and spatial topology
-for environmental and biological fields.
+The surface grid provides stable cell identity and spatial topology for
+environmental and biological fields.
 
-Hydrology, vegetation, invertebrate populations, regional climate, and
-other future spatial systems will reference the same surface-cell
-identity rather than creating independent location grids.
+Hydrology, vegetation, and invertebrate populations reference the same
+surface-cell identity. Regional climate and other future spatial systems must
+continue to use that shared topology rather than creating independent location
+grids.
 
 ### Planet independence
 
@@ -173,8 +193,7 @@ to the planet mean-radius datum. Terrain elevation is not itself sea level.
 
 Hydrology describes water currently present in that cell.
 
-Vegetation will later describe plant biomass currently present in that
-cell.
+Vegetation describes plant biomass currently present in that cell.
 
 Small-animal and insect systems may describe population density or
 cohorts currently present in that cell.
@@ -285,7 +304,7 @@ creation metadata.
 `WorldState` owns evolving simulation state.
 
 Hydrology therefore belongs in world state, analogous to population,
-animals, and current food resources.
+animals, vegetation, and other evolving biosphere state.
 
 Hydrology state must:
 
@@ -360,9 +379,9 @@ Future simulation LOD may materialize and dematerialize individuals from
 aggregate populations while preserving conserved population and biomass
 state.
 
-## Initial implementation sequence
+## Implementation sequence and current status
 
-### Phase A: shared surface substrate
+### Phase A: shared surface substrate - implemented
 
 1. Define opaque `SurfaceCellId`.
 2. Define a planet-surface grid contract.
@@ -371,7 +390,7 @@ state.
    neighbors.
 5. Keep grid implementation replaceable.
 
-### Phase B: terrain and topography
+### Phase B: terrain and topography - implemented
 
 1. Define durable per-cell terrain state.
 2. Represent solid-surface elevation relative to the planetary
@@ -445,7 +464,7 @@ Terrain generation will operate over the planet-surface graph. Drainage
 and later river routing will therefore consume the same topology rather
 than depending on a renderer-specific raster.
 
-### Phase C: hydrology state
+### Phase C: hydrology state - implemented
 
 1. Define per-cell hydrology state.
 2. Add immutable world ownership and replacement operation.
@@ -453,7 +472,7 @@ than depending on a renderer-specific raster.
 4. Add world copy / fork tests.
 5. Expose conservation-safe constructors and transitions.
 
-### Phase D: hydrology causal system
+### Phase D: hydrology causal system - implemented
 
 1. Define explicit model parameters.
 2. Establish bounded integration.
@@ -462,7 +481,7 @@ than depending on a renderer-specific raster.
 5. Add conservation telemetry.
 6. Add dry, wet, freezing, melting, and long-step tests.
 
-### Phase E: application and presentation integration
+### Phase E: application and presentation integration - implemented
 
 1. Seed deterministic generated terrain and hydrology for development
    planets.
@@ -470,14 +489,16 @@ than depending on a renderer-specific raster.
 3. Expose terrain and hydrology telemetry through the API.
 4. Add globe visualization only after the state is authoritative.
 
-### Phase F: vegetation
+### Phase F: vegetation - implemented
 
-Build plant biomass on the shared surface cells and make terrain,
-water availability, and climate causal inputs to productivity.
+Authoritative live plant biomass now occupies the shared surface cells.
+Vegetation consumes causal environmental inputs and supplies material to
+configured consumers.
 
-Synthetic food resources remain temporary scaffolding until vegetation
-can replace their ecological role without breaking the living-population
-vertical slice.
+The former synthetic food-resource scaffolding has been retired from current
+authoritative world state and causal foraging. Human foraging, grazer grazing,
+and invertebrate growth now operate against authoritative vegetation rather
+than a parallel food-resource model.
 
 ## Consequences
 
