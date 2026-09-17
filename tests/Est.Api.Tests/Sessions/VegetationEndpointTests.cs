@@ -288,21 +288,45 @@ public sealed class VegetationEndpointTests
         Assert.NotNull(
             timeline);
 
-        var foragingEvent =
-            Assert.Single(
-                timeline.Events,
-                timelineEvent =>
-                    timelineEvent.Cause ==
-                    "vegetation-foraging");
+        var foragingEvents =
+            timeline.Events
+                .Where(
+                    timelineEvent =>
+                        timelineEvent.Cause ==
+                        "vegetation-foraging")
+                .ToArray();
+
+        Assert.Equal(
+            15,
+            foragingEvents.Length);
+
+        for (var day = 0;
+             day < foragingEvents.Length;
+             day++)
+        {
+            Assert.Equal(
+                (day + 1) * 86_400L,
+                foragingEvents[day]
+                    .OccurredAtSeconds);
+
+            Assert.Equal(
+                86_400,
+                foragingEvents[day]
+                    .ElapsedSeconds);
+        }
 
         Assert.True(
-            foragingEvent.Metrics[
-                "biomassHarvestedKilograms"] >
+            foragingEvents.Sum(
+                timelineEvent =>
+                    timelineEvent.Metrics[
+                        "biomassHarvestedKilograms"]) >
             0);
 
         Assert.True(
-            foragingEvent.Metrics[
-                "energyConsumed"] >
+            foragingEvents.Sum(
+                timelineEvent =>
+                    timelineEvent.Metrics[
+                        "energyConsumed"]) >
             0);
     }
 

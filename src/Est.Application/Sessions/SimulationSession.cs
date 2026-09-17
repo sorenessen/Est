@@ -20,6 +20,9 @@ namespace Est.Application.Sessions;
 
 public sealed class SimulationSession
 {
+    private const long MaximumCausalCouplingStepSeconds =
+        86_400;
+
     private readonly object _sync = new();
     private readonly SimulationClock _clock = new();
     private readonly IReadOnlyList<ICausalSystem> _causalSystems;
@@ -311,14 +314,44 @@ public sealed class SimulationSession
     private SimulationTimeline AdvanceCore(
         long seconds)
     {
-        var result =
-            SimulationStepRunner.Step(
-                _timeline.CurrentWorld,
-                seconds,
-                _causalSystems);
+        if (seconds == 0)
+        {
+            var zeroDurationResult =
+                SimulationStepRunner.Step(
+                    _timeline.CurrentWorld,
+                    0,
+                    _causalSystems);
 
-        _timeline =
-            _timeline.RecordStep(result);
+            _timeline =
+                _timeline.RecordStep(
+                    zeroDurationResult);
+
+            return _timeline;
+        }
+
+        var remainingSeconds =
+            seconds;
+
+        while (remainingSeconds > 0)
+        {
+            var stepSeconds =
+                Math.Min(
+                    MaximumCausalCouplingStepSeconds,
+                    remainingSeconds);
+
+            var result =
+                SimulationStepRunner.Step(
+                    _timeline.CurrentWorld,
+                    stepSeconds,
+                    _causalSystems);
+
+            _timeline =
+                _timeline.RecordStep(
+                    result);
+
+            remainingSeconds -=
+                stepSeconds;
+        }
 
         return _timeline;
     }
