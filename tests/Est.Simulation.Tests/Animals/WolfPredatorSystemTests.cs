@@ -1,8 +1,14 @@
 using Est.Simulation.Animals;
+using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Causality;
 using Est.Simulation.Grazers;
+using Est.Simulation.Hydrology;
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Surface;
+using Est.Simulation.Terrain;
+using Est.Simulation.Vegetation;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -488,6 +494,175 @@ public sealed class WolfPredatorSystemTests
             0,
             result.Change.Metrics[
                 "wolfAttacks"]);
+    }
+
+
+    [Fact]
+    public void Step_LargeGrazerKillSustainsEightWolfPackFromPreyBiomass()
+    {
+        var planet =
+            CreatePlanet();
+
+        var wolves =
+            Enumerable.Range(
+                    0,
+                    8)
+                .Select(
+                    _ =>
+                        new AnimalState(
+                            AnimalId.New(),
+                            planet.Id,
+                            AnimalSpecies.Wolf,
+                            latitudeDegrees: 0,
+                            longitudeDegrees: 0,
+                            energyReserve: 0.20,
+                            health: 1,
+                            activity:
+                                AnimalActivity.Hunting,
+                            material:
+                                new OrganismMaterialState(
+                                    liveBiomassKilograms:
+                                        40,
+                                    liveNitrogenKilograms:
+                                        1),
+                            birthTimeSeconds:
+                                -4 * 31_536_000L))
+                .ToArray();
+
+        var grazer =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
+                planet.Id,
+                memberCount: 1,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0.05,
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms:
+                            320,
+                        liveNitrogenKilograms:
+                            8));
+
+        var surfaceDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var surfaceGrid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                surfaceDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters: 0)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                0,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                100,
+                            soilWaterKilogramsPerSquareMeter:
+                                100,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                0)));
+
+        var vegetation =
+            new PlanetVegetationState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new VegetationCellState(
+                            cell.Id,
+                            liveBiomassKilogramsPerSquareMeter:
+                                0)));
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            detritalBiomassKilogramsPerSquareMeter:
+                                0,
+                            detritalNitrogenKilogramsPerSquareMeter:
+                                0,
+                            plantAvailableNitrogenKilogramsPerSquareMeter:
+                                0)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                wolves,
+                terrain:
+                [
+                    terrain
+                ],
+                hydrology:
+                [
+                    hydrology
+                ],
+                vegetation:
+                [
+                    vegetation
+                ],
+                grazerCohorts:
+                [
+                    grazer
+                ],
+                biogeochemistry:
+                [
+                    biogeochemistry
+                ]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerKills"]);
+
+        Assert.Equal(
+            8,
+            result.World.Animals.Length);
+
+        Assert.All(
+            result.World.Animals,
+            wolf =>
+            {
+                Assert.True(
+                    wolf.EnergyReserve > 0.9,
+                    $"Expected prey biomass to sustain the pack, but wolf {wolf.Id.Value} had reserve {wolf.EnergyReserve:F6}.");
+
+                Assert.Equal(
+                    1,
+                    wolf.Health,
+                    precision: 10);
+            });
     }
 
     [Fact]

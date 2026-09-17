@@ -26,7 +26,6 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private const double HumanAttackEnergyThreshold = 0.12;
 
     private const double EnergyUsePerDay = 0.08;
-    private const double EnergyPerGrazerKill = 0.45;
     private const double EnergyPerHumanKill = 0.65;
 
     // Starvation remains gradual when neither normal grazer prey
@@ -51,11 +50,15 @@ public sealed class WolfPredatorSystem : ICausalSystem
     private readonly PlanetId _planetId;
     private readonly WolfLifecycleParameters
         _lifecycleParameters;
+    private readonly WolfFeedingParameters
+        _feedingParameters;
 
     public WolfPredatorSystem(
         PlanetId planetId,
         WolfLifecycleParameters?
-            lifecycleParameters = null)
+            lifecycleParameters = null,
+        WolfFeedingParameters?
+            feedingParameters = null)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -68,6 +71,10 @@ public sealed class WolfPredatorSystem : ICausalSystem
         _lifecycleParameters =
             lifecycleParameters ??
             new WolfLifecycleParameters();
+
+        _feedingParameters =
+            feedingParameters ??
+            new WolfFeedingParameters();
     }
 
     public SimulationChange Evaluate(
@@ -339,10 +346,23 @@ public sealed class WolfPredatorSystem : ICausalSystem
                                             .LiveNitrogenKilograms));
                             }
 
+                            var metabolizedBiomassKilograms =
+                                Math.Max(
+                                    0,
+                                    consumedGrazerMaterial
+                                        .LiveBiomassKilograms -
+                                    assimilated
+                                        .LiveBiomassKilograms);
+
+                            var energyFromGrazerKill =
+                                _feedingParameters
+                                    .EnergyReserveFromMetabolizedBiomass(
+                                        metabolizedBiomassKilograms);
+
                             FeedPack(
                                 animals,
                                 huntingPack,
-                                EnergyPerGrazerKill,
+                                energyFromGrazerKill,
                                 grazerTarget
                                     .LatitudeDegrees,
                                 grazerTarget
