@@ -726,6 +726,72 @@ public sealed class WolfPredatorSystemTests
     }
 
     [Fact]
+    public void Step_HungryWolfSearchesTowardGrazerBeyondDetectionRange()
+    {
+        var planet =
+            CreatePlanet();
+
+        var wolf =
+            CreateWolf(
+                planet.Id,
+                latitude: 0,
+                longitude: 0,
+                energyReserve: 0.30);
+
+        var grazer =
+            CreateGrazer(
+                planet.Id,
+                memberCount: 5,
+                latitude: 0,
+                longitude: 2.25);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    [],
+                    [wolf],
+                    [grazer]),
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id));
+
+        var changedWolf =
+            Assert.Single(
+                result.World.Animals);
+
+        Assert.Equal(
+            0,
+            changedWolf.LatitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            0.75,
+            changedWolf.LongitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            AnimalActivity.Traveling,
+            changedWolf.Activity);
+
+        Assert.Equal(
+            5,
+            Assert.Single(
+                    result.World.GrazerCohorts)
+                .MemberCount);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics[
+                "grazerKills"]);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerSearchSteps"]);
+    }
+
+    [Fact]
     public void Step_GrazerPredationRemovesExtinctCohort()
     {
         var planet = CreatePlanet();

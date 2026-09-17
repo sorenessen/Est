@@ -154,6 +154,7 @@ public sealed class WolfPredatorSystem : ICausalSystem
         var grazerHunts = 0;
         var grazerKills = 0;
         var grazerChaseSteps = 0;
+        var grazerSearchSteps = 0;
         var grazerPackHunts = 0;
 
         double? lastAttackLatitude = null;
@@ -372,6 +373,36 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         }
 
                         continue;
+                    }
+
+                    if (wolf.EnergyReserve >
+                            HumanAttackEnergyThreshold)
+                    {
+                        var grazerSearchTarget =
+                            FindNearestGrazer(
+                                wolf,
+                                grazerCohorts);
+
+                        if (grazerSearchTarget is not null)
+                        {
+                            var movedWolf =
+                                MoveTowardGrazer(
+                                    wolf,
+                                    grazerSearchTarget,
+                                    elapsedDays);
+
+                            animals[index] =
+                                movedWolf.WithState(
+                                    movedWolf.LatitudeDegrees,
+                                    movedWolf.LongitudeDegrees,
+                                    wolf.EnergyReserve,
+                                    wolf.Health,
+                                    AnimalActivity.Traveling);
+
+                            grazerSearchSteps++;
+
+                            continue;
+                        }
                     }
                 }
 
@@ -815,6 +846,8 @@ public sealed class WolfPredatorSystem : ICausalSystem
                     grazerKills,
                 ["grazerChaseSteps"] =
                     grazerChaseSteps,
+                ["grazerSearchSteps"] =
+                    grazerSearchSteps,
                 ["grazerPackHunts"] =
                     grazerPackHunts,
                 ["preyBiomassRespiredKilograms"] =
@@ -1015,6 +1048,47 @@ public sealed class WolfPredatorSystem : ICausalSystem
 
             nearest =
                 person;
+
+            nearestDistance =
+                distance;
+        }
+
+        return nearest;
+    }
+
+    private static GrazerCohortState?
+        FindNearestGrazer(
+            AnimalState wolf,
+            IEnumerable<GrazerCohortState>
+                grazerCohorts)
+    {
+        GrazerCohortState? nearest = null;
+
+        var nearestDistance =
+            double.PositiveInfinity;
+
+        foreach (var cohort in grazerCohorts)
+        {
+            if (cohort.MemberCount <= 0)
+            {
+                continue;
+            }
+
+            var distance =
+                DistanceDegrees(
+                    wolf.LatitudeDegrees,
+                    wolf.LongitudeDegrees,
+                    cohort.LatitudeDegrees,
+                    cohort.LongitudeDegrees);
+
+            if (distance >=
+                nearestDistance)
+            {
+                continue;
+            }
+
+            nearest =
+                cohort;
 
             nearestDistance =
                 distance;
