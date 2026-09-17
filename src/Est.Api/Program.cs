@@ -482,6 +482,9 @@ app.MapPost(
                                         waterAbsenceMortalityRatePerDay:
                                             planet.GrazerModel
                                                 .WaterAbsenceMortalityRatePerDay,
+                                        useSurfaceWaterForMovement:
+                                            planet.GrazerModel
+                                                .UseSurfaceWaterForMovement,
                                         habitatAbsenceMortalityRatePerDay:
                                             planet.GrazerModel
                                                 .HabitatAbsenceMortalityRatePerDay,
@@ -1842,6 +1845,8 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .FoodShortageMortalityRatePerDay,
                         model.Parameters
                             .WaterAbsenceMortalityRatePerDay,
+                        model.Parameters
+                            .UseSurfaceWaterForMovement,
                         model.Parameters
                             .HabitatAbsenceMortalityRatePerDay,
                         model.Parameters

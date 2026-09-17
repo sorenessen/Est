@@ -81,6 +81,8 @@ public sealed class GrazerCohortEndpointTests
                                 0,
                             WaterAbsenceMortalityRatePerDay =
                                 0,
+                            UseSurfaceWaterForMovement =
+                                true,
                             HabitatAbsenceMortalityRatePerDay =
                                 0,
                             LiveBiomassKilogramsPerGrazer =
@@ -153,6 +155,9 @@ public sealed class GrazerCohortEndpointTests
         Assert.Equal(
             0,
             model.WaterAbsenceMortalityRatePerDay);
+
+        Assert.True(
+            model.UseSurfaceWaterForMovement);
 
         Assert.Equal(
             0,

@@ -95,6 +95,7 @@ public sealed record GrazerModelResponse(
     double MaximumGrazeKilogramsPerGrazerPerDay,
     double FoodShortageMortalityRatePerDay,
     double WaterAbsenceMortalityRatePerDay,
+    bool UseSurfaceWaterForMovement,
     double HabitatAbsenceMortalityRatePerDay,
     double LiveBiomassKilogramsPerGrazer,
     double LiveNitrogenKilogramsPerGrazer);

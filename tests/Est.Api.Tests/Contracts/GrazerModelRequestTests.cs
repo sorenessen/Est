@@ -18,5 +18,8 @@ public sealed class GrazerModelRequestTests
         Assert.Equal(
             0,
             request.WaterAbsenceMortalityRatePerDay);
+
+        Assert.False(
+            request.UseSurfaceWaterForMovement);
     }
 }

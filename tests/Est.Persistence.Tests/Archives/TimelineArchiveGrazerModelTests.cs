@@ -47,7 +47,9 @@ public sealed class TimelineArchiveGrazerModelTests
                 liveBiomassKilogramsPerGrazer:
                     320,
                 liveNitrogenKilogramsPerGrazer:
-                    8);
+                    8,
+                useSurfaceWaterForMovement:
+                    true);
 
         var restored =
             RoundTrip(
@@ -65,6 +67,60 @@ public sealed class TimelineArchiveGrazerModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionEighteenDefaultsSurfaceWaterMovementPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["schemaVersion"] =
+            18;
+
+        var parameters =
+            node["definition"]!["grazerModels"]![0]!["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "useSurfaceWaterForMovement");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.GrazerModels)
+                .Parameters;
+
+        Assert.False(
+            restoredParameters.UseSurfaceWaterForMovement);
+    }
+
+    [Fact]
+    public void Deserialize_CurrentVersionRequiresSurfaceWaterMovementPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["definition"]!["grazerModels"]![0]!["parameters"]!
+            .AsObject()
+            .Remove(
+                "useSurfaceWaterForMovement");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

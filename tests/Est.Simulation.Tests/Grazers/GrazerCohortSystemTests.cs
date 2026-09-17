@@ -16,6 +16,90 @@ public sealed class GrazerCohortSystemTests
         86_400;
 
     [Fact]
+    public void Evaluate_DefaultWaterPolicyDoesNotMoveSupportedDryCohortTowardStandingWater()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var waterNeighbor =
+            fixture.Grid.GetNeighbors(
+                    startCell.Id)
+                .Select(
+                    fixture.Grid.GetCell)
+                .First();
+
+        var world =
+            CreateWorld(
+                fixture,
+                [
+                    CreateCohort(
+                        fixture,
+                        startCell,
+                        100)
+                ],
+                water:
+                    cell =>
+                        cell.Id ==
+                        waterNeighbor.Id
+                            ? 100
+                            : 0,
+                vegetation:
+                    _ =>
+                        1);
+
+        var system =
+            new GrazerCohortSystem(
+                fixture.Planet.Id,
+                new GrazerModelParameters(
+                    carryingCapacityGrazersPerKilogramLiveVegetationBiomass:
+                        1,
+                    maximumIntegrationStepSeconds:
+                        OneDaySeconds,
+                    maximumTravelMetersPerDay:
+                        100_000_000,
+                    maximumGrazeKilogramsPerGrazerPerDay:
+                        0,
+                    foodShortageMortalityRatePerDay:
+                        0,
+                    habitatAbsenceMortalityRatePerDay:
+                        0));
+
+        var change =
+            system.Evaluate(
+                world,
+                OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var cohort =
+            Assert.Single(
+                changed.GrazerCohorts);
+
+        Assert.Equal(
+            startCell.CenterLatitudeDegrees,
+            cohort.LatitudeDegrees);
+
+        Assert.Equal(
+            startCell.CenterLongitudeDegrees,
+            cohort.LongitudeDegrees);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "movementSteps"]);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "waterStressSteps"]);
+    }
+
+    [Fact]
     public void Evaluate_MovesCohortTowardBetterAdjacentLandEcology()
     {
         var fixture =
@@ -86,6 +170,8 @@ public sealed class GrazerCohortSystemTests
                         0,
                     waterAbsenceMortalityRatePerDay:
                         0,
+                    useSurfaceWaterForMovement:
+                        true,
                     habitatAbsenceMortalityRatePerDay:
                         0));
 

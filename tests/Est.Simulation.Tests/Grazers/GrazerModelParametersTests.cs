@@ -47,6 +47,9 @@ public sealed class GrazerModelParametersTests
             0,
             parameters.WaterAbsenceMortalityRatePerDay);
 
+        Assert.False(
+            parameters.UseSurfaceWaterForMovement);
+
         Assert.Equal(
             0.02,
             parameters.HabitatAbsenceMortalityRatePerDay);

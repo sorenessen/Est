@@ -15,7 +15,8 @@ namespace Est.Simulation.Grazers;
 ///
 /// Cohorts move across authoritative surface-grid topology. Live vegetation is
 /// both coarse terrestrial habitat and directly consumable plant biomass.
-/// Surface liquid water is a coarse water-availability signal.
+/// Surface liquid water is used only when explicitly enabled as a coarse
+/// movement signal or water-absence mortality signal.
 ///
 /// Cohorts sharing a cell share available plant biomass proportionally rather
 /// than consuming in iteration order. This system does not reproduce, split,
@@ -429,7 +430,9 @@ public sealed class GrazerCohortSystem
                     foodStressSteps++;
                 }
 
-                if (!assessment.HasSurfaceWater)
+                if (_parameters
+                        .WaterAbsenceMortalityRatePerDay > 0 &&
+                    !assessment.HasSurfaceWater)
                 {
                     cohort.MemberCount *=
                         SurvivalFraction(
@@ -667,7 +670,8 @@ public sealed class GrazerCohortSystem
                 vegetationMassByCellId);
 
         if (current.HasVegetatedHabitat &&
-            current.HasSurfaceWater &&
+            (!_parameters.UseSurfaceWaterForMovement ||
+             current.HasSurfaceWater) &&
             current.SupportCapacityGrazers >=
                 cohortMemberCount)
         {
@@ -737,7 +741,7 @@ public sealed class GrazerCohortSystem
             supportCapacityGrazers);
     }
 
-    private static bool IsBetter(
+    private bool IsBetter(
         CellAssessment candidate,
         CellAssessment currentBest,
         double cohortMemberCount)
@@ -748,8 +752,9 @@ public sealed class GrazerCohortSystem
             return candidate.HasVegetatedHabitat;
         }
 
-        if (candidate.HasSurfaceWater !=
-            currentBest.HasSurfaceWater)
+        if (_parameters.UseSurfaceWaterForMovement &&
+            candidate.HasSurfaceWater !=
+                currentBest.HasSurfaceWater)
         {
             return candidate.HasSurfaceWater;
         }

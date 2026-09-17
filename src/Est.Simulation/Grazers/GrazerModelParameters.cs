@@ -11,9 +11,10 @@ namespace Est.Simulation.Grazers;
 /// or species-specific nutrition model.
 ///
 /// Vegetated cells provide coarse terrestrial habitat. Surface liquid water
-/// remains available as an explicit mortality signal, but the current coarse
-/// hydrology field does not represent terrestrial drinking-water access well
-/// enough to enable water-absence mortality by default.
+/// can be used as an explicit coarse movement signal and as an explicit
+/// mortality signal. The current generated hydrology field does not represent
+/// terrestrial drinking-water access well enough to enable either behavior by
+/// default.
 /// </summary>
 public sealed record GrazerModelParameters
 {
@@ -30,7 +31,8 @@ public sealed record GrazerModelParameters
         double waterAbsenceMortalityRatePerDay = 0,
         double habitatAbsenceMortalityRatePerDay = 0.02,
         double liveBiomassKilogramsPerGrazer = 250,
-        double liveNitrogenKilogramsPerGrazer = 6.25)
+        double liveNitrogenKilogramsPerGrazer = 6.25,
+        bool useSurfaceWaterForMovement = false)
     {
         if (!double.IsFinite(
                 carryingCapacityGrazersPerKilogramLiveVegetationBiomass) ||
@@ -120,6 +122,9 @@ public sealed record GrazerModelParameters
         WaterAbsenceMortalityRatePerDay =
             waterAbsenceMortalityRatePerDay;
 
+        UseSurfaceWaterForMovement =
+            useSurfaceWaterForMovement;
+
         HabitatAbsenceMortalityRatePerDay =
             habitatAbsenceMortalityRatePerDay;
 
@@ -150,6 +155,8 @@ public sealed record GrazerModelParameters
     public double FoodShortageMortalityRatePerDay { get; }
 
     public double WaterAbsenceMortalityRatePerDay { get; }
+
+    public bool UseSurfaceWaterForMovement { get; }
 
     public double HabitatAbsenceMortalityRatePerDay { get; }
 
