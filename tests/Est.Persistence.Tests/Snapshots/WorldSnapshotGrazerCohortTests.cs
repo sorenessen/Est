@@ -22,7 +22,9 @@ public sealed class WorldSnapshotGrazerCohortTests
                 planet.Id,
                 275,
                 41.25,
-                -72.75);
+                -72.75,
+                recruitmentAccumulator:
+                    0.375);
 
         var world =
             new WorldState(
@@ -53,6 +55,93 @@ public sealed class WorldSnapshotGrazerCohortTests
             cohort,
             Assert.Single(
                 restored.GrazerCohorts));
+    }
+
+    [Fact]
+    public void Deserialize_VersionEighteenDefaultsRecruitmentAccumulator()
+    {
+        var planet =
+            CreatePlanet();
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                grazerCohorts:
+                [
+                    new GrazerCohortState(
+                        GrazerCohortId.New(),
+                        planet.Id,
+                        10,
+                        0,
+                        0,
+                        recruitmentAccumulator:
+                            0.75)
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 18;
+
+        node["grazerCohorts"]![0]!
+            .AsObject()
+            .Remove(
+                "recruitmentAccumulator");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Equal(
+            0,
+            Assert.Single(
+                    restored.GrazerCohorts)
+                .RecruitmentAccumulator);
+    }
+
+    [Fact]
+    public void Deserialize_CurrentVersionRequiresRecruitmentAccumulator()
+    {
+        var planet =
+            CreatePlanet();
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                grazerCohorts:
+                [
+                    new GrazerCohortState(
+                        GrazerCohortId.New(),
+                        planet.Id,
+                        10,
+                        0,
+                        0)
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["grazerCohorts"]![0]!
+            .AsObject()
+            .Remove(
+                "recruitmentAccumulator");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

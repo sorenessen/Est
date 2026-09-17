@@ -305,6 +305,233 @@ public sealed class GrazerCohortSystemTests
     }
 
     [Fact]
+    public void Evaluate_AbundantGrazingCanRecruitMaterialBackedMember()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var parameters =
+            new GrazerModelParameters(
+                carryingCapacityGrazersPerKilogramLiveVegetationBiomass:
+                    1,
+                maximumIntegrationStepSeconds:
+                    OneDaySeconds,
+                maximumTravelMetersPerDay:
+                    0,
+                maximumGrazeKilogramsPerGrazerPerDay:
+                    2,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerGrazer:
+                    2,
+                liveNitrogenKilogramsPerGrazer:
+                    0,
+                maximumRecruitmentRatePerDay:
+                    0.1);
+
+        var cohort =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
+                fixture.Planet.Id,
+                10,
+                startCell.CenterLatitudeDegrees,
+                startCell.CenterLongitudeDegrees,
+                material:
+                    parameters.MaterialPerGrazer.ForUnits(
+                        10));
+
+        var world =
+            CreateWorld(
+                fixture,
+                [
+                    cohort
+                ],
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    cell =>
+                        cell.Id ==
+                        startCell.Id
+                            ? 100 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        var system =
+            new GrazerCohortSystem(
+                fixture.Planet.Id,
+                parameters);
+
+        var change =
+            system.Evaluate(
+                world,
+                OneDaySeconds);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var recruited =
+            Assert.Single(
+                changed.GrazerCohorts);
+
+        Assert.Equal(
+            11,
+            recruited.MemberCount);
+
+        Assert.Equal(
+            22,
+            recruited.Material.LiveBiomassKilograms,
+            6);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "recruitedMembers"]);
+
+        Assert.Equal(
+            2,
+            change.Metrics[
+                "biomassAssimilatedKilograms"],
+            6);
+
+        Assert.Equal(
+            18,
+            change.Metrics[
+                "biomassRespiredKilograms"],
+            6);
+    }
+
+    [Fact]
+    public void Evaluate_FractionalRecruitmentAccumulatesAcrossAdvances()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var parameters =
+            new GrazerModelParameters(
+                carryingCapacityGrazersPerKilogramLiveVegetationBiomass:
+                    1,
+                maximumIntegrationStepSeconds:
+                    OneDaySeconds,
+                maximumTravelMetersPerDay:
+                    0,
+                maximumGrazeKilogramsPerGrazerPerDay:
+                    2,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerGrazer:
+                    2,
+                liveNitrogenKilogramsPerGrazer:
+                    0,
+                maximumRecruitmentRatePerDay:
+                    0.05);
+
+        var world =
+            CreateWorld(
+                fixture,
+                [
+                    new GrazerCohortState(
+                        GrazerCohortId.New(),
+                        fixture.Planet.Id,
+                        10,
+                        startCell.CenterLatitudeDegrees,
+                        startCell.CenterLongitudeDegrees,
+                        material:
+                            parameters.MaterialPerGrazer.ForUnits(
+                                10))
+                ],
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    cell =>
+                        cell.Id ==
+                        startCell.Id
+                            ? 100 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        var system =
+            new GrazerCohortSystem(
+                fixture.Planet.Id,
+                parameters);
+
+        var firstChange =
+            system.Evaluate(
+                world,
+                OneDaySeconds);
+
+        var afterFirst =
+            firstChange.Operation.Apply(
+                world);
+
+        var firstCohort =
+            Assert.Single(
+                afterFirst.GrazerCohorts);
+
+        Assert.Equal(
+            10,
+            firstCohort.MemberCount);
+
+        Assert.Equal(
+            0.5,
+            firstCohort.RecruitmentAccumulator,
+            6);
+
+        Assert.Equal(
+            0,
+            firstChange.Metrics[
+                "recruitedMembers"]);
+
+        var secondChange =
+            system.Evaluate(
+                afterFirst,
+                OneDaySeconds);
+
+        var afterSecond =
+            secondChange.Operation.Apply(
+                afterFirst);
+
+        var secondCohort =
+            Assert.Single(
+                afterSecond.GrazerCohorts);
+
+        Assert.Equal(
+            11,
+            secondCohort.MemberCount);
+
+        Assert.Equal(
+            22,
+            secondCohort.Material.LiveBiomassKilograms,
+            6);
+
+        Assert.Equal(
+            0,
+            secondCohort.RecruitmentAccumulator,
+            6);
+
+        Assert.Equal(
+            1,
+            secondChange.Metrics[
+                "recruitedMembers"]);
+    }
+
+    [Fact]
     public void Evaluate_CohortsInSameCellShareAvailableVegetation()
     {
         var fixture =

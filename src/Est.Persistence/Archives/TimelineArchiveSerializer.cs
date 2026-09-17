@@ -18,7 +18,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 19;
+    public const int CurrentSchemaVersion = 20;
+    private const int GrazerRecruitmentSchemaVersion = 20;
     private const int GrazerSurfaceWaterMovementSchemaVersion = 19;
     private const int HumanGrowthMaterialSchemaVersion = 18;
     private const int HumanLifecycleMaterialSchemaVersion = 17;
@@ -136,6 +137,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != OrganismMaterialPolicySchemaVersion &&
             archive.SchemaVersion != HumanLifecycleMaterialSchemaVersion &&
             archive.SchemaVersion != HumanGrowthMaterialSchemaVersion &&
+            archive.SchemaVersion != GrazerSurfaceWaterMovementSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -641,7 +643,10 @@ public static class TimelineArchiveSerializer
                                         LiveNitrogenKilogramsPerGrazer =
                                             model.Parameters
                                                 .MaterialPerGrazer
-                                                .LiveNitrogenKilogramsPerUnit
+                                                .LiveNitrogenKilogramsPerUnit,
+                                        MaximumRecruitmentRatePerDay =
+                                            model.Parameters
+                                                .MaximumRecruitmentRatePerDay
                                     }
                             })
                     .ToArray(),
@@ -1217,7 +1222,16 @@ public static class TimelineArchiveSerializer
                                             : model.Parameters
                                                 .UseSurfaceWaterForMovement
                                                 ?? throw new JsonException(
-                                                    "Grazer surface-water movement policy is required.")));
+                                                    "Grazer surface-water movement policy is required."),
+                                    maximumRecruitmentRatePerDay:
+                                        schemaVersion <
+                                            GrazerRecruitmentSchemaVersion
+                                            ? behaviorDefaults
+                                                .MaximumRecruitmentRatePerDay
+                                            : model.Parameters
+                                                .MaximumRecruitmentRatePerDay
+                                                ?? throw new JsonException(
+                                                    "Grazer maximum recruitment rate is required.")));
                         })
                     .ToArray();
         }
@@ -1501,6 +1515,12 @@ public static class TimelineArchiveSerializer
         }
 
         public double? LiveNitrogenKilogramsPerGrazer
+        {
+            get;
+            set;
+        }
+
+        public double? MaximumRecruitmentRatePerDay
         {
             get;
             set;

@@ -147,6 +147,16 @@ public sealed class GrazerCohortSystem
                 "Nitrogen-coupled grazer grazing requires authoritative biogeochemistry state for the target planet.");
         }
 
+        if (_parameters.MaximumRecruitmentRatePerDay > 0 &&
+            _parameters.MaterialPerGrazer
+                .LiveNitrogenKilogramsPerUnit > 0 &&
+            _plantNitrogenKilogramsPerKilogramLiveBiomass
+                is null)
+        {
+            throw new InvalidOperationException(
+                "Nitrogen-bearing grazer recruitment requires an authoritative plant-tissue nitrogen policy.");
+        }
+
         var grid =
             PlanetSurfaceGridFactory.Create(
                 planet,
@@ -221,6 +231,15 @@ public sealed class GrazerCohortSystem
             0;
 
         var biomassGrazedKilograms =
+            0d;
+
+        long recruitedMembers =
+            0;
+
+        var biomassAssimilatedKilograms =
+            0d;
+
+        var nitrogenAssimilatedKilograms =
             0d;
 
         var remainingSeconds =
@@ -365,19 +384,6 @@ public sealed class GrazerCohortSystem
                     biomassGrazedKilograms +=
                         grazedKilograms;
 
-                    if (_plantNitrogenKilogramsPerKilogramLiveBiomass
-                            is double plantNitrogenRatio)
-                    {
-                        feedingMaterialTransfers.Add(
-                            new VegetationFeedingEvent(
-                                cellId,
-                                grazedKilograms));
-
-                        nitrogenReturnedKilograms +=
-                            grazedKilograms *
-                            plantNitrogenRatio;
-                    }
-
                     grazingSteps++;
                 }
 
@@ -388,11 +394,149 @@ public sealed class GrazerCohortSystem
                         0,
                         1);
 
+                var groupAssimilatedBiomassKilograms =
+                    0d;
+
+                var groupAssimilatedNitrogenKilograms =
+                    0d;
+
                 foreach (var cohort in group)
                 {
                     foodSupportFractionByCohortId[
                         cohort.Id] =
                         supportFraction;
+
+                    if (_parameters
+                            .MaximumRecruitmentRatePerDay <= 0 ||
+                        supportFraction <= 0)
+                    {
+                        continue;
+                    }
+
+                    cohort.RecruitmentAccumulator +=
+                        cohort.MemberCount *
+                        _parameters
+                            .MaximumRecruitmentRatePerDay *
+                        elapsedDays *
+                        supportFraction;
+
+                    var consumedBiomassKilograms =
+                        GrazingDemandKilograms(
+                            cohort.MemberCount,
+                            elapsedDays) *
+                        supportFraction;
+
+                    var recruitmentCapacity =
+                        cohort.RecruitmentAccumulator;
+
+                    var biomassPerGrazer =
+                        _parameters.MaterialPerGrazer
+                            .LiveBiomassKilogramsPerUnit;
+
+                    if (biomassPerGrazer > 0)
+                    {
+                        recruitmentCapacity =
+                            Math.Min(
+                                recruitmentCapacity,
+                                consumedBiomassKilograms /
+                                biomassPerGrazer);
+                    }
+
+                    var nitrogenPerGrazer =
+                        _parameters.MaterialPerGrazer
+                            .LiveNitrogenKilogramsPerUnit;
+
+                    if (nitrogenPerGrazer > 0)
+                    {
+                        var recruitmentPlantNitrogenRatio =
+                            _plantNitrogenKilogramsPerKilogramLiveBiomass
+                            ?? throw new InvalidOperationException(
+                                "Nitrogen-bearing grazer recruitment requires an authoritative plant-tissue nitrogen policy.");
+
+                        recruitmentCapacity =
+                            Math.Min(
+                                recruitmentCapacity,
+                                consumedBiomassKilograms *
+                                recruitmentPlantNitrogenRatio /
+                                nitrogenPerGrazer);
+                    }
+
+                    var integerCapacity =
+                        Math.Max(
+                            0,
+                            int.MaxValue -
+                            (int)Math.Min(
+                                int.MaxValue,
+                                Math.Floor(
+                                    cohort.MemberCount)));
+
+                    var newMembers =
+                        (int)Math.Floor(
+                            Math.Min(
+                                recruitmentCapacity,
+                                integerCapacity));
+
+                    if (newMembers <= 0)
+                    {
+                        continue;
+                    }
+
+                    var recruitedMaterial =
+                        _parameters.MaterialPerGrazer
+                            .ForUnits(
+                                newMembers);
+
+                    cohort.MemberCount +=
+                        newMembers;
+
+                    cohort.RecruitmentAccumulator -=
+                        newMembers;
+
+                    cohort.Material =
+                        new OrganismMaterialState(
+                            cohort.Material
+                                .LiveBiomassKilograms +
+                            recruitedMaterial
+                                .LiveBiomassKilograms,
+                            cohort.Material
+                                .LiveNitrogenKilograms +
+                            recruitedMaterial
+                                .LiveNitrogenKilograms);
+
+                    recruitedMembers +=
+                        newMembers;
+
+                    biomassAssimilatedKilograms +=
+                        recruitedMaterial
+                            .LiveBiomassKilograms;
+
+                    nitrogenAssimilatedKilograms +=
+                        recruitedMaterial
+                            .LiveNitrogenKilograms;
+
+                    groupAssimilatedBiomassKilograms +=
+                        recruitedMaterial
+                            .LiveBiomassKilograms;
+
+                    groupAssimilatedNitrogenKilograms +=
+                        recruitedMaterial
+                            .LiveNitrogenKilograms;
+                }
+
+                if (_plantNitrogenKilogramsPerKilogramLiveBiomass
+                        is double plantNitrogenRatio)
+                {
+                    feedingMaterialTransfers.Add(
+                        new VegetationFeedingEvent(
+                            cellId,
+                            grazedKilograms,
+                            groupAssimilatedBiomassKilograms,
+                            groupAssimilatedNitrogenKilograms));
+
+                    nitrogenReturnedKilograms +=
+                        grazedKilograms *
+                        plantNitrogenRatio -
+                        groupAssimilatedNitrogenKilograms;
                 }
             }
 
@@ -460,19 +604,35 @@ public sealed class GrazerCohortSystem
                         memberCountBeforeMortality -
                         cohort.MemberCount);
 
-                if (removedMembers > 0)
+                if (removedMembers > 0 &&
+                    memberCountBeforeMortality > 0)
                 {
+                    var removedFraction =
+                        Math.Clamp(
+                            removedMembers /
+                            memberCountBeforeMortality,
+                            0,
+                            1);
+
                     mortalityDeposits.Add(
                         OrganismMortalityDeposit
                             .FromRemovedFraction(
                                 cohort.LatitudeDegrees,
                                 cohort.LongitudeDegrees,
-                                cohort.Source.Material,
-                                Math.Clamp(
-                                    removedMembers /
-                                    cohort.Source.MemberCount,
-                                    0,
-                                    1)));
+                                cohort.Material,
+                                removedFraction));
+
+                    var retainedFraction =
+                        1 -
+                        removedFraction;
+
+                    cohort.Material =
+                        cohort.Material
+                            .RetainFraction(
+                                retainedFraction);
+
+                    cohort.RecruitmentAccumulator *=
+                        retainedFraction;
                 }
             }
 
@@ -481,17 +641,16 @@ public sealed class GrazerCohortSystem
                          cohort =>
                              cohort.MemberCount < 1))
             {
-                mortalityDeposits.Add(
-                    OrganismMortalityDeposit
-                        .FromRemovedFraction(
-                            extinct.LatitudeDegrees,
-                            extinct.LongitudeDegrees,
-                            extinct.Source.Material,
-                            Math.Clamp(
-                                extinct.MemberCount /
-                                extinct.Source.MemberCount,
-                                0,
-                                1)));
+                if (!extinct.Material.IsEmpty)
+                {
+                    mortalityDeposits.Add(
+                        OrganismMortalityDeposit
+                            .FromRemovedFraction(
+                                extinct.LatitudeDegrees,
+                                extinct.LongitudeDegrees,
+                                extinct.Material,
+                                1));
+                }
             }
 
             cohorts.RemoveAll(
@@ -520,25 +679,45 @@ public sealed class GrazerCohortSystem
                                 cohort.MemberCount -
                                 survivingMembers);
 
-                        if (roundingLoss > 0)
+                        if (roundingLoss > 0 &&
+                            cohort.MemberCount > 0)
                         {
+                            var removedFraction =
+                                Math.Clamp(
+                                    roundingLoss /
+                                    cohort.MemberCount,
+                                    0,
+                                    1);
+
                             mortalityDeposits.Add(
                                 OrganismMortalityDeposit
                                     .FromRemovedFraction(
                                         cohort.LatitudeDegrees,
                                         cohort.LongitudeDegrees,
-                                        cohort.Source.Material,
-                                        Math.Clamp(
-                                            roundingLoss /
-                                            cohort.Source.MemberCount,
-                                            0,
-                                            1)));
+                                        cohort.Material,
+                                        removedFraction));
+
+                            var retainedFraction =
+                                1 -
+                                removedFraction;
+
+                            cohort.Material =
+                                cohort.Material
+                                    .RetainFraction(
+                                        retainedFraction);
+
+                            cohort.RecruitmentAccumulator *=
+                                retainedFraction;
                         }
 
-                        return cohort.Source.WithSurvivalState(
+                        return new GrazerCohortState(
+                            cohort.Id,
+                            cohort.Source.PlanetId,
                             survivingMembers,
                             cohort.LatitudeDegrees,
-                            cohort.LongitudeDegrees);
+                            cohort.LongitudeDegrees,
+                            cohort.Material,
+                            cohort.RecruitmentAccumulator);
                     })
                 .ToArray();
 
@@ -635,8 +814,17 @@ public sealed class GrazerCohortSystem
                     finalVegetationMass,
                 ["biomassGrazedKilograms"] =
                     biomassGrazedKilograms,
+                ["recruitedMembers"] =
+                    recruitedMembers,
+                ["biomassAssimilatedKilograms"] =
+                    biomassAssimilatedKilograms,
                 ["biomassRespiredKilograms"] =
-                    biomassGrazedKilograms,
+                    Math.Max(
+                        0,
+                        biomassGrazedKilograms -
+                        biomassAssimilatedKilograms),
+                ["nitrogenAssimilatedKilograms"] =
+                    nitrogenAssimilatedKilograms,
                 ["nitrogenReturnedKilograms"] =
                     nitrogenReturnedKilograms,
                 ["movementSteps"] =
@@ -992,6 +1180,12 @@ public sealed class GrazerCohortSystem
 
             MemberCount =
                 source.MemberCount;
+
+            Material =
+                source.Material;
+
+            RecruitmentAccumulator =
+                source.RecruitmentAccumulator;
         }
 
         public GrazerCohortState Source { get; }
@@ -1003,6 +1197,10 @@ public sealed class GrazerCohortSystem
         public double LongitudeDegrees { get; set; }
 
         public double MemberCount { get; set; }
+
+        public OrganismMaterialState Material { get; set; }
+
+        public double RecruitmentAccumulator { get; set; }
     }
 
     private sealed record CellAssessment(

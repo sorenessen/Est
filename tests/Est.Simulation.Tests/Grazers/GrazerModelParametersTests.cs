@@ -53,6 +53,10 @@ public sealed class GrazerModelParametersTests
         Assert.Equal(
             0.02,
             parameters.HabitatAbsenceMortalityRatePerDay);
+
+        Assert.Equal(
+            0,
+            parameters.MaximumRecruitmentRatePerDay);
     }
 
     [Theory]
@@ -148,6 +152,12 @@ public sealed class GrazerModelParametersTests
             () =>
                 new GrazerModelParameters(
                     habitatAbsenceMortalityRatePerDay:
+                        value));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new GrazerModelParameters(
+                    maximumRecruitmentRatePerDay:
                         value));
     }
 }

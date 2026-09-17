@@ -21,5 +21,9 @@ public sealed class GrazerModelRequestTests
 
         Assert.False(
             request.UseSurfaceWaterForMovement);
+
+        Assert.Equal(
+            0,
+            request.MaximumRecruitmentRatePerDay);
     }
 }

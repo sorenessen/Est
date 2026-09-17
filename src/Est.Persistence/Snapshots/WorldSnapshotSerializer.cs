@@ -18,7 +18,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 18;
+    public const int CurrentSchemaVersion = 19;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -37,6 +37,7 @@ public static class WorldSnapshotSerializer
     private const int OrganismMaterialSchemaVersion = 16;
     private const int AnimalLifecycleSchemaVersion = 17;
     private const int WolfLifecycleSchemaVersion = 18;
+    private const int GrazerRecruitmentSchemaVersion = 19;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -125,6 +126,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != BiogeochemistrySchemaVersion &&
             snapshot.SchemaVersion != OrganismMaterialSchemaVersion &&
             snapshot.SchemaVersion != AnimalLifecycleSchemaVersion &&
+            snapshot.SchemaVersion != WolfLifecycleSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -458,7 +460,9 @@ public static class WorldSnapshotSerializer
                 cohort.LongitudeDegrees,
             Material =
                 ToSnapshot(
-                    cohort.Material)
+                    cohort.Material),
+            RecruitmentAccumulator =
+                cohort.RecruitmentAccumulator
         };
     }
 
@@ -476,7 +480,13 @@ public static class WorldSnapshotSerializer
             snapshot.LongitudeDegrees,
             FromMaterialSnapshot(
                 snapshot.Material,
-                schemaVersion));
+                schemaVersion),
+            schemaVersion <
+                GrazerRecruitmentSchemaVersion
+                ? 0
+                : snapshot.RecruitmentAccumulator
+                    ?? throw new JsonException(
+                        "Grazer recruitment accumulator is required."));
     }
 
     private static PlanetBiogeochemistrySnapshot ToSnapshot(
@@ -1320,6 +1330,8 @@ public static class WorldSnapshotSerializer
         public required double LongitudeDegrees { get; set; }
 
         public OrganismMaterialSnapshot? Material { get; set; }
+
+        public double? RecruitmentAccumulator { get; set; }
     }
 
     private sealed class BirdFlockSnapshot

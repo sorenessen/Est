@@ -19,7 +19,8 @@ public sealed record GrazerCohortState
         int memberCount,
         double latitudeDegrees,
         double longitudeDegrees,
-        OrganismMaterialState? material = null)
+        OrganismMaterialState? material = null,
+        double recruitmentAccumulator = 0)
     {
         if (id.Value == Guid.Empty)
         {
@@ -58,6 +59,14 @@ public sealed record GrazerCohortState
                 nameof(longitudeDegrees));
         }
 
+        if (!double.IsFinite(recruitmentAccumulator) ||
+            recruitmentAccumulator < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(recruitmentAccumulator),
+                "Grazer recruitment accumulator must be finite and non-negative.");
+        }
+
         Id = id;
         PlanetId = planetId;
         MemberCount = memberCount;
@@ -68,6 +77,9 @@ public sealed record GrazerCohortState
             new OrganismMaterialState(
                 liveBiomassKilograms: 0,
                 liveNitrogenKilograms: 0);
+
+        RecruitmentAccumulator =
+            recruitmentAccumulator;
     }
 
     public GrazerCohortId Id { get; }
@@ -81,6 +93,8 @@ public sealed record GrazerCohortState
     public double LongitudeDegrees { get; }
 
     public OrganismMaterialState Material { get; }
+
+    public double RecruitmentAccumulator { get; }
 
     public GrazerCohortState WithSurvivalState(
         int survivingMemberCount,
@@ -105,6 +119,8 @@ public sealed record GrazerCohortState
             latitudeDegrees,
             longitudeDegrees,
             Material.RetainFraction(
-                retainedFraction));
+                retainedFraction),
+            RecruitmentAccumulator *
+            retainedFraction);
     }
 }

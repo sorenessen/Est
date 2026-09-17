@@ -32,7 +32,8 @@ public sealed record GrazerModelParameters
         double habitatAbsenceMortalityRatePerDay = 0.02,
         double liveBiomassKilogramsPerGrazer = 250,
         double liveNitrogenKilogramsPerGrazer = 6.25,
-        bool useSurfaceWaterForMovement = false)
+        bool useSurfaceWaterForMovement = false,
+        double maximumRecruitmentRatePerDay = 0)
     {
         if (!double.IsFinite(
                 carryingCapacityGrazersPerKilogramLiveVegetationBiomass) ||
@@ -95,6 +96,10 @@ public sealed record GrazerModelParameters
             habitatAbsenceMortalityRatePerDay,
             nameof(habitatAbsenceMortalityRatePerDay));
 
+        ValidateNonnegativeFinite(
+            maximumRecruitmentRatePerDay,
+            nameof(maximumRecruitmentRatePerDay));
+
         CarryingCapacityGrazersPerKilogramLiveVegetationBiomass =
             carryingCapacityGrazersPerKilogramLiveVegetationBiomass;
 
@@ -128,6 +133,9 @@ public sealed record GrazerModelParameters
         HabitatAbsenceMortalityRatePerDay =
             habitatAbsenceMortalityRatePerDay;
 
+        MaximumRecruitmentRatePerDay =
+            maximumRecruitmentRatePerDay;
+
         MaterialPerGrazer =
             new OrganismMaterialComposition(
                 liveBiomassKilogramsPerGrazer,
@@ -159,6 +167,8 @@ public sealed record GrazerModelParameters
     public bool UseSurfaceWaterForMovement { get; }
 
     public double HabitatAbsenceMortalityRatePerDay { get; }
+
+    public double MaximumRecruitmentRatePerDay { get; }
 
     public OrganismMaterialComposition MaterialPerGrazer { get; }
 

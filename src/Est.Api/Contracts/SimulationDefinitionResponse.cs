@@ -98,7 +98,8 @@ public sealed record GrazerModelResponse(
     bool UseSurfaceWaterForMovement,
     double HabitatAbsenceMortalityRatePerDay,
     double LiveBiomassKilogramsPerGrazer,
-    double LiveNitrogenKilogramsPerGrazer);
+    double LiveNitrogenKilogramsPerGrazer,
+    double MaximumRecruitmentRatePerDay);
 
 public sealed record BiogeochemistryModelResponse(
     Guid PlanetId,

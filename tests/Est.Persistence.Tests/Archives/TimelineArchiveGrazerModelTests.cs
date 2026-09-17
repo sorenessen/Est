@@ -49,7 +49,9 @@ public sealed class TimelineArchiveGrazerModelTests
                 liveNitrogenKilogramsPerGrazer:
                     8,
                 useSurfaceWaterForMovement:
-                    true);
+                    true,
+                maximumRecruitmentRatePerDay:
+                    0.03);
 
         var restored =
             RoundTrip(
@@ -67,6 +69,61 @@ public sealed class TimelineArchiveGrazerModelTests
         Assert.Equal(
             parameters,
             model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionNineteenDefaultsRecruitmentPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["schemaVersion"] =
+            19;
+
+        var parameters =
+            node["definition"]!["grazerModels"]![0]!["parameters"]!
+                .AsObject();
+
+        parameters.Remove(
+            "maximumRecruitmentRatePerDay");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        var restoredParameters =
+            Assert.Single(
+                    restored.Definition.GrazerModels)
+                .Parameters;
+
+        Assert.Equal(
+            0,
+            restoredParameters.MaximumRecruitmentRatePerDay);
+    }
+
+    [Fact]
+    public void Deserialize_CurrentVersionRequiresRecruitmentPolicy()
+    {
+        var fixture =
+            CreateFixture();
+
+        var node =
+            CreateCurrentGrazerArchiveNode(
+                fixture);
+
+        node["definition"]!["grazerModels"]![0]!["parameters"]!
+            .AsObject()
+            .Remove(
+                "maximumRecruitmentRatePerDay");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

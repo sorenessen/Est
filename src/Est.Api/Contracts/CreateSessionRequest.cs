@@ -168,6 +168,9 @@ public sealed record GrazerModelRequest
 
     public double LiveNitrogenKilogramsPerGrazer { get; init; } =
         6.25;
+
+    public double MaximumRecruitmentRatePerDay { get; init; } =
+        0;
 }
 
 public sealed record InvertebrateModelRequest

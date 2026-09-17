@@ -493,7 +493,10 @@ app.MapPost(
                                                 .LiveBiomassKilogramsPerGrazer,
                                         liveNitrogenKilogramsPerGrazer:
                                             planet.GrazerModel
-                                                .LiveNitrogenKilogramsPerGrazer)))
+                                                .LiveNitrogenKilogramsPerGrazer,
+                                        maximumRecruitmentRatePerDay:
+                                            planet.GrazerModel
+                                                .MaximumRecruitmentRatePerDay)))
                     .Where(
                         model =>
                             model is not null)
@@ -1854,7 +1857,9 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .LiveBiomassKilogramsPerUnit,
                         model.Parameters
                             .MaterialPerGrazer
-                            .LiveNitrogenKilogramsPerUnit))
+                            .LiveNitrogenKilogramsPerUnit,
+                        model.Parameters
+                            .MaximumRecruitmentRatePerDay))
             .ToArray(),
         definition.BiogeochemistryModels
             .Select(
