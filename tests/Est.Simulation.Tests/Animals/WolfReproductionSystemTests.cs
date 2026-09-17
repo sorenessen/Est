@@ -319,6 +319,154 @@ public sealed class WolfReproductionSystemTests
                 "pregnancyLossesMaterialInsufficient"]);
     }
 
+    [Fact]
+    public void Step_NursingMotherProvisionsDependentPupAtDen()
+    {
+        var planet =
+            CreatePlanet();
+
+        var parameters =
+            new WolfLifecycleParameters();
+
+        var mother =
+            CreateAdult(
+                planet.Id,
+                WolfSex.Female,
+                latitude: 0,
+                longitude: 0,
+                parameters);
+
+        const long initialPupAgeSeconds =
+            10 * WolfLifecycleParameters.SecondsPerDay;
+
+        var pup =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 10,
+                longitudeDegrees: 10,
+                energyReserve: 0.2,
+                health: 1,
+                activity:
+                    AnimalActivity.Idle,
+                material:
+                    parameters.NewbornMaterial
+                        .ForUnits(1),
+                birthTimeSeconds:
+                    -initialPupAgeSeconds,
+                parentId:
+                    mother.Id,
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female));
+
+        var initialMotherMaterial =
+            mother.Material;
+
+        var expectedPupMaterial =
+            parameters.MaterialTargetAtAgeSeconds(
+                initialPupAgeSeconds +
+                WolfLifecycleParameters.SecondsPerDay);
+
+        var expectedBiomassTransfer =
+            expectedPupMaterial
+                .LiveBiomassKilograms -
+            pup.Material
+                .LiveBiomassKilograms;
+
+        var expectedNitrogenTransfer =
+            expectedPupMaterial
+                .LiveNitrogenKilograms -
+            pup.Material
+                .LiveNitrogenKilograms;
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    mother,
+                    pup),
+                WolfLifecycleParameters.SecondsPerDay,
+                new WolfReproductionSystem(
+                    planet.Id,
+                    parameters));
+
+        var changedMother =
+            result.World.Animals.Single(
+                animal =>
+                    animal.Id ==
+                    mother.Id);
+
+        var changedPup =
+            result.World.Animals.Single(
+                animal =>
+                    animal.Id ==
+                    pup.Id);
+
+        Assert.Equal(
+            expectedPupMaterial
+                .LiveBiomassKilograms,
+            changedPup.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            expectedPupMaterial
+                .LiveNitrogenKilograms,
+            changedPup.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            initialMotherMaterial
+                .LiveBiomassKilograms -
+            expectedBiomassTransfer,
+            changedMother.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            initialMotherMaterial
+                .LiveNitrogenKilograms -
+            expectedNitrogenTransfer,
+            changedMother.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            changedPup.EnergyReserve,
+            precision: 10);
+
+        Assert.Equal(
+            pup.LatitudeDegrees,
+            changedPup.LatitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            pup.LongitudeDegrees,
+            changedPup.LongitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "nursedPups"]);
+
+        Assert.Equal(
+            expectedBiomassTransfer,
+            result.Change.Metrics[
+                "nursingBiomassKilograms"],
+            precision: 10);
+
+        Assert.Equal(
+            expectedNitrogenTransfer,
+            result.Change.Metrics[
+                "nursingNitrogenKilograms"],
+            precision: 10);
+    }
+
     private static AnimalState CreateAdult(
         PlanetId planetId,
         WolfSex sex,

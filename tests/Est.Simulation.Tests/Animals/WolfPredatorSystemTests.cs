@@ -911,6 +911,220 @@ public sealed class WolfPredatorSystemTests
     }
 
     [Fact]
+    public void Step_WeanedDependentPupReceivesPackProvisioningAfterKill()
+    {
+        var planet =
+            CreatePlanet();
+
+        var parameters =
+            new WolfLifecycleParameters();
+
+        var mother =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0,
+                energyReserve: 0.20,
+                health: 1,
+                activity:
+                    AnimalActivity.Hunting,
+                material:
+                    parameters.MatureMaterial
+                        .ForUnits(1),
+                birthTimeSeconds:
+                    -4 * 31_536_000L,
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female));
+
+        const long pupAgeSeconds =
+            60 * OneDaySeconds;
+
+        var initialPupMaterial =
+            parameters.MaterialTargetAtAgeSeconds(
+                pupAgeSeconds);
+
+        var pup =
+            new AnimalState(
+                AnimalId.New(),
+                planet.Id,
+                AnimalSpecies.Wolf,
+                latitudeDegrees: 10,
+                longitudeDegrees: 10,
+                energyReserve: 0.20,
+                health: 1,
+                activity:
+                    AnimalActivity.Idle,
+                material:
+                    initialPupMaterial,
+                birthTimeSeconds:
+                    -pupAgeSeconds,
+                parentId:
+                    mother.Id,
+                wolfLifecycle:
+                    new WolfLifecycleState(
+                        WolfSex.Female));
+
+        var grazer =
+            new GrazerCohortState(
+                GrazerCohortId.New(),
+                planet.Id,
+                memberCount: 1,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0.05,
+                material:
+                    new OrganismMaterialState(
+                        liveBiomassKilograms: 320,
+                        liveNitrogenKilograms: 8));
+
+        var expectedPupMaterial =
+            parameters.MaterialTargetAtAgeSeconds(
+                pupAgeSeconds +
+                OneDaySeconds);
+
+        var surfaceDefinition =
+            SurfaceGridDefinition.LatitudeLongitude(
+                4,
+                8);
+
+        var surfaceGrid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                surfaceDefinition);
+
+        var terrain =
+            new PlanetTerrainState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new TerrainCellState(
+                            cell.Id,
+                            elevationMeters: 0)));
+
+        var hydrology =
+            new PlanetHydrologyState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new HydrologyCellState(
+                            cell.Id,
+                            atmosphericWaterKilogramsPerSquareMeter:
+                                0,
+                            surfaceLiquidWaterKilogramsPerSquareMeter:
+                                100,
+                            soilWaterKilogramsPerSquareMeter:
+                                100,
+                            snowIceWaterEquivalentKilogramsPerSquareMeter:
+                                0)));
+
+        var vegetation =
+            new PlanetVegetationState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new VegetationCellState(
+                            cell.Id,
+                            liveBiomassKilogramsPerSquareMeter:
+                                0)));
+
+        var biogeochemistry =
+            new PlanetBiogeochemistryState(
+                planet.Id,
+                surfaceDefinition,
+                surfaceGrid.Cells.Select(
+                    cell =>
+                        new BiogeochemistryCellState(
+                            cell.Id,
+                            detritalBiomassKilogramsPerSquareMeter:
+                                0,
+                            detritalNitrogenKilogramsPerSquareMeter:
+                                0,
+                            plantAvailableNitrogenKilogramsPerSquareMeter:
+                                0)));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                [mother, pup],
+                terrain:
+                [
+                    terrain
+                ],
+                hydrology:
+                [
+                    hydrology
+                ],
+                vegetation:
+                [
+                    vegetation
+                ],
+                grazerCohorts:
+                [
+                    grazer
+                ],
+                biogeochemistry:
+                [
+                    biogeochemistry
+                ]);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                OneDaySeconds,
+                new WolfPredatorSystem(
+                    planet.Id,
+                    parameters));
+
+        var changedPup =
+            result.World.Animals.Single(
+                animal =>
+                    animal.Id ==
+                    pup.Id);
+
+        Assert.Equal(
+            expectedPupMaterial
+                .LiveBiomassKilograms,
+            changedPup.Material
+                .LiveBiomassKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            expectedPupMaterial
+                .LiveNitrogenKilograms,
+            changedPup.Material
+                .LiveNitrogenKilograms,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            changedPup.EnergyReserve,
+            precision: 10);
+
+        Assert.Equal(
+            pup.LatitudeDegrees,
+            changedPup.LatitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            pup.LongitudeDegrees,
+            changedPup.LongitudeDegrees,
+            precision: 10);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics[
+                "grazerKills"]);
+    }
+
+    [Fact]
     public void Step_JuvenileWolfDoesNotHuntGrazer()
     {
         var planet =

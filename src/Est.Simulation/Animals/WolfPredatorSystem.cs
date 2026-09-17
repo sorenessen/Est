@@ -332,7 +332,8 @@ public sealed class WolfPredatorSystem : ICausalSystem
                                         .LongitudeDegrees,
                                     stepEndTimeSeconds,
                                     consumedGrazerMaterial,
-                                    _lifecycleParameters);
+                                    _lifecycleParameters,
+                                    huntingPack);
 
                             if (!consumedGrazerMaterial.IsEmpty)
                             {
@@ -369,7 +370,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
                                 grazerTarget
                                     .LongitudeDegrees,
                                 stepEndTimeSeconds,
-                                _lifecycleParameters);
+                                _lifecycleParameters,
+                                provisionDependentsAtDen:
+                                    true);
                         }
 
                         continue;
@@ -1619,7 +1622,8 @@ public sealed class WolfPredatorSystem : ICausalSystem
         double killLatitudeDegrees,
         double killLongitudeDegrees,
         long currentTimeSeconds,
-        WolfLifecycleParameters parameters)
+        WolfLifecycleParameters parameters,
+        bool provisionDependentsAtDen = false)
     {
         var recipientIds =
             new HashSet<AnimalId>(
@@ -1646,6 +1650,16 @@ public sealed class WolfPredatorSystem : ICausalSystem
         {
             recipientIds.Add(
                 dependent.Id);
+        }
+
+        if (provisionDependentsAtDen)
+        {
+            AddProvisionedDependentIds(
+                recipientIds,
+                animals,
+                pack,
+                currentTimeSeconds,
+                parameters);
         }
 
         if (recipientIds.Count == 0)
@@ -1687,6 +1701,66 @@ public sealed class WolfPredatorSystem : ICausalSystem
         }
     }
 
+
+    private static void AddProvisionedDependentIds(
+        HashSet<AnimalId> recipientIds,
+        IEnumerable<AnimalState> animals,
+        IReadOnlyList<AnimalState> pack,
+        long currentTimeSeconds,
+        WolfLifecycleParameters parameters)
+    {
+        foreach (var candidate in animals)
+        {
+            if (!IsProvisionedDependentOfPack(
+                    candidate,
+                    pack,
+                    currentTimeSeconds,
+                    parameters))
+            {
+                continue;
+            }
+
+            recipientIds.Add(
+                candidate.Id);
+        }
+    }
+
+    private static bool
+        IsProvisionedDependentOfPack(
+            AnimalState candidate,
+            IReadOnlyList<AnimalState>?
+                provisioningPack,
+            long currentTimeSeconds,
+            WolfLifecycleParameters parameters)
+    {
+        if (provisioningPack is null ||
+            candidate.Species !=
+                AnimalSpecies.Wolf ||
+            candidate.Health <= 0 ||
+            candidate.ParentId is null)
+        {
+            return false;
+        }
+
+        var ageSeconds =
+            OrganismLifecycleClock.AgeSeconds(
+                candidate.BirthTimeSeconds,
+                currentTimeSeconds);
+
+        if (ageSeconds <=
+                parameters.NursingAgeSeconds ||
+            ageSeconds >=
+                parameters.PackHuntingAgeSeconds)
+        {
+            return false;
+        }
+
+        return provisioningPack.Any(
+            member =>
+                member.Id ==
+                candidate.ParentId.Value);
+    }
+
     private static OrganismMaterialState
         AssimilateNearbyWolfGrowth(
             List<AnimalState> animals,
@@ -1694,7 +1768,9 @@ public sealed class WolfPredatorSystem : ICausalSystem
             double killLongitudeDegrees,
             long currentTimeSeconds,
             OrganismMaterialState consumedMaterial,
-            WolfLifecycleParameters parameters)
+            WolfLifecycleParameters parameters,
+            IReadOnlyList<AnimalState>?
+                provisioningPack = null)
     {
         if (consumedMaterial.IsEmpty)
         {
@@ -1719,12 +1795,19 @@ public sealed class WolfPredatorSystem : ICausalSystem
                         candidate.Species ==
                             AnimalSpecies.Wolf &&
                         candidate.Health > 0 &&
-                        DistanceDegrees(
-                            killLatitudeDegrees,
-                            killLongitudeDegrees,
-                            candidate.LatitudeDegrees,
-                            candidate.LongitudeDegrees) <=
-                        PackSupportRadiusDegrees)
+                        (
+                            DistanceDegrees(
+                                killLatitudeDegrees,
+                                killLongitudeDegrees,
+                                candidate.LatitudeDegrees,
+                                candidate.LongitudeDegrees) <=
+                                PackSupportRadiusDegrees ||
+                            IsProvisionedDependentOfPack(
+                                candidate,
+                                provisioningPack,
+                                currentTimeSeconds,
+                                parameters)
+                        ))
                 .OrderBy(
                     candidate =>
                         CanParticipateInHunt(

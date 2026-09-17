@@ -96,6 +96,14 @@ public sealed class WolfReproductionSystem
         var newbornNitrogenKilograms =
             0d;
 
+        var nursedPups = 0;
+
+        var nursingBiomassKilograms =
+            0d;
+
+        var nursingNitrogenKilograms =
+            0d;
+
         for (var index = 0;
              index < animals.Count;
              index++)
@@ -266,6 +274,14 @@ public sealed class WolfReproductionSystem
             }
         }
 
+        ProvisionNursingPups(
+            animals,
+            endTimeSeconds,
+            _parameters,
+            out nursedPups,
+            out nursingBiomassKilograms,
+            out nursingNitrogenKilograms);
+
         var operation =
             new ReplacePlanetAnimalsOperation(
                 _planetId,
@@ -298,8 +314,128 @@ public sealed class WolfReproductionSystem
                 ["newbornBiomassKilograms"] =
                     newbornBiomassKilograms,
                 ["newbornNitrogenKilograms"] =
-                    newbornNitrogenKilograms
+                    newbornNitrogenKilograms,
+                ["nursedPups"] =
+                    nursedPups,
+                ["nursingBiomassKilograms"] =
+                    nursingBiomassKilograms,
+                ["nursingNitrogenKilograms"] =
+                    nursingNitrogenKilograms
             });
+    }
+
+    private static void ProvisionNursingPups(
+        List<AnimalState> animals,
+        long currentTimeSeconds,
+        WolfLifecycleParameters parameters,
+        out int nursedPups,
+        out double nursingBiomassKilograms,
+        out double nursingNitrogenKilograms)
+    {
+        nursedPups = 0;
+        nursingBiomassKilograms = 0;
+        nursingNitrogenKilograms = 0;
+
+        var dependentPupIds =
+            animals
+                .Where(
+                    animal =>
+                        animal.Species ==
+                            AnimalSpecies.Wolf &&
+                        animal.Health > 0 &&
+                        animal.ParentId is not null &&
+                        animal.BirthTimeSeconds <=
+                            currentTimeSeconds &&
+                        currentTimeSeconds -
+                            animal.BirthTimeSeconds <=
+                            parameters.NursingAgeSeconds)
+                .OrderBy(
+                    animal =>
+                        animal.Id.Value)
+                .Select(
+                    animal =>
+                        animal.Id)
+                .ToArray();
+
+        foreach (var pupId in dependentPupIds)
+        {
+            var pupIndex =
+                animals.FindIndex(
+                    animal =>
+                        animal.Id ==
+                        pupId);
+
+            if (pupIndex < 0)
+            {
+                continue;
+            }
+
+            var pup =
+                animals[pupIndex];
+
+            if (pup.ParentId is null)
+            {
+                continue;
+            }
+
+            var motherIndex =
+                animals.FindIndex(
+                    animal =>
+                        animal.Id ==
+                            pup.ParentId.Value &&
+                        animal.Species ==
+                            AnimalSpecies.Wolf &&
+                        animal.Health > 0 &&
+                        animal.WolfLifecycle?.Sex ==
+                            WolfSex.Female);
+
+            if (motherIndex < 0)
+            {
+                continue;
+            }
+
+            var mother =
+                animals[motherIndex];
+
+            var growth =
+                WolfMaterialGrowth
+                    .AssimilateTowardAgeTarget(
+                        pup,
+                        currentTimeSeconds,
+                        mother.Material,
+                        parameters);
+
+            if (growth
+                    .AssimilatedMaterial
+                    .IsEmpty)
+            {
+                continue;
+            }
+
+            animals[motherIndex] =
+                mother.WithMaterial(
+                    growth.RemainingFoodMaterial);
+
+            animals[pupIndex] =
+                growth.Wolf.WithState(
+                    growth.Wolf.LatitudeDegrees,
+                    growth.Wolf.LongitudeDegrees,
+                    energyReserve: 1,
+                    growth.Wolf.Health,
+                    AnimalActivity.Eating);
+
+            nursedPups++;
+
+            nursingBiomassKilograms +=
+                growth
+                    .AssimilatedMaterial
+                    .LiveBiomassKilograms;
+
+            nursingNitrogenKilograms +=
+                growth
+                    .AssimilatedMaterial
+                    .LiveNitrogenKilograms;
+        }
     }
 
     private bool TryFindConception(

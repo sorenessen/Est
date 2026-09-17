@@ -30,7 +30,9 @@ public sealed record WolfLifecycleParameters
         double matureLiveBiomassKilograms =
             40,
         double matureLiveNitrogenKilograms =
-            1)
+            1,
+        long nursingAgeSeconds =
+            42 * SecondsPerDay)
     {
         if (gestationSeconds <= 0)
         {
@@ -61,6 +63,12 @@ public sealed record WolfLifecycleParameters
         {
             throw new ArgumentOutOfRangeException(
                 nameof(packHuntingAgeSeconds));
+        }
+
+        if (nursingAgeSeconds <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(nursingAgeSeconds));
         }
 
         var newbornMaterial =
@@ -107,6 +115,9 @@ public sealed record WolfLifecycleParameters
         PackHuntingAgeSeconds =
             packHuntingAgeSeconds;
 
+        NursingAgeSeconds =
+            nursingAgeSeconds;
+
         NewbornMaterial =
             newbornMaterial;
 
@@ -129,6 +140,11 @@ public sealed record WolfLifecycleParameters
     }
 
     public long PackHuntingAgeSeconds
+    {
+        get;
+    }
+
+    public long NursingAgeSeconds
     {
         get;
     }
