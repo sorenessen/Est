@@ -8,7 +8,7 @@ namespace Est.Simulation.Tests.Birds;
 public sealed class PlanetBirdFlockInitializerTests
 {
     [Fact]
-    public void FromInvertebrateSupport_SelectsStrongestCellsDeterministically()
+    public void FromInvertebrateSupport_DistributesCentersSpatiallyAndDeterministically()
     {
         var planet =
             CreatePlanet();
@@ -100,6 +100,26 @@ public sealed class PlanetBirdFlockInitializerTests
                 planet.Id,
                 strongestCell.Id),
             first[0].Id);
+
+        Assert.True(
+            first[0].LatitudeDegrees *
+            first[1].LatitudeDegrees <
+            0);
+
+        var longitudeSeparation =
+            Math.Abs(
+                first[0].LongitudeDegrees -
+                first[1].LongitudeDegrees);
+
+        longitudeSeparation =
+            Math.Min(
+                longitudeSeparation,
+                360 -
+                longitudeSeparation);
+
+        Assert.True(
+            longitudeSeparation >=
+            90);
     }
 
     [Fact]

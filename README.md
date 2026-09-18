@@ -117,6 +117,14 @@ The browser globe advances the same authoritative simulation through Est.Api.
 Simulation spatial resolution remains independent from the Babylon presentation
 mesh, and biological behavior is never invented by the renderer.
 
+Broad vegetation is now presented as living surface state rather than
+globe-scale decoration. Current authoritative plant biomass is exposed through
+the API, mapped onto the immutable Babylon sphere as per-vertex coverage, and
+used by the terrain shader to present vegetated land continuously.
+
+Generated terrestrial humans and wolves are constrained to dry habitat when
+generated terrain and hydrology provide authoritative standing-water context.
+
 This remains an intentionally bounded living-world simulation rather than a
 reconstruction of modern or historical census-scale Earth. Species detail,
 seasonal lifecycle activation, regional climate, soils, richer decomposition,

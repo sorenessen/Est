@@ -5,11 +5,11 @@ import {
   Color3,
   Color4,
   DirectionalLight,
-  DynamicTexture,
   Engine,
   Mesh,
   Scene,
   StandardMaterial,
+  Texture,
   Vector3,
   VertexData,
 } from '@babylonjs/core'
@@ -97,6 +97,19 @@ const engine = new Engine(
 )
 
 const scene = new Scene(engine)
+
+// Terrain and standing water render in group 0.
+// Preserve their depth buffer for presentation layers so objects on
+// the far hemisphere cannot draw through the planet.
+scene.setRenderingAutoClearDepthStencil(
+  1,
+  false,
+)
+
+scene.setRenderingAutoClearDepthStencil(
+  2,
+  false,
+)
 
 scene.clearColor =
   new Color4(
@@ -300,39 +313,45 @@ let terrainSurfaceMaterial:
     typeof createTerrainShaderMaterial
   > | undefined
 
+let vegetationCoverageData:
+  Float32Array | undefined
+
+let vegetationCoverageWidth = 1
+let vegetationCoverageHeight = 1
+
 // Maximum radial extent of geometry that the camera must preserve.
 // The unit sphere is the fallback when no simulation session is active.
 let maximumPlanetRenderRadius = 1
 
-const wolfAdultSymbolUrl =
-  new URL(
-    './assets/fauna/wolf-adult.svg',
-    import.meta.url,
-  ).href
+const humanManSpriteUrl =
+  '/assets/sprites/humans/man.png'
 
-const wolfPupSymbolUrl =
-  new URL(
-    './assets/fauna/wolf-pup.svg',
-    import.meta.url,
-  ).href
+const humanWomanSpriteUrl =
+  '/assets/sprites/humans/woman.png'
 
-const maleBadgeSymbolUrl =
-  new URL(
-    './assets/fauna/badge-male.svg',
-    import.meta.url,
-  ).href
+const humanBoySpriteUrl =
+  '/assets/sprites/humans/boy.png'
 
-const femaleBadgeSymbolUrl =
-  new URL(
-    './assets/fauna/badge-female.svg',
-    import.meta.url,
-  ).href
+const humanGirlSpriteUrl =
+  '/assets/sprites/humans/girl.png'
 
-const pregnantBadgeSymbolUrl =
-  new URL(
-    './assets/fauna/badge-pregnant.svg',
-    import.meta.url,
-  ).href
+const maleWolfSpriteUrl =
+  '/assets/sprites/wolves/male-wolf.png'
+
+const femaleWolfSpriteUrl =
+  '/assets/sprites/wolves/female-wolf.png'
+
+const wolfPupSpriteUrl =
+  '/assets/sprites/wolves/wolf-pup.png'
+
+const birdFlockSpriteUrl =
+  '/assets/sprites/birds/birds.png'
+
+const grazerCohortSpriteUrl =
+  '/assets/sprites/grazers/grazers.png'
+
+const invertebrateSpriteUrl =
+  '/assets/sprites/insects/insects.png'
 
 function geographicDegreesToSphereDirection(
   latitudeDegrees: number,
@@ -350,20 +369,28 @@ function geographicDegreesToSphereDirection(
     degreesToRadians
 
   const cosLatitude =
-    Math.cos(latitudeRadians)
+    Math.cos(
+      latitudeRadians,
+    )
 
   return new Vector3(
     cosLatitude *
-      Math.cos(longitudeRadians),
+      Math.cos(
+        longitudeRadians,
+      ),
     cosLatitude *
-      Math.sin(longitudeRadians),
-    Math.sin(latitudeRadians),
+      Math.sin(
+        longitudeRadians,
+      ),
+    Math.sin(
+      latitudeRadians,
+    ),
   )
 }
 
-function createFaunaSymbolMaterial(
+function createSpriteMaterial(
   name: string,
-  _url: string,
+  url: string,
 ): StandardMaterial {
   const material =
     new StandardMaterial(
@@ -372,223 +399,13 @@ function createFaunaSymbolMaterial(
     )
 
   const texture =
-    new DynamicTexture(
-      `${name}-texture`,
-      {
-        width: 128,
-        height: 128,
-      },
+    new Texture(
+      url,
       scene,
-      false,
     )
-
-  const context =
-    texture.getContext()
-
-  const isAdultWolf =
-    name ===
-    'wolf-adult-symbol-material'
-
-  const isPup =
-    name ===
-    'wolf-pup-symbol-material'
-
-  const isFemaleBadge =
-    name ===
-    'wolf-female-badge-material'
-
-  const isMaleBadge =
-    name ===
-    'wolf-male-badge-material'
-
-  const isPregnantBadge =
-    name ===
-    'wolf-pregnant-badge-material'
-
-  if (
-    isAdultWolf ||
-    isPup
-  ) {
-    context.clearRect(
-      0,
-      0,
-      128,
-      128,
-    )
-
-    context.fillStyle =
-      isPup
-        ? '#dbeafe'
-        : '#ffffff'
-
-    /*
-     * High-contrast symbolic wolf head.
-     * This deliberately uses no external image/SVG decoding.
-     */
-    context.beginPath()
-
-    context.moveTo(
-      24,
-      40,
-    )
-
-    context.lineTo(
-      36,
-      10,
-    )
-
-    context.lineTo(
-      53,
-      34,
-    )
-
-    context.lineTo(
-      75,
-      34,
-    )
-
-    context.lineTo(
-      92,
-      10,
-    )
-
-    context.lineTo(
-      104,
-      40,
-    )
-
-    context.lineTo(
-      94,
-      86,
-    )
-
-    context.lineTo(
-      64,
-      116,
-    )
-
-    context.lineTo(
-      34,
-      86,
-    )
-
-    context.closePath()
-    context.fill()
-
-    context.fillStyle =
-      '#111827'
-
-    context.beginPath()
-
-    context.arc(
-      49,
-      61,
-      5,
-      0,
-      Math.PI * 2,
-    )
-
-    context.arc(
-      79,
-      61,
-      5,
-      0,
-      Math.PI * 2,
-    )
-
-    context.fill()
-
-    context.beginPath()
-
-    context.moveTo(
-      55,
-      87,
-    )
-
-    context.lineTo(
-      73,
-      87,
-    )
-
-    context.lineTo(
-      64,
-      99,
-    )
-
-    context.closePath()
-    context.fill()
-  } else {
-    context.clearRect(
-      0,
-      0,
-      128,
-      128,
-    )
-
-    context.fillStyle =
-      isFemaleBadge
-        ? '#db2777'
-        : isMaleBadge
-          ? '#2563eb'
-          : isPregnantBadge
-            ? '#d97706'
-            : '#475569'
-
-    context.beginPath()
-
-    context.arc(
-      64,
-      64,
-      54,
-      0,
-      Math.PI * 2,
-    )
-
-    context.fill()
-
-    context.strokeStyle =
-      '#ffffff'
-
-    context.lineWidth =
-      8
-
-    context.stroke()
-
-    context.fillStyle =
-      '#ffffff'
-
-    context.font =
-      'bold 82px sans-serif'
-
-    const alignedContext =
-      context as unknown as {
-        textAlign: CanvasTextAlign
-        textBaseline: CanvasTextBaseline
-      }
-
-    alignedContext.textAlign =
-      'center'
-
-    alignedContext.textBaseline =
-      'middle'
-
-    context.fillText(
-      isFemaleBadge
-        ? 'F'
-        : isMaleBadge
-          ? 'M'
-          : isPregnantBadge
-            ? 'P'
-            : '?',
-      64,
-      68,
-    )
-  }
 
   texture.hasAlpha =
     true
-
-  texture.update()
 
   material.diffuseTexture =
     texture
@@ -614,34 +431,64 @@ function createFaunaSymbolMaterial(
   return material
 }
 
-const wolfAdultSymbolMaterial =
-  createFaunaSymbolMaterial(
-    'wolf-adult-symbol-material',
-    wolfAdultSymbolUrl,
+const humanManSpriteMaterial =
+  createSpriteMaterial(
+    'human-man-sprite-material',
+    humanManSpriteUrl,
   )
 
-const wolfPupSymbolMaterial =
-  createFaunaSymbolMaterial(
-    'wolf-pup-symbol-material',
-    wolfPupSymbolUrl,
+const humanWomanSpriteMaterial =
+  createSpriteMaterial(
+    'human-woman-sprite-material',
+    humanWomanSpriteUrl,
   )
 
-const maleBadgeSymbolMaterial =
-  createFaunaSymbolMaterial(
-    'wolf-male-badge-material',
-    maleBadgeSymbolUrl,
+const humanBoySpriteMaterial =
+  createSpriteMaterial(
+    'human-boy-sprite-material',
+    humanBoySpriteUrl,
   )
 
-const femaleBadgeSymbolMaterial =
-  createFaunaSymbolMaterial(
-    'wolf-female-badge-material',
-    femaleBadgeSymbolUrl,
+const humanGirlSpriteMaterial =
+  createSpriteMaterial(
+    'human-girl-sprite-material',
+    humanGirlSpriteUrl,
   )
 
-const pregnantBadgeSymbolMaterial =
-  createFaunaSymbolMaterial(
-    'wolf-pregnant-badge-material',
-    pregnantBadgeSymbolUrl,
+const maleWolfSpriteMaterial =
+  createSpriteMaterial(
+    'male-wolf-sprite-material',
+    maleWolfSpriteUrl,
+  )
+
+const femaleWolfSpriteMaterial =
+  createSpriteMaterial(
+    'female-wolf-sprite-material',
+    femaleWolfSpriteUrl,
+  )
+
+const wolfPupSpriteMaterial =
+  createSpriteMaterial(
+    'wolf-pup-sprite-material',
+    wolfPupSpriteUrl,
+  )
+
+const birdFlockSpriteMaterial =
+  createSpriteMaterial(
+    'bird-flock-sprite-material',
+    birdFlockSpriteUrl,
+  )
+
+const grazerCohortSpriteMaterial =
+  createSpriteMaterial(
+    'grazer-cohort-sprite-material',
+    grazerCohortSpriteUrl,
+  )
+
+const invertebrateSpriteMaterial =
+  createSpriteMaterial(
+    'invertebrate-sprite-material',
+    invertebrateSpriteUrl,
   )
 
 if (sessionId) {
@@ -689,6 +536,10 @@ if (sessionId) {
     surface,
     terrain,
     standingWater,
+    vegetation,
+    invertebrates,
+    birdFlocks,
+    grazerCohorts,
   ] =
     await Promise.all([
       api.getPlanetSurface(
@@ -700,6 +551,22 @@ if (sessionId) {
         planet.planetId,
       ),
       api.getPlanetStandingWater(
+        sessionId,
+        planet.planetId,
+      ),
+      api.getPlanetVegetation(
+        sessionId,
+        planet.planetId,
+      ),
+      api.getPlanetInvertebrates(
+        sessionId,
+        planet.planetId,
+      ),
+      api.getPlanetBirdFlocks(
+        sessionId,
+        planet.planetId,
+      ),
+      api.getPlanetGrazerCohorts(
         sessionId,
         planet.planetId,
       ),
@@ -715,7 +582,27 @@ if (sessionId) {
     terrain.planetId !==
       planet.planetId ||
     standingWater.planetId !==
-      planet.planetId
+      planet.planetId ||
+    (
+      vegetation !== null &&
+      vegetation.planetId !==
+        planet.planetId
+    ) ||
+    (
+      invertebrates !== null &&
+      invertebrates.planetId !==
+        planet.planetId
+    ) ||
+    (
+      birdFlocks !== null &&
+      birdFlocks.planetId !==
+        planet.planetId
+    ) ||
+    (
+      grazerCohorts !== null &&
+      grazerCohorts.planetId !==
+        planet.planetId
+    )
   ) {
     throw new Error(
       'Authoritative planetary responses do not match the active planet.',
@@ -760,6 +647,165 @@ if (sessionId) {
       sphereSubdivisions: 64,
     },
   )
+
+  const vegetationCoverageGridWidth =
+    vegetation?.grid.longitudeBandCount ??
+    1
+
+  const vegetationCoverageGridHeight =
+    vegetation?.grid.latitudeBandCount ??
+    1
+
+  const vegetationCoverageGrid =
+    new Float32Array(
+      vegetationCoverageGridWidth *
+        vegetationCoverageGridHeight,
+    )
+
+  if (vegetation !== null) {
+    if (
+      vegetation.grid.latitudeBandCount !==
+        surface.grid.latitudeBandCount ||
+      vegetation.grid.longitudeBandCount !==
+        surface.grid.longitudeBandCount
+    ) {
+      throw new Error(
+        'Vegetation and surface grids must match.',
+      )
+    }
+
+    const surfaceCellsById =
+      new Map(
+        surface.cells.map(
+          cell => [
+            cell.cellId,
+            cell,
+          ] as const,
+        ),
+      )
+
+    const maximumBiomass =
+      vegetation.cells.reduce(
+        (maximum, cell) =>
+          Math.max(
+            maximum,
+            cell.liveBiomassKilogramsPerSquareMeter,
+          ),
+        0,
+      )
+
+    const assignedCoverageCells =
+      new Set<number>()
+
+    for (const cell of vegetation.cells) {
+      const surfaceCell =
+        surfaceCellsById.get(
+          cell.surfaceCellId,
+        )
+
+      if (!surfaceCell) {
+        throw new Error(
+          `Vegetation cell ${cell.surfaceCellId} has no matching surface cell.`,
+        )
+      }
+
+      const row =
+        Math.min(
+          vegetationCoverageGridHeight - 1,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                (
+                  surfaceCell.centerLatitudeDegrees +
+                  90
+                ) /
+                180
+              ) *
+                vegetationCoverageGridHeight,
+            ),
+          ),
+        )
+
+      const normalizedLongitude =
+        (
+          (
+            surfaceCell.centerLongitudeDegrees +
+            180
+          ) %
+            360 +
+          360
+        ) %
+        360
+
+      const column =
+        Math.min(
+          vegetationCoverageGridWidth - 1,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                normalizedLongitude /
+                360
+              ) *
+                vegetationCoverageGridWidth,
+            ),
+          ),
+        )
+
+      const coverageIndex =
+        row *
+          vegetationCoverageGridWidth +
+        column
+
+      if (
+        assignedCoverageCells.has(
+          coverageIndex,
+        )
+      ) {
+        throw new Error(
+          `Multiple vegetation cells map to coverage cell ${coverageIndex}.`,
+        )
+      }
+
+      assignedCoverageCells.add(
+        coverageIndex,
+      )
+
+      const biomass =
+        cell.liveBiomassKilogramsPerSquareMeter
+
+      vegetationCoverageGrid[
+        coverageIndex
+      ] =
+        biomass <= 0 ||
+        maximumBiomass <= 0
+          ? 0
+          : Math.min(
+              1,
+              biomass /
+                maximumBiomass,
+            )
+    }
+
+    if (
+      assignedCoverageCells.size !==
+      vegetation.cells.length
+    ) {
+      throw new Error(
+        'Vegetation coverage grid did not receive every authoritative cell.',
+      )
+    }
+  }
+
+  vegetationCoverageData =
+    vegetationCoverageGrid
+
+  vegetationCoverageWidth =
+    vegetationCoverageGridWidth
+
+  vegetationCoverageHeight =
+    vegetationCoverageGridHeight
 
   reportPlanetStartupStage(
     'creating terrain material…',
@@ -822,11 +868,24 @@ if (sessionId) {
       )
     }
 
+  const secondsPerYear =
+    31_536_000
+
+  const humanAdultDisplayAgeSeconds =
+    18 * secondsPerYear
+
   const wolfJuvenileDisplayAgeSeconds =
     180 * 86_400
 
-  const wolfSymbolRadialLift =
+  const livingSymbolRadialLift =
     0.006
+
+  const visiblePopulation =
+    world.population.filter(
+      person =>
+        person.planetId ===
+        planet.planetId,
+    )
 
   const visibleWolves =
     world.animals.filter(
@@ -836,37 +895,267 @@ if (sessionId) {
         animal.species === 'Wolf',
     )
 
-  const faunaFocusRequested =
-    new URLSearchParams(
-      window.location.search,
-    ).get('focus') === 'fauna'
+  const visibleBirdFlocks =
+    birdFlocks?.flocks ?? []
 
-  if (
-    faunaFocusRequested &&
-    visibleWolves.length > 0
-  ) {
-    const focusWolf =
-      visibleWolves[0]
+  const visibleGrazerCohorts =
+    grazerCohorts?.cohorts ?? []
 
-    const focusDirection =
-      geographicDegreesToSphereDirection(
-        focusWolf.latitudeDegrees,
-        focusWolf.longitudeDegrees,
-      )
-
-    camera.setPosition(
-      focusDirection.scale(
-        3.2,
+  const surfaceCellById =
+    new Map(
+      surface.cells.map(
+        cell => [
+          cell.cellId,
+          cell,
+        ] as const,
       ),
     )
+
+  const activeVegetationCells =
+    vegetation === null
+      ? []
+      : [...vegetation.cells]
+          .filter(
+            cell =>
+              cell.liveBiomassKilogramsPerSquareMeter >
+              0,
+          )
+          .sort(
+            (left, right) =>
+              right.liveBiomassKilogramsPerSquareMeter -
+              left.liveBiomassKilogramsPerSquareMeter,
+          )
+
+  const activeInvertebrateCells =
+    invertebrates === null
+      ? []
+      : [...invertebrates.cells]
+          .filter(
+            cell =>
+              cell.liveBiomassKilogramsPerSquareMeter >
+              0,
+          )
+          .sort(
+            (left, right) =>
+              right.liveBiomassKilogramsPerSquareMeter -
+              left.liveBiomassKilogramsPerSquareMeter,
+          )
+
+  const selectSpatiallyDistributedInvertebrateCells = (
+    cells: typeof activeInvertebrateCells,
+    maximumCount: number,
+  ): typeof activeInvertebrateCells => {
+    const candidates: Array<{
+      cell:
+        (typeof activeInvertebrateCells)[number]
+      direction: Vector3
+    }> = []
+
+    for (const cell of cells) {
+      const surfaceCell =
+        surfaceCellById.get(
+          cell.surfaceCellId,
+        )
+
+      if (!surfaceCell) {
+        continue
+      }
+
+      candidates.push({
+        cell,
+        direction:
+          geographicDegreesToSphereDirection(
+            surfaceCell.centerLatitudeDegrees,
+            surfaceCell.centerLongitudeDegrees,
+          ),
+      })
+    }
+
+    candidates.sort(
+      (left, right) => {
+        const biomassDifference =
+          right.cell
+            .liveBiomassKilogramsPerSquareMeter -
+          left.cell
+            .liveBiomassKilogramsPerSquareMeter
+
+        if (biomassDifference !== 0) {
+          return biomassDifference
+        }
+
+        return left.cell.surfaceCellId
+          .localeCompare(
+            right.cell.surfaceCellId,
+          )
+      },
+    )
+
+    if (
+      candidates.length <=
+      maximumCount
+    ) {
+      return candidates.map(
+        candidate =>
+          candidate.cell,
+      )
+    }
+
+    const selected = [
+      candidates[0],
+    ]
+
+    const remaining =
+      candidates
+        .slice(1)
+        .map(
+          candidate => ({
+            ...candidate,
+            minimumDistance:
+              1 -
+              Vector3.Dot(
+                candidates[0].direction,
+                candidate.direction,
+              ),
+          }),
+        )
+
+    const tolerance =
+      1e-12
+
+    while (
+      selected.length <
+        maximumCount &&
+      remaining.length >
+        0
+    ) {
+      let bestIndex =
+        0
+
+      for (
+        let index = 1;
+        index <
+        remaining.length;
+        index++
+      ) {
+        const candidate =
+          remaining[index]
+
+        const currentBest =
+          remaining[bestIndex]
+
+        if (
+          candidate.minimumDistance >
+          currentBest.minimumDistance +
+            tolerance
+        ) {
+          bestIndex =
+            index
+
+          continue
+        }
+
+        if (
+          Math.abs(
+            candidate.minimumDistance -
+              currentBest.minimumDistance,
+          ) <= tolerance
+        ) {
+          const biomassDifference =
+            candidate.cell
+              .liveBiomassKilogramsPerSquareMeter -
+            currentBest.cell
+              .liveBiomassKilogramsPerSquareMeter
+
+          if (
+            biomassDifference >
+            0 ||
+            (
+              biomassDifference ===
+                0 &&
+              candidate.cell
+                .surfaceCellId <
+                currentBest.cell
+                  .surfaceCellId
+            )
+          ) {
+            bestIndex =
+              index
+          }
+        }
+      }
+
+      const next =
+        remaining[
+          bestIndex
+        ]
+
+      selected.push(
+        next,
+      )
+
+      remaining.splice(
+        bestIndex,
+        1,
+      )
+
+      for (
+        const candidate of
+        remaining
+      ) {
+        const distance =
+          1 -
+          Vector3.Dot(
+            next.direction,
+            candidate.direction,
+          )
+
+        candidate.minimumDistance =
+          Math.min(
+            candidate.minimumDistance,
+            distance,
+          )
+      }
+    }
+
+    return selected.map(
+      candidate =>
+        candidate.cell,
+    )
   }
+
+  const visibleInvertebrateCells =
+    selectSpatiallyDistributedInvertebrateCells(
+      activeInvertebrateCells,
+      64,
+    )
 
   const createBillboardPlane = (
     name: string,
     material: StandardMaterial,
-    position: Vector3,
+    latitudeDegrees: number,
+    longitudeDegrees: number,
     size: number,
+    radialLift =
+      livingSymbolRadialLift,
   ): Mesh => {
+    const direction =
+      geographicDegreesToSphereDirection(
+        latitudeDegrees,
+        longitudeDegrees,
+      )
+
+    const terrainOffset =
+      terrainRadialOffset?.(
+        direction,
+      ) ?? 0
+
+    const position =
+      direction.scale(
+        1 +
+          terrainOffset +
+          radialLift,
+      )
+
     const plane =
       CreatePlane(
         name,
@@ -897,28 +1186,39 @@ if (sessionId) {
     return plane
   }
 
+  for (const person of visiblePopulation) {
+    const ageSeconds =
+      Math.max(
+        0,
+        world.currentTimeSeconds -
+          person.birthTimeSeconds,
+      )
+
+    const isChild =
+      ageSeconds <
+      humanAdultDisplayAgeSeconds
+
+    const material =
+      isChild
+        ? person.sex === 'Female'
+          ? humanGirlSpriteMaterial
+          : humanBoySpriteMaterial
+        : person.sex === 'Female'
+          ? humanWomanSpriteMaterial
+          : humanManSpriteMaterial
+
+    createBillboardPlane(
+      `human-${person.personId}`,
+      material,
+      person.latitudeDegrees,
+      person.longitudeDegrees,
+      isChild
+        ? 0.026
+        : 0.032,
+    )
+  }
+
   for (const wolf of visibleWolves) {
-    const direction =
-      geographicDegreesToSphereDirection(
-        wolf.latitudeDegrees,
-        wolf.longitudeDegrees,
-      )
-
-    const terrainOffset =
-      terrainRadialOffset(
-        direction,
-      )
-
-    const symbolRadius =
-      1 +
-      terrainOffset +
-      wolfSymbolRadialLift
-
-    const position =
-      direction.scale(
-        symbolRadius,
-      )
-
     const ageSeconds =
       Math.max(
         0,
@@ -930,150 +1230,326 @@ if (sessionId) {
       ageSeconds <
       wolfJuvenileDisplayAgeSeconds
 
-    const wolfSize =
+    const material =
       isJuvenile
-        ? 0.022
-        : 0.030
+        ? wolfPupSpriteMaterial
+        : wolf.sex === 'Female'
+          ? femaleWolfSpriteMaterial
+          : maleWolfSpriteMaterial
 
     createBillboardPlane(
       `wolf-${wolf.animalId}`,
+      material,
+      wolf.latitudeDegrees,
+      wolf.longitudeDegrees,
       isJuvenile
-        ? wolfPupSymbolMaterial
-        : wolfAdultSymbolMaterial,
-      position,
-      wolfSize,
+        ? 0.028
+        : 0.036,
+    )
+  }
+
+  for (const flock of visibleBirdFlocks) {
+    const scale =
+      Math.min(
+        0.055,
+        0.030 +
+          Math.log10(
+            flock.memberCount + 1,
+          ) *
+            0.004,
+      )
+
+    createBillboardPlane(
+      `bird-flock-${flock.flockId}`,
+      birdFlockSpriteMaterial,
+      flock.latitudeDegrees,
+      flock.longitudeDegrees,
+      scale,
+      0.012,
+    )
+  }
+
+  interface GrazerPresentationCluster {
+    memberCount: number
+    cohortCount: number
+    weightedDirection: Vector3
+  }
+
+  const grazerLatitudeClusterDegrees =
+    45
+
+  const grazerLongitudeClusterDegrees =
+    60
+
+  const grazerClusterMap =
+    new Map<
+      string,
+      GrazerPresentationCluster
+    >()
+
+  for (
+    const cohort of visibleGrazerCohorts
+  ) {
+    const normalizedLongitude =
+      (
+        (
+          cohort.longitudeDegrees +
+          180
+        ) %
+          360 +
+        360
+      ) %
+        360 -
+      180
+
+    const latitudeBin =
+      Math.min(
+        3,
+        Math.max(
+          0,
+          Math.floor(
+            (
+              cohort.latitudeDegrees +
+              90
+            ) /
+              grazerLatitudeClusterDegrees,
+          ),
+        ),
+      )
+
+    const longitudeBin =
+      Math.min(
+        5,
+        Math.max(
+          0,
+          Math.floor(
+            (
+              normalizedLongitude +
+              180
+            ) /
+              grazerLongitudeClusterDegrees,
+          ),
+        ),
+      )
+
+    const key =
+      `${latitudeBin}:${longitudeBin}`
+
+    const direction =
+      geographicDegreesToSphereDirection(
+        cohort.latitudeDegrees,
+        cohort.longitudeDegrees,
+      )
+
+    const weightedDirection =
+      direction.scale(
+        cohort.memberCount,
+      )
+
+    const existing =
+      grazerClusterMap.get(
+        key,
+      )
+
+    if (existing) {
+      existing.memberCount +=
+        cohort.memberCount
+
+      existing.cohortCount +=
+        1
+
+      existing.weightedDirection
+        .addInPlace(
+          weightedDirection,
+        )
+    } else {
+      grazerClusterMap.set(
+        key,
+        {
+          memberCount:
+            cohort.memberCount,
+          cohortCount: 1,
+          weightedDirection,
+        },
+      )
+    }
+  }
+
+  const grazerPresentationClusters =
+    Array.from(
+      grazerClusterMap.entries(),
+    )
+      .map(
+        ([key, cluster]) => {
+          const direction =
+            cluster.weightedDirection
+              .normalize()
+
+          const coordinate =
+            sphereDirectionToGeographicDegrees(
+              direction,
+            )
+
+          return {
+            key,
+            memberCount:
+              cluster.memberCount,
+            cohortCount:
+              cluster.cohortCount,
+            latitudeDegrees:
+              coordinate.latitudeDegrees,
+            longitudeDegrees:
+              coordinate.longitudeDegrees,
+          }
+        },
+      )
+      .sort(
+        (left, right) =>
+          right.memberCount -
+          left.memberCount,
+      )
+
+  const totalGrazerMembers =
+    visibleGrazerCohorts.reduce(
+      (total, cohort) =>
+        total +
+        cohort.memberCount,
+      0,
     )
 
-    const longitudeRadians =
-      wolf.longitudeDegrees *
-      Math.PI / 180
-
-    const latitudeRadians =
-      wolf.latitudeDegrees *
-      Math.PI / 180
-
-    const east =
-      new Vector3(
-        -Math.sin(
-          longitudeRadians,
-        ),
-        Math.cos(
-          longitudeRadians,
-        ),
-        0,
-      )
-
-    const north =
-      new Vector3(
-        -Math.sin(
-          latitudeRadians,
-        ) *
-          Math.cos(
-            longitudeRadians,
-          ),
-        -Math.sin(
-          latitudeRadians,
-        ) *
-          Math.sin(
-            longitudeRadians,
-          ),
-        Math.cos(
-          latitudeRadians,
-        ),
-      )
-
-    const badgeRadius =
-      symbolRadius +
-      0.0015
-
-    const badgeBase =
-      direction.scale(
-        badgeRadius,
-      )
-
-    const badgeOffset =
-      isJuvenile
-        ? 0.018
-        : 0.024
-
-    const sexMaterial =
-      wolf.sex === 'Male'
-        ? maleBadgeSymbolMaterial
-        : wolf.sex === 'Female'
-          ? femaleBadgeSymbolMaterial
-          : undefined
-
-    if (sexMaterial) {
-      const sexPosition =
-        badgeBase
-          .add(
-            east.scale(
-              -badgeOffset,
-            ),
-          )
-          .add(
-            north.scale(
-              badgeOffset,
-            ),
-          )
-
-      createBillboardPlane(
-        `wolf-${wolf.animalId}-sex`,
-        sexMaterial,
-        sexPosition,
-        isJuvenile
-          ? 0.010
-          : 0.012,
+  const formatLivingCount = (
+    value: number,
+  ): string => {
+    if (value >= 1_000_000) {
+      return (
+        `${(
+          value /
+          1_000_000
+        ).toFixed(1)}m`
       )
     }
 
-    if (wolf.isPregnant) {
-      const pregnancyPosition =
-        badgeBase
-          .add(
-            east.scale(
-              badgeOffset,
-            ),
-          )
-          .add(
-            north.scale(
-              badgeOffset,
-            ),
-          )
+    if (value >= 1_000) {
+      return (
+        `${(
+          value /
+          1_000
+        ).toFixed(1)}k`
+      )
+    }
 
-      createBillboardPlane(
-        `wolf-${wolf.animalId}-pregnant`,
-        pregnantBadgeSymbolMaterial,
-        pregnancyPosition,
-        0.013,
+    return value.toLocaleString()
+  }
+
+  for (
+    const cluster of
+      grazerPresentationClusters
+  ) {
+    const scale =
+      Math.min(
+        0.068,
+        0.046 +
+          Math.log10(
+            cluster.memberCount + 1,
+          ) *
+            0.0025,
+      )
+
+    createBillboardPlane(
+      `grazer-cluster-${cluster.key}`,
+      grazerCohortSpriteMaterial,
+      cluster.latitudeDegrees,
+      cluster.longitudeDegrees,
+      scale,
+    )
+  }
+
+  let renderedInvertebrateCells =
+    0
+
+  for (
+    const cell of
+      visibleInvertebrateCells
+  ) {
+    const surfaceCell =
+      surfaceCellById.get(
+        cell.surfaceCellId,
+      )
+
+    if (!surfaceCell) {
+      continue
+    }
+
+    const scale =
+      Math.min(
+        0.040,
+        0.020 +
+          Math.log10(
+            1 +
+              cell.liveBiomassKilogramsPerSquareMeter *
+                1_000,
+          ) *
+            0.004,
+      )
+
+    createBillboardPlane(
+      `invertebrates-${cell.surfaceCellId}`,
+      invertebrateSpriteMaterial,
+      surfaceCell.centerLatitudeDegrees,
+      surfaceCell.centerLongitudeDegrees,
+      scale,
+      0.009,
+    )
+
+    renderedInvertebrateCells +=
+      1
+  }
+
+  const faunaFocusRequested =
+    new URLSearchParams(
+      window.location.search,
+    ).get('focus') === 'fauna'
+
+  if (faunaFocusRequested) {
+    const target =
+      visibleWolves[0] ??
+      visiblePopulation[0] ??
+      visibleGrazerCohorts[0] ??
+      visibleBirdFlocks[0]
+
+    if (
+      target &&
+      'latitudeDegrees' in target &&
+      'longitudeDegrees' in target
+    ) {
+      const focusDirection =
+        geographicDegreesToSphereDirection(
+          target.latitudeDegrees,
+          target.longitudeDegrees,
+        )
+
+      camera.setPosition(
+        focusDirection.scale(
+          3.2,
+        ),
       )
     }
   }
 
   if (faunaStatus) {
-    const adultWolfCount =
+    const juvenileWolfCount =
       visibleWolves.filter(
         wolf =>
           Math.max(
             0,
             world.currentTimeSeconds -
               wolf.birthTimeSeconds,
-          ) >=
+          ) <
           wolfJuvenileDisplayAgeSeconds,
       ).length
 
-    const juvenileWolfCount =
-      visibleWolves.length -
-      adultWolfCount
-
-    const pregnantWolfCount =
-      visibleWolves.filter(
-        wolf =>
-          wolf.isPregnant,
-      ).length
-
     faunaStatus.textContent =
-      `wolves · ${visibleWolves.length} visible · ${adultWolfCount} adult · ${juvenileWolfCount} pup · ${pregnantWolfCount} pregnant${faunaFocusRequested ? ' · FAUNA FOCUS' : ''}`
+      `living world · ${visiblePopulation.length} humans · ${visibleWolves.length} wolves (${juvenileWolfCount} pups) · ${visibleBirdFlocks.length} bird flocks · ${grazerPresentationClusters.length} grazer markers representing ${formatLivingCount(totalGrazerMembers)} grazers / ${visibleGrazerCohorts.length} cohorts · ${activeVegetationCells.length} active vegetation cells · ${renderedInvertebrateCells} spatial insect samples / ${activeInvertebrateCells.length} active cells${faunaFocusRequested ? ' · FAUNA FOCUS' : ''}`
   }
 
   if (terrainStatus) {
@@ -1130,6 +1606,10 @@ if (
 const planetPositions =
   Array.from(sourcePositions)
 
+
+const planetVegetationCoverage:
+  number[] = []
+
 for (
   let index = 0;
   index < planetPositions.length;
@@ -1161,6 +1641,66 @@ for (
     y: y / length,
     z: z / length,
   }
+
+  const coordinate =
+    sphereDirectionToGeographicDegrees(
+      direction,
+    )
+
+  const vegetationRow =
+    Math.min(
+      vegetationCoverageHeight - 1,
+      Math.max(
+        0,
+        Math.floor(
+          (
+            (
+              coordinate.latitudeDegrees +
+              90
+            ) /
+            180
+          ) *
+            vegetationCoverageHeight,
+        ),
+      ),
+    )
+
+  const normalizedVegetationLongitude =
+    (
+      (
+        coordinate.longitudeDegrees +
+        180
+      ) %
+        360 +
+      360
+    ) %
+    360
+
+  const vegetationColumn =
+    Math.min(
+      vegetationCoverageWidth - 1,
+      Math.max(
+        0,
+        Math.floor(
+          (
+            normalizedVegetationLongitude /
+            360
+          ) *
+            vegetationCoverageWidth,
+        ),
+      ),
+    )
+
+  const vegetationIndex =
+    vegetationRow *
+      vegetationCoverageWidth +
+    vegetationColumn
+
+  planetVegetationCoverage.push(
+    vegetationCoverageData?.[
+      vegetationIndex
+    ] ?? 0,
+  )
 
   const radialOffset =
     terrainRadialOffset?.(
@@ -1206,6 +1746,14 @@ const planetMesh =
 planetVertexData.applyToMesh(
   planetMesh,
   false,
+)
+
+
+planetMesh.setVerticesData(
+  'vegetationCoverage',
+  planetVegetationCoverage,
+  false,
+  1,
 )
 
 planetMesh.material =

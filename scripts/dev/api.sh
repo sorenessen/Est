@@ -91,7 +91,7 @@ if [[ -n "$pid" ]]; then
     exit 1
 fi
 
-launch_command="cd ${(q)EST_ROOT} && ${(q)DOTNET_BIN} run --project src/Est.Api/Est.Api.csproj --launch-profile http"
+launch_command="cd ${(q)EST_ROOT}/src/Est.Api && ${(q)DOTNET_BIN} run --launch-profile http"
 
 echo "Starting Est.Api in its own iTerm window..."
 open_iterm_window "$launch_command"

@@ -23,15 +23,19 @@ precision highp float;
 
 attribute vec3 position;
 attribute vec3 normal;
+attribute float vegetationCoverage;
 
 uniform mat4 worldViewProjection;
 
 varying vec3 vPlanetPosition;
 varying vec3 vTerrainNormal;
+varying float vVegetationCoverage;
 
 void main(void) {
   vPlanetPosition = position;
   vTerrainNormal = normal;
+  vVegetationCoverage =
+    vegetationCoverage;
 
   gl_Position =
     worldViewProjection *
@@ -44,6 +48,7 @@ precision highp float;
 
 varying vec3 vPlanetPosition;
 varying vec3 vTerrainNormal;
+varying float vVegetationCoverage;
 
 uniform float uMeanRadiusMeters;
 uniform float uMinimumElevationMeters;
@@ -377,6 +382,69 @@ void main(void) {
       slope * 0.62
     );
 
+  float vegetationCoverage =
+    clamp(
+      vVegetationCoverage,
+      0.0,
+      1.0
+    );
+
+  float vegetationBreakup =
+    clamp(
+      0.78 +
+        detail * 0.16 +
+        grain * 0.12 +
+        ridges * 0.08,
+      0.62,
+      1.0
+    );
+
+  float vegetationPresence =
+    vegetationCoverage *
+    vegetationBreakup *
+    (
+      1.0 -
+      slope * 0.52
+    );
+
+  vec3 sparseVegetation =
+    vec3(
+      0.115,
+      0.205,
+      0.075
+    );
+
+  vec3 denseVegetation =
+    vec3(
+      0.245,
+      0.405,
+      0.135
+    );
+
+  vec3 vegetationColor =
+    mix(
+      sparseVegetation,
+      denseVegetation,
+      clamp(
+        vegetationCoverage *
+          1.15 +
+          detail * 0.10,
+        0.0,
+        1.0
+      )
+    );
+
+  terrainColor =
+    mix(
+      terrainColor,
+      vegetationColor,
+      clamp(
+        vegetationPresence * 0.88,
+        0.0,
+        0.88
+      )
+    );
+
   float diffuse =
     max(
       dot(
@@ -463,6 +531,7 @@ export function createTerrainShaderMaterial(
         attributes: [
           'position',
           'normal',
+          'vegetationCoverage',
         ],
         uniforms: [
           'worldViewProjection',

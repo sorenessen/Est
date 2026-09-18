@@ -896,6 +896,65 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/planets/{planetId:guid}/vegetation",
+    (
+        Guid id,
+        Guid planetId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            planetId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var planetIdentity =
+            new PlanetId(
+                planetId);
+
+        var planet =
+            session.CurrentWorld.Planets
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        planetIdentity);
+
+        if (planet is null)
+        {
+            return Results.NotFound();
+        }
+
+        var vegetation =
+            session.CurrentWorld.Vegetation
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (vegetation is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(
+            ToVegetationResponse(
+                planet,
+                vegetation));
+    });
+
+
+app.MapGet(
     "/sessions/{id:guid}/planets/{planetId:guid}/invertebrates",
     (
         Guid id,
@@ -1570,6 +1629,29 @@ static BiogeochemistryResponse ToBiogeochemistryResponse(
                         cell.DetritalBiomassKilogramsPerSquareMeter,
                         cell.DetritalNitrogenKilogramsPerSquareMeter,
                         cell.PlantAvailableNitrogenKilogramsPerSquareMeter))
+            .ToArray());
+}
+
+static VegetationResponse ToVegetationResponse(
+    PlanetState planet,
+    PlanetVegetationState vegetation)
+{
+    vegetation.ValidateFor(
+        planet);
+
+    return new VegetationResponse(
+        planet.Id.Value,
+        new SurfaceGridResponse(
+            vegetation.GridDefinition.Kind.ToString(),
+            vegetation.GridDefinition.IdentityVersion,
+            vegetation.GridDefinition.LatitudeBandCount,
+            vegetation.GridDefinition.LongitudeBandCount),
+        vegetation.Cells
+            .Select(
+                cell =>
+                    new VegetationCellResponse(
+                        cell.CellId.Value,
+                        cell.LiveBiomassKilogramsPerSquareMeter))
             .ToArray());
 }
 

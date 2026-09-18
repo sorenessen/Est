@@ -209,18 +209,18 @@ pipeline for production visual quality.
 
 ### Water
 
-Standing water will not be rendered as one polygon per simulation cell.
+Standing water is not rendered as one polygon per simulation cell.
 
-Large oceans should be continuous visual surfaces.
+The accepted current presentation uses a continuous standing-water
+representation driven by authoritative terrain and hydrology while remaining
+independent from the simulation-cell tessellation.
 
 The authoritative simulation determines physical water state and water-surface
-conditions.
+conditions. Presentation determines how those conditions are drawn.
 
-Presentation determines how those conditions are drawn.
-
-Visible coastlines should arise from the intersection of terrain with the
-appropriate water surface rather than from the boundaries of hydrology storage
-cells.
+Direct per-cell water polygons and renderer-triangle wet/dry classification
+were rejected after runtime evaluation exposed simulation-resolution coastline
+artifacts. They are not the current production path.
 
 Lakes, rivers, wetlands, snow, ice, waves, and other water representations may
 require additional visual techniques as their simulation requirements mature.
@@ -238,8 +238,7 @@ temporarily available for comparison, diagnostics, or historical reference.
 New production renderer development should not extend the Cesium terrain,
 imagery, quantized-mesh, or simulation-cell polygon paths.
 
-The first implementation target for the replacement browser renderer is
-Babylon.js.
+Babylon.js is the current production browser renderer.
 
 Babylon is a presentation implementation choice, not a simulation dependency.
 
@@ -442,14 +441,21 @@ It does not supersede:
 
 ## Immediate Next Step
 
-Keep the runtime-green immutable spherical terrain foundation unchanged.
+Keep the runtime-green immutable spherical terrain foundation and accepted
+standing-water presentation unchanged.
 
-The next visual milestone is convincing water and shoreline presentation driven
-by authoritative hydrology while preserving the invariant:
+Current living-world presentation keeps broad vegetation on the terrain surface
+by mapping authoritative biomass into per-vertex coverage on the immutable
+Babylon sphere. Fauna remains independently presented according to its
+authoritative individual, flock, or cohort representation.
+
+Preserve the invariant:
 
 `camera movement changes the view, never the planet`
 
-After water is stable, continue atmosphere and living ecosystem presentation.
+Atmosphere, closer-scale ecosystem representation, and future presentation
+detail may build on this foundation without transferring simulation ownership
+into the renderer.
 
 Do not reintroduce cube-sphere patches, camera-driven planet topology, or
 generalized planetary LOD merely as speculative optimization. Preserve and

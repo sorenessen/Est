@@ -104,6 +104,25 @@ describe(
 
         expect(
           terrainFragmentShader,
+        ).toContain(
+          'vegetationCoverage',
+        )
+
+
+        expect(
+          terrainVertexShader,
+        ).toContain(
+          'attribute float vegetationCoverage',
+        )
+
+        expect(
+          terrainFragmentShader,
+        ).toContain(
+          'vVegetationCoverage',
+        )
+
+        expect(
+          terrainFragmentShader,
         ).not.toContain(
           'uv',
         )

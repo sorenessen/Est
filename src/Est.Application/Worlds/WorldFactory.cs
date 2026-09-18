@@ -29,26 +29,6 @@ public static class WorldFactory
             .Select(CreatePlanet)
             .ToArray();
 
-        var population =
-            specification.Planets
-                .SelectMany(
-                    (planetSpecification, index) =>
-                        CreatePopulation(
-                            planets[index],
-                            planetSpecification
-                                .SyntheticPopulation))
-                .ToArray();
-
-        var animals =
-            specification.Planets
-                .SelectMany(
-                    (planetSpecification, index) =>
-                        CreateAnimals(
-                            planets[index],
-                            planetSpecification
-                                .SyntheticAnimals))
-                .ToArray();
-
         var terrain =
             specification.Planets
                 .Select(
@@ -92,6 +72,34 @@ public static class WorldFactory
             hydrology.ToDictionary(
                 item =>
                     item.PlanetId);
+
+        var population =
+            specification.Planets
+                .SelectMany(
+                    (planetSpecification, index) =>
+                        CreatePopulation(
+                            planets[index],
+                            terrainByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            hydrologyByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .SyntheticPopulation))
+                .ToArray();
+
+        var animals =
+            specification.Planets
+                .SelectMany(
+                    (planetSpecification, index) =>
+                        CreateAnimals(
+                            planets[index],
+                            terrainByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            hydrologyByPlanetId.GetValueOrDefault(
+                                planets[index].Id),
+                            planetSpecification
+                                .SyntheticAnimals))
+                .ToArray();
 
         var biogeochemistry =
             specification.Planets
@@ -505,6 +513,8 @@ public static class WorldFactory
 
     private static IEnumerable<AnimalState> CreateAnimals(
         PlanetState planet,
+        PlanetTerrainState? terrain,
+        PlanetHydrologyState? hydrology,
         SyntheticAnimalCreationSpecification? specification)
     {
         if (specification is null)
@@ -513,6 +523,14 @@ public static class WorldFactory
         }
 
         ValidateAnimalSpecification(specification);
+
+        var (
+            surfaceGrid,
+            standingWater) =
+                CreateTerrestrialPlacementContext(
+                    planet,
+                    terrain,
+                    hydrology);
 
         var random =
             new Random(specification.Seed);
@@ -535,26 +553,16 @@ public static class WorldFactory
              index < animals.Length;
              index++)
         {
-            var radius =
-                Math.Sqrt(random.NextDouble()) *
-                specification.SpreadDegrees;
-
-            var angle =
-                random.NextDouble() *
-                Math.PI *
-                2;
-
-            var latitude =
-                Math.Clamp(
-                    specification.CenterLatitudeDegrees +
-                    Math.Sin(angle) * radius,
-                    -90,
-                    90);
-
-            var longitude =
-                NormalizeLongitude(
-                    specification.CenterLongitudeDegrees +
-                    Math.Cos(angle) * radius);
+            var (
+                latitude,
+                longitude) =
+                    CreateTerrestrialCoordinate(
+                        random,
+                        specification.CenterLatitudeDegrees,
+                        specification.CenterLongitudeDegrees,
+                        specification.SpreadDegrees,
+                        surfaceGrid,
+                        standingWater);
 
             var idBytes = new byte[16];
             random.NextBytes(idBytes);
@@ -598,6 +606,8 @@ public static class WorldFactory
 
     private static IEnumerable<PersonState> CreatePopulation(
         PlanetState planet,
+        PlanetTerrainState? terrain,
+        PlanetHydrologyState? hydrology,
         SyntheticPopulationCreationSpecification? specification)
     {
         if (specification is null)
@@ -606,6 +616,14 @@ public static class WorldFactory
         }
 
         ValidatePopulationSpecification(specification);
+
+        var (
+            surfaceGrid,
+            standingWater) =
+                CreateTerrestrialPlacementContext(
+                    planet,
+                    terrain,
+                    hydrology);
 
         var random =
             new Random(specification.Seed);
@@ -622,26 +640,16 @@ public static class WorldFactory
              index < population.Length;
              index++)
         {
-            var radius =
-                Math.Sqrt(random.NextDouble()) *
-                specification.SpreadDegrees;
-
-            var angle =
-                random.NextDouble() *
-                Math.PI *
-                2;
-
-            var latitude =
-                Math.Clamp(
-                    specification.CenterLatitudeDegrees +
-                    Math.Sin(angle) * radius,
-                    -90,
-                    90);
-
-            var longitude =
-                NormalizeLongitude(
-                    specification.CenterLongitudeDegrees +
-                    Math.Cos(angle) * radius);
+            var (
+                latitude,
+                longitude) =
+                    CreateTerrestrialCoordinate(
+                        random,
+                        specification.CenterLatitudeDegrees,
+                        specification.CenterLongitudeDegrees,
+                        specification.SpreadDegrees,
+                        surfaceGrid,
+                        standingWater);
 
             var ageYears =
                 specification.MinimumAgeYears +
@@ -670,6 +678,106 @@ public static class WorldFactory
         }
 
         return population;
+    }
+
+    private static (
+        IPlanetSurfaceGrid? SurfaceGrid,
+        PlanetStandingWaterState? StandingWater)
+        CreateTerrestrialPlacementContext(
+            PlanetState planet,
+            PlanetTerrainState? terrain,
+            PlanetHydrologyState? hydrology)
+    {
+        if (terrain is null ||
+            hydrology is null)
+        {
+            return (
+                null,
+                null);
+        }
+
+        var surfaceGrid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                terrain.GridDefinition);
+
+        var standingWater =
+            PlanetStandingWaterState.Derive(
+                planet,
+                terrain,
+                hydrology);
+
+        return (
+            surfaceGrid,
+            standingWater);
+    }
+
+    private static (
+        double LatitudeDegrees,
+        double LongitudeDegrees)
+        CreateTerrestrialCoordinate(
+            Random random,
+            double centerLatitudeDegrees,
+            double centerLongitudeDegrees,
+            double spreadDegrees,
+            IPlanetSurfaceGrid? surfaceGrid,
+            PlanetStandingWaterState? standingWater)
+    {
+        const int maximumPlacementAttempts =
+            4_096;
+
+        for (var attempt = 0;
+             attempt < maximumPlacementAttempts;
+             attempt++)
+        {
+            var radius =
+                Math.Sqrt(
+                    random.NextDouble()) *
+                spreadDegrees;
+
+            var angle =
+                random.NextDouble() *
+                Math.PI *
+                2;
+
+            var latitude =
+                Math.Clamp(
+                    centerLatitudeDegrees +
+                    Math.Sin(angle) * radius,
+                    -90,
+                    90);
+
+            var longitude =
+                NormalizeLongitude(
+                    centerLongitudeDegrees +
+                    Math.Cos(angle) * radius);
+
+            if (surfaceGrid is null ||
+                standingWater is null)
+            {
+                return (
+                    latitude,
+                    longitude);
+            }
+
+            var cell =
+                surfaceGrid.LocateCell(
+                    latitude,
+                    longitude);
+
+            if (!standingWater
+                    .GetCell(
+                        cell.Id)
+                    .IsFlooded)
+            {
+                return (
+                    latitude,
+                    longitude);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Synthetic terrestrial placement could not find dry habitat within the requested spawn region.");
     }
 
     private static void ValidateAnimalSpecification(

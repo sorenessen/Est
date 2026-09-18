@@ -27,6 +27,22 @@ Use the Babylon root route:
 
 `http://localhost:5173/?session=<session-id>`
 
+### Living-surface runtime checkpoint — 2026-09-17
+
+The current production globe presents authoritative live vegetation through
+per-vertex coverage on the immutable Babylon terrain sphere. Broad vegetation
+is terrain-surface state, not a globe-scale sprite layer, and the production
+terrain shader does not depend on a separate vegetation `RawTexture` sampler.
+
+Fresh-session validation against the rebuilt API also verified terrestrial
+founder placement against authoritative standing water:
+
+- humans: 0 flooded / 48 total;
+- wolves: 0 flooded / 8 total.
+
+This validates the generated-world dry-habitat placement path when terrain and
+hydrology are available.
+
 ## Local Environment
 
 Primary environment: macOS Apple Silicon. Repository: `~/Projects/Est`. Solution: `Est.slnx`. Target framework: `net10.0`. Recorded SDK: `10.0.301`.
@@ -39,7 +55,7 @@ From the repository root:
 dotnet test Est.slnx
 ```
 
-Latest verified .NET result: September 17, 2026: 744 passed, 0 failed, 0 skipped. The latest recorded web production build also passed with `npm run build`.
+Latest verified .NET result: September 17, 2026: 745 passed, 0 failed, 0 skipped. The latest verified web production build passed, and the web suite is 85 / 85 green.
 
 ## Repository Inspection
 
@@ -128,8 +144,8 @@ For direct debugging without the launcher, run Est.Api in a dedicated
 terminal:
 
 ```bash
-cd ~/Projects/Est
-dotnet run --project src/Est.Api/Est.Api.csproj --launch-profile http
+cd ~/Projects/Est/src/Est.Api
+dotnet run --launch-profile http
 ```
 
 Run the web development host from a separate terminal:

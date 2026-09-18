@@ -82,6 +82,61 @@ export interface SurfaceGridResponse {
   longitudeBandCount: number
 }
 
+export interface OrganismMaterialResponse {
+  liveBiomassKilograms: number
+  liveNitrogenKilograms: number
+}
+
+export interface VegetationCellResponse {
+  surfaceCellId: string
+  liveBiomassKilogramsPerSquareMeter: number
+}
+
+export interface VegetationResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  cells: VegetationCellResponse[]
+}
+
+export interface InvertebrateCellResponse {
+  surfaceCellId: string
+  liveBiomassKilogramsPerSquareMeter: number
+  liveNitrogenKilogramsPerSquareMeter: number
+}
+
+export interface InvertebrateResponse {
+  planetId: string
+  grid: SurfaceGridResponse
+  cells: InvertebrateCellResponse[]
+}
+
+export interface BirdFlockResponse {
+  flockId: string
+  memberCount: number
+  latitudeDegrees: number
+  longitudeDegrees: number
+  material: OrganismMaterialResponse
+  recruitmentAccumulator: number
+}
+
+export interface BirdFlocksResponse {
+  planetId: string
+  flocks: BirdFlockResponse[]
+}
+
+export interface GrazerCohortResponse {
+  cohortId: string
+  memberCount: number
+  latitudeDegrees: number
+  longitudeDegrees: number
+  material: OrganismMaterialResponse
+}
+
+export interface GrazerCohortsResponse {
+  planetId: string
+  cohorts: GrazerCohortResponse[]
+}
+
 export interface SurfaceCoordinateResponse {
   latitudeDegrees: number
   longitudeDegrees: number
@@ -190,6 +245,25 @@ export class EstApi {
     return response.json() as Promise<T>
   }
 
+  private async getOptional<T>(
+    path: string,
+  ): Promise<T | null> {
+    const response =
+      await fetch(`${this.baseUrl}${path}`)
+
+    if (response.status === 404) {
+      return null
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Est API request failed: ${response.status}`,
+      )
+    }
+
+    return response.json() as Promise<T>
+  }
+
   private async post<T>(
     path: string,
     body: unknown,
@@ -253,6 +327,42 @@ export class EstApi {
   ): Promise<StandingWaterResponse> {
     return this.get(
       `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/standing-water`,
+    )
+  }
+
+  getPlanetVegetation(
+    sessionId: string,
+    planetId: string,
+  ): Promise<VegetationResponse | null> {
+    return this.getOptional(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/vegetation`,
+    )
+  }
+
+  getPlanetInvertebrates(
+    sessionId: string,
+    planetId: string,
+  ): Promise<InvertebrateResponse | null> {
+    return this.getOptional(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/invertebrates`,
+    )
+  }
+
+  getPlanetBirdFlocks(
+    sessionId: string,
+    planetId: string,
+  ): Promise<BirdFlocksResponse | null> {
+    return this.getOptional(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/bird-flocks`,
+    )
+  }
+
+  getPlanetGrazerCohorts(
+    sessionId: string,
+    planetId: string,
+  ): Promise<GrazerCohortsResponse | null> {
+    return this.getOptional(
+      `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/grazer-cohorts`,
     )
   }
 

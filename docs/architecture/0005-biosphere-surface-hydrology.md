@@ -104,6 +104,18 @@ presentation mesh. Authoritative terrain is sampled from Est state and baked
 radially into that independent visual sphere. Hydrology and biosphere state
 remain owned by simulation systems regardless of how they are presented.
 
+Authoritative live vegetation remains per-cell simulation state on the shared
+surface grid. The current globe presentation maps that biomass through the API
+onto per-vertex vegetation coverage on the immutable Babylon sphere, and the
+terrain shader uses that coverage to present vegetation as continuous surface
+state. This render-side sampling does not create new authoritative biomass.
+
+Globe-scale vegetation sprites and a separate vegetation texture-sampler path
+are not part of the accepted planetary presentation. Vegetation sprite assets
+may remain useful later for close-scale or individually significant
+representations, but broad vegetation at planetary scale is presented from the
+authoritative biomass field.
+
 Earlier cube-sphere/quadtree renderer work and Cesium evaluation work are
 preserved as future presentation evidence. Their preservation does not change
 the simulation ownership model established here.
@@ -494,6 +506,12 @@ than depending on a renderer-specific raster.
 Authoritative live plant biomass now occupies the shared surface cells.
 Vegetation consumes causal environmental inputs and supplies material to
 configured consumers.
+
+Generated terrestrial vegetation is initialized only on dry surface cells.
+World creation also constrains generated terrestrial human and wolf founders
+to dry cells when terrain and hydrology provide an authoritative habitat
+context. Worlds created without that habitat context retain the earlier
+unrestricted placement behavior rather than inventing water classification.
 
 The former synthetic food-resource scaffolding has been retired from current
 authoritative world state and causal foraging. Human foraging, grazer grazing,

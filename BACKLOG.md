@@ -196,7 +196,7 @@ implementation is not the production foundation.
 - [x] Prove authoritative world-state fetch and display
 - [x] Prove continuous authoritative simulation advancement in a globe view
 - [x] Prove authoritative population presentation and movement
-- [ ] Build the production Babylon planetary renderer
+- [x] Build the production Babylon planetary renderer
 - [ ] Add production-quality simulation time controls
 - [ ] Pause
 - [ ] User-selectable 1x
@@ -255,15 +255,15 @@ Do not connect authoritative terrain yet.
 - [x] Compute terrain normals from the rendered terrain surface.
 - [x] Add Est-controlled terrain materials.
 - [x] Add directional planetary lighting independent of Cesium assumptions.
-- [ ] Add a continuous ocean representation driven by authoritative water state.
-- [ ] Make visible shorelines emerge from terrain/water intersection rather
+- [x] Add a continuous ocean representation driven by authoritative water state.
+- [x] Make visible shorelines emerge from terrain/water intersection rather
       than hydrology-cell polygons.
 - [ ] Add atmosphere only after terrain, lighting, and water are runtime-green.
 
 #### R5 - Living-world presentation
 
-- [ ] Reconnect authoritative population presentation.
-- [ ] Reconnect authoritative animal and resource presentation as justified.
+- [x] Reconnect authoritative population presentation.
+- [x] Reconnect authoritative animal and resource presentation as justified.
 - [ ] Select representations by view scale rather than rendering every
       authoritative object identically at every distance.
 - [ ] Preserve `simulation truth -> API -> presentation`.
@@ -301,7 +301,7 @@ gate.
 - [x] Refuse automatic termination or restart of occupied ports.
 - [x] Create a fresh Earth session and open the current globe client from Play.
 - [x] Validate cold-start Play from Sparrow and subsequent service reuse.
-- [ ] Retarget Play Est to the Babylon production renderer after R1 is
+- [x] Retarget Play Est to the Babylon production renderer after R1 is
       runtime-green.
 - [ ] Consider portable terminal integration if Est development expands beyond macOS.
 - [ ] Revisit durable session selection/resumption when the product requires it.
@@ -379,6 +379,12 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Seed deterministic generated vegetation only on dry surface cells.
   - [x] Execute vegetation after hydrology and before biological consumers.
   - [x] Expose generated vegetation and vegetation model policy through Est.Api.
+  - [x] Expose current authoritative vegetation state through Est.Api and present
+        broad biomass as terrain-surface coverage on the immutable Babylon sphere.
+  - [x] Keep globe-scale vegetation out of the sprite layer; reserve discrete
+        vegetation assets for future closer-scale representations where useful.
+  - [x] Constrain generated terrestrial human and wolf founders to dry habitat
+        when authoritative terrain and hydrology are available.
   - [x] Connect population foraging to authoritative live plant biomass through
         an explicit harvest / energy-conversion policy.
   - [x] Preserve biomass accounting during consumption and keep synthetic food

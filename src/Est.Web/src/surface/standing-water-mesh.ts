@@ -276,9 +276,9 @@ export function createStandingWaterMesh(
 
   material.diffuseColor =
     new Color3(
-      0.008,
-      0.075,
-      0.13,
+      0.025,
+      0.180,
+      0.320,
     )
 
   /*
@@ -294,9 +294,9 @@ export function createStandingWaterMesh(
 
   material.emissiveColor =
     new Color3(
-      0.002,
       0.012,
-      0.020,
+      0.060,
+      0.105,
     )
 
   /*
@@ -308,16 +308,16 @@ export function createStandingWaterMesh(
 
   emissiveFresnel.leftColor =
     new Color3(
-      0.010,
-      0.045,
-      0.070,
+      0.030,
+      0.160,
+      0.280,
     )
 
   emissiveFresnel.rightColor =
     new Color3(
-      0.001,
-      0.004,
-      0.007,
+      0.008,
+      0.040,
+      0.070,
     )
 
   emissiveFresnel.bias =
@@ -330,7 +330,7 @@ export function createStandingWaterMesh(
     emissiveFresnel
 
   material.alpha = 1
-  material.backFaceCulling = true
+  material.backFaceCulling = false
 
   mesh.material =
     material
