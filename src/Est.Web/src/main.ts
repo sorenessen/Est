@@ -9,7 +9,6 @@ import {
   Mesh,
   Scene,
   StandardMaterial,
-  Texture,
   Vector3,
   VertexData,
 } from '@babylonjs/core'
@@ -24,8 +23,8 @@ import {
 } from '@babylonjs/core/Meshes/Builders/icoSphereBuilder.js'
 
 import {
-  CreatePlane,
-} from '@babylonjs/core/Meshes/Builders/planeBuilder.js'
+  CreateDisc,
+} from '@babylonjs/core/Meshes/Builders/discBuilder.js'
 
 import {
   EstApi,
@@ -66,6 +65,108 @@ app.innerHTML = `
     aria-label="Est planetary renderer"
   ></canvas>
 
+  <aside
+    id="livingMarkerLegend"
+    class="living-marker-legend"
+    aria-label="Living world marker legend"
+    hidden
+  >
+    <div class="living-marker-legend-heading">
+      <strong>Marker legend</strong>
+      <span>Color shows current state or presentation category</span>
+    </div>
+
+    <div class="living-marker-legend-section">
+      <strong>Humans · live activity</strong>
+
+      <div
+        id="livingMarkerHumanActivities"
+        class="living-marker-human-activities"
+      >
+        <span class="living-marker-legend-waiting">
+          Waiting for live population state…
+        </span>
+      </div>
+
+      <div class="living-marker-legend-encoding">
+        Color encodes current activity only.
+        Sex is identified on hover, not by color.
+        Counts are the current live simulation state.
+      </div>
+    </div>
+
+    <div class="living-marker-legend-section">
+      <strong>Other living markers</strong>
+
+      <div class="living-marker-legend-other">
+        <div class="living-marker-legend-other-row">
+          <span class="legend-marker legend-wolf"></span>
+          <span>
+            <strong>Wolf</strong>
+            <small>
+              White marker with red center.
+              Traveling and attacking are emphasized by size;
+              hover shows exact activity.
+            </small>
+          </span>
+        </div>
+
+        <div class="living-marker-legend-other-row">
+          <span class="legend-marker legend-bird"></span>
+          <span>
+            <strong>Bird flock</strong>
+            <small>
+              Blue marker; size reflects flock membership.
+            </small>
+          </span>
+        </div>
+
+        <div class="living-marker-legend-other-row">
+          <span class="legend-marker legend-grazer"></span>
+          <span>
+            <strong>Grazer group</strong>
+            <small>
+              Orange marker; size reflects represented grazers.
+            </small>
+          </span>
+        </div>
+
+        <div class="living-marker-legend-other-row">
+          <span class="legend-marker legend-invertebrate"></span>
+          <span>
+            <strong>Invertebrate sample</strong>
+            <small>
+              Green marker; size reflects sampled live biomass.
+            </small>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="living-marker-legend-note">
+      Hover any marker for its authoritative instance,
+      status, condition, population, or biomass details.
+    </div>
+  </aside>
+
+  <div
+    id="livingMarkerTooltip"
+    class="living-marker-tooltip"
+    role="tooltip"
+    hidden
+  >
+    <strong id="livingMarkerTooltipTitle"></strong>
+    <span id="livingMarkerTooltipDetail"></span>
+  </div>
+
+  <div
+    id="panelVisibilityTip"
+    class="panel-visibility-tip"
+    role="status"
+    aria-live="polite"
+    hidden
+  ></div>
+
   <section
     id="observerPanel"
     class="babylon-observer-panel"
@@ -82,26 +183,19 @@ app.innerHTML = `
 
       <div class="render-evaluation-window-actions">
         <button
-          id="observerPanelViewerModeButton"
+          id="observerPanelLegendButton"
           type="button"
-          aria-label="Enter clean viewer mode"
-          title="Clean viewer mode"
-        >Viewer</button>
+          aria-label="Show marker legend"
+          aria-expanded="false"
+          title="Marker legend"
+        >Legend</button>
 
         <button
-          id="observerPanelCollapseButton"
+          id="observerPanelMinimizeButton"
           type="button"
-          aria-label="Collapse observatory panel"
-          aria-expanded="true"
-          title="Collapse panel"
-        >−</button>
-
-        <button
-          id="observerPanelHideButton"
-          type="button"
-          aria-label="Hide observatory panel"
-          title="Hide panel"
-        >×</button>
+          aria-label="Minimize observatory"
+          title="Minimize observatory"
+        >Minimize</button>
       </div>
     </div>
 
@@ -171,6 +265,49 @@ const canvas =
 if (!canvas) {
   throw new Error(
     'Render canvas was not created.',
+  )
+}
+
+const livingMarkerLegend =
+  document.querySelector<HTMLElement>(
+    '#livingMarkerLegend',
+  )
+
+const observerPanelLegendButton =
+  document.querySelector<HTMLButtonElement>(
+    '#observerPanelLegendButton',
+  )
+
+const livingMarkerHumanActivities =
+  document.querySelector<HTMLElement>(
+    '#livingMarkerHumanActivities',
+  )
+
+const livingMarkerTooltip =
+  document.querySelector<HTMLDivElement>(
+    '#livingMarkerTooltip',
+  )
+
+const livingMarkerTooltipTitle =
+  document.querySelector<HTMLElement>(
+    '#livingMarkerTooltipTitle',
+  )
+
+const livingMarkerTooltipDetail =
+  document.querySelector<HTMLElement>(
+    '#livingMarkerTooltipDetail',
+  )
+
+if (
+  !livingMarkerLegend ||
+  !observerPanelLegendButton ||
+  !livingMarkerHumanActivities ||
+  !livingMarkerTooltip ||
+  !livingMarkerTooltipTitle ||
+  !livingMarkerTooltipDetail
+) {
+  throw new Error(
+    'Living marker tooltip was not created.',
   )
 }
 
@@ -346,24 +483,9 @@ const observerPanelDragHandle =
     '#observerPanelDragHandle',
   )
 
-const observerPanelBody =
-  document.querySelector<HTMLElement>(
-    '#observerPanelBody',
-  )
-
-const observerPanelViewerModeButton =
+const observerPanelMinimizeButton =
   document.querySelector<HTMLButtonElement>(
-    '#observerPanelViewerModeButton',
-  )
-
-const observerPanelCollapseButton =
-  document.querySelector<HTMLButtonElement>(
-    '#observerPanelCollapseButton',
-  )
-
-const observerPanelHideButton =
-  document.querySelector<HTMLButtonElement>(
-    '#observerPanelHideButton',
+    '#observerPanelMinimizeButton',
   )
 
 const observerPanelRestoreButton =
@@ -371,14 +493,17 @@ const observerPanelRestoreButton =
     '#observerPanelRestoreButton',
   )
 
+const panelVisibilityTip =
+  document.querySelector<HTMLDivElement>(
+    '#panelVisibilityTip',
+  )
+
 if (
   !observerPanel ||
   !observerPanelDragHandle ||
-  !observerPanelBody ||
-  !observerPanelViewerModeButton ||
-  !observerPanelCollapseButton ||
-  !observerPanelHideButton ||
-  !observerPanelRestoreButton
+  !observerPanelMinimizeButton ||
+  !observerPanelRestoreButton ||
+  !panelVisibilityTip
 ) {
   throw new Error(
     'Observatory panel controls were not created.',
@@ -443,6 +568,198 @@ const clampObserverPanelToViewport = (): void => {
       ),
       maxTop,
     )}px`
+}
+
+const livingMarkerLegendGap =
+  8
+
+const positionLivingMarkerLegend = (): void => {
+  if (
+    livingMarkerLegend.hidden ||
+    observerPanel.hidden
+  ) {
+    return
+  }
+
+  const panelRect =
+    observerPanel.getBoundingClientRect()
+
+  const legendRect =
+    livingMarkerLegend.getBoundingClientRect()
+
+  const viewportMargin =
+    observerPanelViewportMargin
+
+  const availableLeft =
+    panelRect.left -
+    viewportMargin
+
+  const availableRight =
+    window.innerWidth -
+    panelRect.right -
+    viewportMargin
+
+  let side: 'left' | 'right'
+
+  if (
+    availableLeft >=
+    legendRect.width +
+      livingMarkerLegendGap
+  ) {
+    side =
+      'left'
+  } else if (
+    availableRight >=
+    legendRect.width +
+      livingMarkerLegendGap
+  ) {
+    side =
+      'right'
+  } else {
+    side =
+      availableLeft >= availableRight
+        ? 'left'
+        : 'right'
+  }
+
+  const desiredLeft =
+    side === 'left'
+      ? panelRect.left -
+        legendRect.width -
+        livingMarkerLegendGap
+      : panelRect.right +
+        livingMarkerLegendGap
+
+  const maxLeft =
+    Math.max(
+      viewportMargin,
+      window.innerWidth -
+        legendRect.width -
+        viewportMargin,
+    )
+
+  const maxTop =
+    Math.max(
+      viewportMargin,
+      window.innerHeight -
+        legendRect.height -
+        viewportMargin,
+    )
+
+  livingMarkerLegend.style.left =
+    `${Math.min(
+      Math.max(
+        desiredLeft,
+        viewportMargin,
+      ),
+      maxLeft,
+    )}px`
+
+  livingMarkerLegend.style.top =
+    `${Math.min(
+      Math.max(
+        panelRect.top,
+        viewportMargin,
+      ),
+      maxTop,
+    )}px`
+
+  livingMarkerLegend.dataset.side =
+    side
+}
+
+const closeLivingMarkerLegend = (): void => {
+  livingMarkerLegend.hidden =
+    true
+
+  observerPanelLegendButton.setAttribute(
+    'aria-expanded',
+    'false',
+  )
+}
+
+observerPanelLegendButton.addEventListener(
+  'click',
+  () => {
+    const willShow =
+      livingMarkerLegend.hidden
+
+    if (!willShow) {
+      closeLivingMarkerLegend()
+      return
+    }
+
+    livingMarkerLegend.hidden =
+      false
+
+    observerPanelLegendButton.setAttribute(
+      'aria-expanded',
+      'true',
+    )
+
+    requestAnimationFrame(
+      positionLivingMarkerLegend,
+    )
+  },
+)
+
+const humanLegendEntries =
+  [
+    ['Idle', 'Idle', 'legend-human-idle'],
+    ['Foraging', 'Foraging', 'legend-human-foraging'],
+    ['Eating', 'Eating', 'legend-human-eating'],
+    ['Traveling', 'Traveling', 'legend-human-traveling'],
+    ['Fleeing', 'Fleeing', 'legend-human-fleeing'],
+    ['SeekingPartner', 'Seeking partner', 'legend-human-seeking'],
+    ['Mating', 'Mating', 'legend-human-mating'],
+  ] as const
+
+const renderHumanMarkerLegend = (
+  activityCounts: Readonly<Record<string, number>>,
+  pregnantPeople: number,
+): void => {
+  const activityRows =
+    humanLegendEntries.map(
+      ([activity, label, markerClass]) => {
+        const count =
+          activityCounts[activity] ?? 0
+
+        return `
+          <div
+            class="living-marker-legend-live-row${count === 0 ? ' is-inactive' : ''}"
+          >
+            <span
+              class="legend-marker ${markerClass}"
+              aria-hidden="true"
+            ></span>
+            <span>${label}</span>
+            <strong>${count.toLocaleString()}</strong>
+          </div>
+        `
+      },
+    ).join('')
+
+  livingMarkerHumanActivities.innerHTML =
+    `
+      ${activityRows}
+
+      <div
+        class="living-marker-legend-live-row${pregnantPeople === 0 ? ' is-inactive' : ''}"
+      >
+        <span
+          class="legend-marker legend-pregnancy"
+          aria-hidden="true"
+        ></span>
+        <span>Pregnancy halo</span>
+        <strong>${pregnantPeople.toLocaleString()}</strong>
+      </div>
+    `
+
+  if (!livingMarkerLegend.hidden) {
+    requestAnimationFrame(
+      positionLivingMarkerLegend,
+    )
+  }
 }
 
 let observerPanelDragPointerId:
@@ -570,6 +887,8 @@ observerPanelDragHandle.addEventListener(
         ),
         maxTop,
       )}px`
+
+    positionLivingMarkerLegend()
   },
 )
 
@@ -613,101 +932,469 @@ observerPanelDragHandle.addEventListener(
   finishObserverPanelDrag,
 )
 
-const enterCleanViewerMode = (): void => {
-  app.classList.add(
-    'is-clean-viewer',
+const minimizeObserverPanel = (): void => {
+  closeLivingMarkerLegend()
+
+  const panelRect =
+    observerPanel.getBoundingClientRect()
+
+  const appRect =
+    app.getBoundingClientRect()
+
+  const left =
+    panelRect.left -
+    appRect.left
+
+  const top =
+    panelRect.top -
+    appRect.top
+
+  observerPanelRestoreButton.style.right =
+    'auto'
+
+  observerPanelRestoreButton.style.left =
+    `${left}px`
+
+  observerPanelRestoreButton.style.top =
+    `${top}px`
+
+  observerPanel.hidden =
+    true
+
+  observerPanelRestoreButton.hidden =
+    false
+}
+
+const restoreObserverPanel = (): void => {
+  const restoreRect =
+    observerPanelRestoreButton
+      .getBoundingClientRect()
+
+  const appRect =
+    app.getBoundingClientRect()
+
+  const anchorLeft =
+    restoreRect.left -
+    appRect.left
+
+  const anchorRight =
+    restoreRect.right -
+    appRect.left
+
+  const anchorTop =
+    restoreRect.top -
+    appRect.top
+
+  observerPanelRestoreButton.hidden =
+    true
+
+  observerPanel.style.right =
+    'auto'
+
+  observerPanel.style.left =
+    `${anchorLeft}px`
+
+  observerPanel.style.top =
+    `${anchorTop}px`
+
+  observerPanel.hidden =
+    false
+
+  const panelRect =
+    observerPanel.getBoundingClientRect()
+
+  const availableRight =
+    appRect.width -
+    anchorLeft
+
+  const availableLeft =
+    anchorRight
+
+  let requestedLeft =
+    anchorLeft
+
+  if (
+    availableRight <
+      panelRect.width &&
+    availableLeft >=
+      panelRect.width
+  ) {
+    // The pill is near the right edge:
+    // open the Observatory leftward from it.
+    requestedLeft =
+      anchorRight -
+      panelRect.width
+  } else if (
+    availableRight <
+    panelRect.width
+  ) {
+    requestedLeft =
+      anchorLeft -
+      panelRect.width / 2
+  }
+
+  const maxLeft =
+    Math.max(
+      0,
+      appRect.width -
+        panelRect.width,
+    )
+
+  const maxTop =
+    Math.max(
+      0,
+      appRect.height -
+        panelRect.height,
+    )
+
+  observerPanel.style.left =
+    `${Math.min(
+      Math.max(
+        requestedLeft,
+        0,
+      ),
+      maxLeft,
+    )}px`
+
+  observerPanel.style.top =
+    `${Math.min(
+      Math.max(
+        anchorTop,
+        0,
+      ),
+      maxTop,
+    )}px`
+
+  requestAnimationFrame(
+    positionLivingMarkerLegend,
   )
 }
 
-const exitCleanViewerMode = (): void => {
-  app.classList.remove(
-    'is-clean-viewer',
-  )
-}
-
-observerPanelViewerModeButton.addEventListener(
+observerPanelMinimizeButton.addEventListener(
   'click',
-  enterCleanViewerMode,
+  minimizeObserverPanel,
 )
 
-window.addEventListener(
-  'keydown',
+let observerRestoreDragPointerId:
+  number | undefined
+
+let observerRestoreDragStartX =
+  0
+
+let observerRestoreDragStartLeft =
+  0
+
+let observerRestoreDragged =
+  false
+
+const observerRestoreDragThreshold =
+  4
+
+observerPanelRestoreButton.addEventListener(
+  'pointerdown',
   event => {
-    if (
-      event.key === 'Escape' &&
-      app.classList.contains(
-        'is-clean-viewer',
-      )
-    ) {
-      exitCleanViewerMode()
-    }
-  },
-)
+    const restoreRect =
+      observerPanelRestoreButton
+        .getBoundingClientRect()
 
-observerPanelCollapseButton.addEventListener(
-  'click',
-  () => {
-    const collapsed =
-      !observerPanel.classList.contains(
-        'is-collapsed',
-      )
+    const appRect =
+      app.getBoundingClientRect()
 
-    observerPanel.classList.toggle(
-      'is-collapsed',
-      collapsed,
-    )
+    observerRestoreDragPointerId =
+      event.pointerId
 
-    observerPanelBody.hidden =
-      collapsed
+    observerRestoreDragStartX =
+      event.clientX
 
-    observerPanelCollapseButton.textContent =
-      collapsed ? '+' : '−'
+    observerRestoreDragStartLeft =
+      restoreRect.left -
+      appRect.left
 
-    observerPanelCollapseButton.setAttribute(
-      'aria-expanded',
-      String(!collapsed),
-    )
-
-    observerPanelCollapseButton.title =
-      collapsed
-        ? 'Expand panel'
-        : 'Collapse panel'
-
-    observerPanelCollapseButton.setAttribute(
-      'aria-label',
-      collapsed
-        ? 'Expand observatory panel'
-        : 'Collapse observatory panel',
-    )
-
-    requestAnimationFrame(
-      clampObserverPanelToViewport,
-    )
-  },
-)
-
-observerPanelHideButton.addEventListener(
-  'click',
-  () => {
-    observerPanel.hidden =
-      true
-
-    observerPanelRestoreButton.hidden =
+    observerRestoreDragged =
       false
+
+    observerPanelRestoreButton.style.right =
+      'auto'
+
+    observerPanelRestoreButton.style.left =
+      `${observerRestoreDragStartLeft}px`
+
+    observerPanelRestoreButton
+      .setPointerCapture(
+        event.pointerId,
+      )
+
+    observerPanelRestoreButton
+      .classList.add(
+        'is-dragging',
+      )
   },
 )
 
 observerPanelRestoreButton.addEventListener(
-  'click',
-  () => {
-    observerPanelRestoreButton.hidden =
-      true
+  'pointermove',
+  event => {
+    if (
+      observerRestoreDragPointerId !==
+      event.pointerId
+    ) {
+      return
+    }
 
-    observerPanel.hidden =
+    const deltaX =
+      event.clientX -
+      observerRestoreDragStartX
+
+    if (
+      Math.abs(deltaX) >=
+      observerRestoreDragThreshold
+    ) {
+      observerRestoreDragged =
+        true
+    }
+
+    const appRect =
+      app.getBoundingClientRect()
+
+    const restoreRect =
+      observerPanelRestoreButton
+        .getBoundingClientRect()
+
+    const maxLeft =
+      Math.max(
+        0,
+        appRect.width -
+          restoreRect.width,
+      )
+
+    const requestedLeft =
+      observerRestoreDragStartLeft +
+      deltaX
+
+    observerPanelRestoreButton.style.left =
+      `${Math.min(
+        Math.max(
+          requestedLeft,
+          0,
+        ),
+        maxLeft,
+      )}px`
+
+    observerPanelRestoreButton.style.right =
+      'auto'
+
+    if (observerRestoreDragged) {
+      event.preventDefault()
+    }
+  },
+)
+
+const finishObserverRestoreDrag = (
+  event: PointerEvent,
+): void => {
+  if (
+    observerRestoreDragPointerId !==
+    event.pointerId
+  ) {
+    return
+  }
+
+  if (
+    observerPanelRestoreButton
+      .hasPointerCapture(
+        event.pointerId,
+      )
+  ) {
+    observerPanelRestoreButton
+      .releasePointerCapture(
+        event.pointerId,
+      )
+  }
+
+  observerRestoreDragPointerId =
+    undefined
+
+  observerPanelRestoreButton
+    .classList.remove(
+      'is-dragging',
+    )
+}
+
+observerPanelRestoreButton.addEventListener(
+  'pointerup',
+  finishObserverRestoreDrag,
+)
+
+observerPanelRestoreButton.addEventListener(
+  'pointercancel',
+  finishObserverRestoreDrag,
+)
+
+observerPanelRestoreButton.addEventListener(
+  'click',
+  event => {
+    if (observerRestoreDragged) {
+      observerRestoreDragged =
+        false
+
+      event.preventDefault()
+      return
+    }
+
+    restoreObserverPanel()
+  },
+)
+
+let panelVisibilityTipTimer:
+  number | undefined
+
+let legendWasOpenBeforeCleanView =
+  false
+
+const dismissPanelVisibilityTip = (): void => {
+  if (
+    panelVisibilityTipTimer !==
+    undefined
+  ) {
+    window.clearTimeout(
+      panelVisibilityTipTimer,
+    )
+
+    panelVisibilityTipTimer =
+      undefined
+  }
+
+  panelVisibilityTip.classList.remove(
+    'is-visible',
+  )
+
+  panelVisibilityTip.hidden =
+    true
+}
+
+const showPanelVisibilityTip = (
+  message: string,
+): void => {
+  dismissPanelVisibilityTip()
+
+  panelVisibilityTip.textContent =
+    message
+
+  panelVisibilityTip.hidden =
+    false
+
+  // Restart the transition even if the same
+  // hint has just been displayed.
+  void panelVisibilityTip.offsetWidth
+
+  panelVisibilityTip.classList.add(
+    'is-visible',
+  )
+
+  panelVisibilityTipTimer =
+    window.setTimeout(
+      () => {
+        panelVisibilityTip.classList.remove(
+          'is-visible',
+        )
+
+        panelVisibilityTip.hidden =
+          true
+
+        panelVisibilityTipTimer =
+          undefined
+      },
+      5_000,
+    )
+}
+
+const hideAllPanels = (): void => {
+  legendWasOpenBeforeCleanView =
+    !livingMarkerLegend.hidden
+
+  closeLivingMarkerLegend()
+
+  livingMarkerTooltip.hidden =
+    true
+
+  canvas.style.cursor =
+    ''
+
+  if (sessionStatus) {
+    delete sessionStatus.dataset
+      .livingHover
+  }
+
+  app.classList.add(
+    'is-clean-viewer',
+  )
+
+  showPanelVisibilityTip(
+    "Press 'Esc' to bring back panels",
+  )
+}
+
+const restoreAllPanels = (): void => {
+  app.classList.remove(
+    'is-clean-viewer',
+  )
+
+  if (
+    legendWasOpenBeforeCleanView &&
+    !observerPanel.hidden
+  ) {
+    livingMarkerLegend.hidden =
       false
 
+    observerPanelLegendButton.setAttribute(
+      'aria-expanded',
+      'true',
+    )
+
     requestAnimationFrame(
-      clampObserverPanelToViewport,
+      positionLivingMarkerLegend,
+    )
+  }
+
+  showPanelVisibilityTip(
+    "Press 'Esc' to hide all panels",
+  )
+
+  if (!observerPanel.hidden) {
+    requestAnimationFrame(
+      () => {
+        clampObserverPanelToViewport()
+        positionLivingMarkerLegend()
+      },
+    )
+  }
+}
+
+window.addEventListener(
+  'keydown',
+  event => {
+    if (event.key !== 'Escape') {
+      return
+    }
+
+    event.preventDefault()
+
+    if (
+      app.classList.contains(
+        'is-clean-viewer',
+      )
+    ) {
+      restoreAllPanels()
+    } else {
+      hideAllPanels()
+    }
+  },
+)
+
+requestAnimationFrame(
+  () => {
+    showPanelVisibilityTip(
+      "Press 'Esc' to hide all panels",
     )
   },
 )
@@ -716,7 +1403,10 @@ window.addEventListener(
   'resize',
   () =>
     requestAnimationFrame(
-      clampObserverPanelToViewport,
+      () => {
+        clampObserverPanelToViewport()
+        positionLivingMarkerLegend()
+      },
     ),
 )
 
@@ -724,7 +1414,10 @@ const observerPanelResizeObserver =
   new ResizeObserver(
     () =>
       requestAnimationFrame(
-        clampObserverPanelToViewport,
+        () => {
+          clampObserverPanelToViewport()
+          positionLivingMarkerLegend()
+        },
       ),
   )
 
@@ -880,9 +1573,9 @@ function geographicDegreesToSphereDirection(
   )
 }
 
-function createSpriteMaterial(
+function createMarkerMaterial(
   name: string,
-  url: string,
+  color: Color3,
 ): StandardMaterial {
   const material =
     new StandardMaterial(
@@ -890,26 +1583,11 @@ function createSpriteMaterial(
       scene,
     )
 
-  const texture =
-    new Texture(
-      url,
-      scene,
-    )
-
-  texture.hasAlpha =
-    true
-
-  material.diffuseTexture =
-    texture
-
-  material.emissiveTexture =
-    texture
-
-  material.useAlphaFromDiffuseTexture =
-    true
+  material.diffuseColor =
+    color
 
   material.emissiveColor =
-    Color3.White()
+    color
 
   material.specularColor =
     Color3.Black()
@@ -923,64 +1601,84 @@ function createSpriteMaterial(
   return material
 }
 
-const humanManSpriteMaterial =
-  createSpriteMaterial(
-    'human-man-sprite-material',
-    humanManSpriteUrl,
+type LivingMarkerKind =
+  | 'humans'
+  | 'wolves'
+  | 'birds'
+  | 'grazers'
+  | 'invertebrates'
+
+interface LivingMarkerMetadata {
+  kind: LivingMarkerKind
+  title: string
+  detail: string
+}
+
+const humanMarkerMaterials = {
+  Idle: createMarkerMaterial(
+    'human-idle-marker-material',
+    Color3.FromHexString('#ffcc00'),
+  ),
+  Foraging: createMarkerMaterial(
+    'human-foraging-marker-material',
+    Color3.FromHexString('#ff7a00'),
+  ),
+  Eating: createMarkerMaterial(
+    'human-eating-marker-material',
+    Color3.FromHexString('#21d66f'),
+  ),
+  Traveling: createMarkerMaterial(
+    'human-traveling-marker-material',
+    Color3.FromHexString('#00c8ff'),
+  ),
+  Fleeing: createMarkerMaterial(
+    'human-fleeing-marker-material',
+    Color3.FromHexString('#ff2d9b'),
+  ),
+  SeekingPartner: createMarkerMaterial(
+    'human-seeking-partner-marker-material',
+    Color3.FromHexString('#7c4dff'),
+  ),
+  Mating: createMarkerMaterial(
+    'human-mating-marker-material',
+    Color3.FromHexString('#ff3d7f'),
+  ),
+} as const
+
+const pregnancyMarkerMaterial =
+  createMarkerMaterial(
+    'pregnancy-marker-material',
+    Color3.FromHexString('#00e5c0'),
   )
 
-const humanWomanSpriteMaterial =
-  createSpriteMaterial(
-    'human-woman-sprite-material',
-    humanWomanSpriteUrl,
+const wolfMarkerMaterial =
+  createMarkerMaterial(
+    'wolf-marker-material',
+    Color3.FromHexString('#f2f2f2'),
   )
 
-const humanBoySpriteMaterial =
-  createSpriteMaterial(
-    'human-boy-sprite-material',
-    humanBoySpriteUrl,
+const wolfEyeMarkerMaterial =
+  createMarkerMaterial(
+    'wolf-eye-marker-material',
+    Color3.FromHexString('#ff1f3d'),
   )
 
-const humanGirlSpriteMaterial =
-  createSpriteMaterial(
-    'human-girl-sprite-material',
-    humanGirlSpriteUrl,
+const birdMarkerMaterial =
+  createMarkerMaterial(
+    'bird-marker-material',
+    Color3.FromHexString('#009dff'),
   )
 
-const maleWolfSpriteMaterial =
-  createSpriteMaterial(
-    'male-wolf-sprite-material',
-    maleWolfSpriteUrl,
+const grazerMarkerMaterial =
+  createMarkerMaterial(
+    'grazer-marker-material',
+    Color3.FromHexString('#d97706'),
   )
 
-const femaleWolfSpriteMaterial =
-  createSpriteMaterial(
-    'female-wolf-sprite-material',
-    femaleWolfSpriteUrl,
-  )
-
-const wolfPupSpriteMaterial =
-  createSpriteMaterial(
-    'wolf-pup-sprite-material',
-    wolfPupSpriteUrl,
-  )
-
-const birdFlockSpriteMaterial =
-  createSpriteMaterial(
-    'bird-flock-sprite-material',
-    birdFlockSpriteUrl,
-  )
-
-const grazerCohortSpriteMaterial =
-  createSpriteMaterial(
-    'grazer-cohort-sprite-material',
-    grazerCohortSpriteUrl,
-  )
-
-const invertebrateSpriteMaterial =
-  createSpriteMaterial(
-    'invertebrate-sprite-material',
-    invertebrateSpriteUrl,
+const invertebrateMarkerMaterial =
+  createMarkerMaterial(
+    'invertebrate-marker-material',
+    Color3.FromHexString('#22c55e'),
   )
 
 if (sessionId) {
@@ -1396,12 +2094,6 @@ if (sessionId) {
 
     livingPresentationMeshes = []
 
-    const secondsPerYear =
-      31_536_000
-
-    const humanAdultDisplayAgeSeconds =
-      18 * secondsPerYear
-
     const wolfJuvenileDisplayAgeSeconds =
       180 * 86_400
 
@@ -1657,14 +2349,16 @@ if (sessionId) {
         64,
       )
 
-    const createBillboardPlane = (
+    const createBillboardMarker = (
       name: string,
       material: StandardMaterial,
       latitudeDegrees: number,
       longitudeDegrees: number,
-      size: number,
+      diameter: number,
+      metadata: LivingMarkerMetadata,
       radialLift =
         livingSymbolRadialLift,
+      visibility = 1,
     ): Mesh => {
       const direction =
         geographicDegreesToSphereDirection(
@@ -1684,119 +2378,228 @@ if (sessionId) {
             radialLift,
         )
 
-      const plane =
-        CreatePlane(
+      const marker =
+        CreateDisc(
           name,
           {
-            width: size,
-            height: size,
+            radius:
+              diameter / 2,
+            tessellation: 24,
             sideOrientation:
               Mesh.DOUBLESIDE,
           },
           scene,
         )
 
-      plane.position =
+      marker.position =
         position
 
-      plane.material =
+      marker.material =
         material
 
-      plane.billboardMode =
+      marker.visibility =
+        visibility
+
+      marker.billboardMode =
         Mesh.BILLBOARDMODE_ALL
 
-      plane.isPickable =
-        false
+      marker.isPickable =
+        true
 
-      plane.renderingGroupId =
+      marker.metadata = {
+        livingMarker: metadata,
+      }
+
+      marker.renderingGroupId =
         2
 
       livingPresentationMeshes.push(
-        plane,
+        marker,
       )
 
-      return plane
+      return marker
     }
 
-    for (const person of visiblePopulation) {
+    const formatLivingAge = (
+      birthTimeSeconds: number,
+    ): string => {
       const ageSeconds =
         Math.max(
           0,
           world.currentTimeSeconds -
-            person.birthTimeSeconds,
+            birthTimeSeconds,
         )
 
-      const isChild =
-        ageSeconds <
-        humanAdultDisplayAgeSeconds
+      const ageYears =
+        ageSeconds /
+        31_536_000
+
+      if (ageYears >= 1) {
+        return `${ageYears.toFixed(
+          ageYears >= 10
+            ? 0
+            : 1,
+        )} years`
+      }
+
+      return `${Math.floor(
+        ageSeconds / 86_400,
+      )} days`
+    }
+
+    for (const person of visiblePopulation) {
+      const energy =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            person.energyReserve,
+          ),
+        )
+
+      const health =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            person.health,
+          ),
+        )
 
       const material =
-        isChild
-          ? person.sex === 'Female'
-            ? humanGirlSpriteMaterial
-            : humanBoySpriteMaterial
-          : person.sex === 'Female'
-            ? humanWomanSpriteMaterial
-            : humanManSpriteMaterial
+        humanMarkerMaterials[
+          person.activity as
+            keyof typeof humanMarkerMaterials
+        ] ??
+        humanMarkerMaterials.Idle
 
-      createBillboardPlane(
+      const coreDiameter =
+        person.activity === 'Fleeing'
+          ? 0.020
+          : person.activity === 'Traveling'
+            ? 0.018
+            : 0.014 +
+              energy * 0.0035
+
+      if (person.isPregnant) {
+        createBillboardMarker(
+          `human-${person.personId}-pregnancy-halo`,
+          pregnancyMarkerMaterial,
+          person.latitudeDegrees,
+          person.longitudeDegrees,
+          coreDiameter + 0.012,
+          {
+            kind: 'humans',
+            title:
+              `Human · ${person.sex}`,
+            detail:
+              `${formatLivingAge(person.birthTimeSeconds)} · Status: ${person.activity} · Health ${Math.round(health * 100)}% · Energy ${Math.round(energy * 100)}% · Pregnant`,
+          },
+          livingSymbolRadialLift,
+          0.42,
+        )
+      }
+
+      createBillboardMarker(
         `human-${person.personId}`,
         material,
         person.latitudeDegrees,
         person.longitudeDegrees,
-        isChild
-          ? 0.026
-          : 0.032,
+        coreDiameter,
+        {
+          kind: 'humans',
+          title:
+            `Human · ${person.sex}`,
+          detail:
+            `${formatLivingAge(person.birthTimeSeconds)} · Status: ${person.activity} · Health ${Math.round(health * 100)}% · Energy ${Math.round(energy * 100)}%${person.isPregnant ? ' · Pregnant' : ''}`,
+        },
+        livingSymbolRadialLift +
+          0.0004,
+        0.72 +
+          health * 0.28,
       )
     }
 
     for (const wolf of visibleWolves) {
-      const ageSeconds =
+      const wolfEnergy =
         Math.max(
           0,
-          world.currentTimeSeconds -
-            wolf.birthTimeSeconds,
+          Math.min(
+            1,
+            wolf.energyReserve,
+          ),
         )
 
-      const isJuvenile =
-        ageSeconds <
-        wolfJuvenileDisplayAgeSeconds
+      const wolfHealth =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            wolf.health,
+          ),
+        )
 
-      const material =
-        isJuvenile
-          ? wolfPupSpriteMaterial
-          : wolf.sex === 'Female'
-            ? femaleWolfSpriteMaterial
-            : maleWolfSpriteMaterial
+      const wolfMetadata: LivingMarkerMetadata = {
+        kind: 'wolves',
+        title:
+          `Wolf · ${wolf.sex ?? 'Unknown sex'}`,
+        detail:
+          `${formatLivingAge(wolf.birthTimeSeconds)} · Status: ${wolf.activity} · Health ${Math.round(wolfHealth * 100)}% · Energy ${Math.round(wolfEnergy * 100)}%${wolf.isPregnant ? ' · Pregnant' : ''}`,
+      }
 
-      createBillboardPlane(
+      const markerDiameter =
+        wolf.activity === 'Attacking'
+          ? 0.025
+          : wolf.activity === 'Traveling'
+            ? 0.022
+            : 0.019
+
+      createBillboardMarker(
         `wolf-${wolf.animalId}`,
-        material,
+        wolfMarkerMaterial,
         wolf.latitudeDegrees,
         wolf.longitudeDegrees,
-        isJuvenile
-          ? 0.028
-          : 0.036,
+        markerDiameter,
+        wolfMetadata,
+        livingSymbolRadialLift +
+          0.001,
+      )
+
+      createBillboardMarker(
+        `wolf-${wolf.animalId}-eye`,
+        wolfEyeMarkerMaterial,
+        wolf.latitudeDegrees,
+        wolf.longitudeDegrees,
+        0.006,
+        wolfMetadata,
+        livingSymbolRadialLift +
+          0.0014,
       )
     }
 
     for (const flock of visibleBirdFlocks) {
       const scale =
         Math.min(
-          0.055,
-          0.030 +
+          0.042,
+          0.022 +
             Math.log10(
               flock.memberCount + 1,
             ) *
-              0.004,
+              0.003,
         )
 
-      createBillboardPlane(
+      createBillboardMarker(
         `bird-flock-${flock.flockId}`,
-        birdFlockSpriteMaterial,
+        birdMarkerMaterial,
         flock.latitudeDegrees,
         flock.longitudeDegrees,
         scale,
+        {
+          kind: 'birds',
+          title: 'Bird flock',
+          detail:
+            `${flock.memberCount.toLocaleString()} birds`,
+        },
         0.012,
       )
     }
@@ -1979,20 +2782,26 @@ if (sessionId) {
     ) {
       const scale =
         Math.min(
-          0.068,
-          0.046 +
+          0.050,
+          0.034 +
             Math.log10(
               cluster.memberCount + 1,
             ) *
-              0.0025,
+              0.0018,
         )
 
-      createBillboardPlane(
+      createBillboardMarker(
         `grazer-cluster-${cluster.key}`,
-        grazerCohortSpriteMaterial,
+        grazerMarkerMaterial,
         cluster.latitudeDegrees,
         cluster.longitudeDegrees,
         scale,
+        {
+          kind: 'grazers',
+          title: 'Grazer group',
+          detail:
+            `${cluster.memberCount.toLocaleString()} grazers · ${cluster.cohortCount.toLocaleString()} ${cluster.cohortCount === 1 ? 'cohort' : 'cohorts'}`,
+        },
       )
     }
 
@@ -2014,23 +2823,30 @@ if (sessionId) {
 
       const scale =
         Math.min(
-          0.040,
-          0.020 +
+          0.030,
+          0.015 +
             Math.log10(
               1 +
                 cell.liveBiomassKilogramsPerSquareMeter *
                   1_000,
             ) *
-              0.004,
+              0.003,
         )
 
-      createBillboardPlane(
+      createBillboardMarker(
         `invertebrates-${cell.surfaceCellId}`,
-        invertebrateSpriteMaterial,
+        invertebrateMarkerMaterial,
         surfaceCell.centerLatitudeDegrees,
         surfaceCell.centerLongitudeDegrees,
         scale,
+        {
+          kind: 'invertebrates',
+          title: 'Invertebrates',
+          detail:
+            `Surface cell ${cell.surfaceCellId} · ${cell.liveBiomassKilogramsPerSquareMeter.toLocaleString(undefined, { maximumSignificantDigits: 3 })} kg/m² live biomass`,
+        },
         0.009,
+        0.42,
       )
 
       renderedInvertebrateCells +=
@@ -2098,6 +2914,102 @@ if (sessionId) {
 
   renderLivingWorld()
 
+  const clearLivingMarkerHover = () => {
+    livingMarkerTooltip.hidden =
+      true
+
+    canvas.style.cursor =
+      ''
+
+    if (sessionStatus) {
+      delete sessionStatus.dataset
+        .livingHover
+    }
+  }
+
+  canvas.addEventListener(
+    'pointermove',
+    pointerEvent => {
+      const pickInfo =
+        scene.pick(
+          scene.pointerX,
+          scene.pointerY,
+          mesh =>
+            Boolean(
+              mesh.metadata
+                ?.livingMarker,
+            ),
+        )
+
+      const pickedMesh =
+        pickInfo?.hit
+          ? pickInfo.pickedMesh
+          : null
+
+      const metadata =
+        pickedMesh?.metadata
+          ?.livingMarker as
+            | LivingMarkerMetadata
+            | undefined
+
+      if (!metadata) {
+        clearLivingMarkerHover()
+        return
+      }
+
+      livingMarkerTooltipTitle.textContent =
+        metadata.title
+
+      livingMarkerTooltipDetail.textContent =
+        metadata.detail
+
+      livingMarkerTooltip.hidden =
+        false
+
+      const desiredLeft =
+        pointerEvent.clientX + 14
+
+      const desiredTop =
+        pointerEvent.clientY + 14
+
+      livingMarkerTooltip.style.left =
+        `${Math.max(
+          10,
+          Math.min(
+            desiredLeft,
+            window.innerWidth -
+              livingMarkerTooltip.offsetWidth -
+              10,
+          ),
+        )}px`
+
+      livingMarkerTooltip.style.top =
+        `${Math.max(
+          10,
+          Math.min(
+            desiredTop,
+            window.innerHeight -
+              livingMarkerTooltip.offsetHeight -
+              10,
+          ),
+        )}px`
+
+      canvas.style.cursor =
+        'help'
+
+      if (sessionStatus) {
+        sessionStatus.dataset
+          .livingHover =
+            metadata.kind
+      }
+    },
+  )
+
+  canvas.addEventListener(
+    'pointerleave',
+    clearLivingMarkerHover,
+  )
+
   const telemetrySection = (
     title: string,
     metrics: ReadonlyArray<
@@ -2118,6 +3030,41 @@ if (sessionId) {
               </div>`,
           ).join('')}
         </div>
+      </div>
+    `
+
+  const livingWorldRow = (
+    kind: LivingMarkerKind,
+    label: string,
+    spriteUrls: readonly string[],
+    value: string | number,
+    detail: string,
+  ): string =>
+    `
+      <div
+        class="living-world-row"
+        data-living-kind="${kind}"
+      >
+        <div class="living-world-identity">
+          <div
+            class="living-world-sprites"
+            aria-hidden="true"
+          >
+            ${spriteUrls.map(
+              url =>
+                `<img
+                  class="living-world-sprite"
+                  src="${url}"
+                  alt=""
+                />`,
+            ).join('')}
+          </div>
+          <div class="living-world-copy">
+            <span>${label}</span>
+            <small>${detail}</small>
+          </div>
+        </div>
+        <strong>${value}</strong>
       </div>
     `
 
@@ -2156,6 +3103,11 @@ if (sessionId) {
         person => person.isPregnant,
       ).length
 
+    renderHumanMarkerLegend(
+      activityCounts,
+      pregnantPeople,
+    )
+
     const pregnantWolves =
       wolves.filter(
         wolf => wolf.isPregnant,
@@ -2192,6 +3144,13 @@ if (sessionId) {
           sum + cohort.memberCount,
         0,
       ) ?? 0
+
+    const activeInvertebrateCellCount =
+      invertebrates?.cells.filter(
+        cell =>
+          cell.liveBiomassKilogramsPerSquareMeter >
+          0,
+      ).length ?? 0
 
     const day =
       world.currentTimeSeconds /
@@ -2242,17 +3201,59 @@ if (sessionId) {
           ['Average health', averageHealth.toFixed(2)],
         ],
       ) +
-      telemetrySection(
-        'Living world',
-        [
-          ['Wolves', wolves.length],
-          ['Pregnant wolves', pregnantWolves],
-          ['Bird flocks', birdFlocks?.flocks.length ?? 0],
-          ['Birds', birdMembers.toLocaleString()],
-          ['Grazer cohorts', grazerCohorts?.cohorts.length ?? 0],
-          ['Grazers', grazerMembers.toLocaleString()],
-        ],
-      ) +
+      `
+        <div class="simulation-telemetry-section">
+          <div class="simulation-telemetry-section-title">
+            Living world
+          </div>
+          <div class="living-world-list">
+            ${livingWorldRow(
+              'humans',
+              'Humans',
+              [
+                humanManSpriteUrl,
+                humanWomanSpriteUrl,
+                humanBoySpriteUrl,
+                humanGirlSpriteUrl,
+              ],
+              population.length.toLocaleString(),
+              `${pregnantPeople} pregnant`,
+            )}
+            ${livingWorldRow(
+              'wolves',
+              'Wolves',
+              [
+                maleWolfSpriteUrl,
+                femaleWolfSpriteUrl,
+                wolfPupSpriteUrl,
+              ],
+              wolves.length.toLocaleString(),
+              `${pregnantWolves} pregnant`,
+            )}
+            ${livingWorldRow(
+              'birds',
+              'Birds',
+              [birdFlockSpriteUrl],
+              birdMembers.toLocaleString(),
+              `${birdFlocks?.flocks.length ?? 0} flocks`,
+            )}
+            ${livingWorldRow(
+              'grazers',
+              'Grazers',
+              [grazerCohortSpriteUrl],
+              grazerMembers.toLocaleString(),
+              `${grazerCohorts?.cohorts.length ?? 0} cohorts`,
+            )}
+            ${livingWorldRow(
+              'invertebrates',
+              'Invertebrates',
+              [invertebrateSpriteUrl],
+              activeInvertebrateCellCount.toLocaleString(),
+              'active surface cells',
+            )}
+          </div>
+        </div>
+      ` +
       telemetrySection(
         'Population change',
         [

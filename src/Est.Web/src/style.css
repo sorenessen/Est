@@ -352,6 +352,317 @@ body {
   white-space: nowrap;
 }
 
+.living-marker-legend {
+  position: fixed;
+  z-index: 35;
+  top: 8px;
+  left: 8px;
+  width: 248px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 9, 14, 0.94);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(10px);
+}
+
+.living-marker-legend[hidden] {
+  display: none;
+}
+
+.living-marker-legend-heading {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.living-marker-legend-heading strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.living-marker-legend-heading span,
+.living-marker-legend-note {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.living-marker-legend-section {
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.living-marker-legend-section > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.living-marker-human-activities {
+  display: grid;
+  gap: 5px;
+}
+
+.living-marker-legend-live-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 7px 8px;
+  min-height: 18px;
+  font-size: 11px;
+}
+
+.living-marker-legend-live-row > strong {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.living-marker-legend-live-row.is-inactive {
+  opacity: 0.32;
+}
+
+.living-marker-legend-waiting,
+.living-marker-legend-encoding {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.living-marker-legend-encoding {
+  margin-top: 9px;
+}
+
+.living-marker-legend-other {
+  display: grid;
+  gap: 9px;
+}
+
+.living-marker-legend-other-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.living-marker-legend-other-row > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.living-marker-legend-other-row strong {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.living-marker-legend-other-row small {
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.legend-marker {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.legend-human-idle {
+  background: #ffcc00;
+}
+
+.legend-human-foraging {
+  background: #ff7a00;
+}
+
+.legend-human-eating {
+  background: #21d66f;
+}
+
+.legend-human-traveling {
+  background: #00c8ff;
+}
+
+.legend-human-fleeing {
+  background: #ff2d9b;
+}
+
+.legend-human-seeking {
+  background: #7c4dff;
+}
+
+.legend-human-mating {
+  background: #ff3d7f;
+}
+
+.legend-pregnancy {
+  background: #00e5c0;
+  box-shadow:
+    0 0 0 3px rgba(0, 229, 192, 0.28);
+}
+
+.legend-wolf {
+  background: #f2f2f2;
+}
+
+.legend-wolf::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #ff1f3d;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+.legend-bird {
+  background: #009dff;
+}
+
+.legend-grazer {
+  background: #d97706;
+}
+
+.legend-invertebrate {
+  background: #22c55e;
+}
+
+.living-marker-legend-note {
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.living-marker-tooltip {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  max-width: min(320px, calc(100vw - 20px));
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(5, 9, 14, 0.94);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.living-marker-tooltip[hidden] {
+  display: none;
+}
+
+.living-marker-tooltip strong {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.living-marker-tooltip span {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.living-world-list {
+  display: grid;
+  gap: 5px;
+}
+
+.simulation-telemetry[data-living-hover='humans']
+  .living-world-row[data-living-kind='humans'],
+.simulation-telemetry[data-living-hover='wolves']
+  .living-world-row[data-living-kind='wolves'],
+.simulation-telemetry[data-living-hover='birds']
+  .living-world-row[data-living-kind='birds'],
+.simulation-telemetry[data-living-hover='grazers']
+  .living-world-row[data-living-kind='grazers'],
+.simulation-telemetry[data-living-hover='invertebrates']
+  .living-world-row[data-living-kind='invertebrates'] {
+  margin: 0 -7px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 2px 0 0 rgba(255, 255, 255, 0.72);
+}
+
+.living-world-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+}
+
+.living-world-identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.living-world-sprites {
+  display: flex;
+  align-items: center;
+  width: 72px;
+  min-height: 30px;
+  flex: 0 0 72px;
+}
+
+.living-world-sprite {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(
+    0 2px 4px rgba(0, 0, 0, 0.35)
+  );
+}
+
+.living-world-sprite + .living-world-sprite {
+  margin-left: -10px;
+}
+
+.living-world-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.living-world-copy span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.living-world-copy small {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.living-world-row > strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .activity-dot {
   width: 8px;
   height: 8px;
@@ -459,7 +770,8 @@ body {
 .babylon-observer-panel {
   position: absolute;
   top: 18px;
-  right: 18px;
+  right: auto;
+  left: 18px;
   z-index: 20;
   width: min(360px, calc(100% - 36px));
   min-width: 300px;
@@ -549,8 +861,15 @@ body {
 
 .babylon-observer-restore {
   top: 18px;
-  right: 18px;
-  left: auto;
+  right: auto;
+  left: 18px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.babylon-observer-restore.is-dragging {
+  cursor: grabbing;
 }
 
 .babylon-observer-panel[hidden],
@@ -607,17 +926,73 @@ body {
   line-height: 1.4;
 }
 
-#observerPanelViewerModeButton {
-  min-width: auto;
+#observerPanelLegendButton,
+#observerPanelMinimizeButton {
+  width: auto;
+  min-width: max-content;
   padding-inline: 8px;
   font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 #app.is-clean-viewer .babylon-observer-panel,
-#app.is-clean-viewer .babylon-observer-restore {
+#app.is-clean-viewer .babylon-observer-restore,
+#app.is-clean-viewer .living-marker-legend,
+#app.is-clean-viewer .living-marker-tooltip {
   display: none !important;
+}
+
+.panel-visibility-tip {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(5, 9, 14, 0.92);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translate(-50%, -6px);
+}
+
+.panel-visibility-tip[hidden] {
+  display: none;
+}
+
+.panel-visibility-tip.is-visible {
+  animation:
+    panel-visibility-tip-cycle
+    5s
+    ease
+    forwards;
+}
+
+@keyframes panel-visibility-tip-cycle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+
+  8%,
+  82% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
 }
 
 /* Observatory resized-window behavior:
