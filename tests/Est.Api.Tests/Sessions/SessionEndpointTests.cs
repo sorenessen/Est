@@ -39,6 +39,7 @@ public sealed class SessionEndpointTests
         Assert.Equal(created.WorldId, world.WorldId);
         Assert.Equal(0, world.CurrentTimeSeconds);
         Assert.Empty(world.Planets);
+        Assert.Empty(world.SeasonalStates);
 
         var advanceResponse = await client.PostAsJsonAsync(
             $"/sessions/{created.SessionId}/advance",
@@ -433,6 +434,27 @@ public sealed class SessionEndpointTests
             0.01,
             planet.Environment.Atmosphere
                 .CompositionByMoleFraction["Ar"]);
+
+        var seasonalState =
+            Assert.Single(
+                world.SeasonalStates);
+
+        Assert.Equal(
+            planet.PlanetId,
+            seasonalState.PlanetId);
+
+        Assert.Equal(
+            "Disabled",
+            seasonalState.ControlMode);
+
+        Assert.Null(
+            seasonalState.DerivedContext);
+
+        Assert.Null(
+            seasonalState.OverrideContext);
+
+        Assert.Null(
+            seasonalState.EffectiveContext);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ using Est.Application.Sessions;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
-using Est.Simulation.Planets;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -140,6 +140,145 @@ public sealed class SimulationSessionTests
 
         Assert.Same(originalTimeline, session.Timeline);
         Assert.Empty(session.Timeline.Events);
+    }
+
+    [Fact]
+    public void OverridePlanetSeasonalState_ChangesEffectiveContextWithoutAdvancingTime()
+    {
+        var planet = CreatePlanet();
+
+        var derivedContext =
+            new SeasonalContext(
+                "warm",
+                0.25);
+
+        var originalSeasonalState =
+            new PlanetSeasonalState(
+                planet.Id,
+                SeasonalControlMode.Derived,
+                derivedContext:
+                    derivedContext);
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    new SimulationTime(
+                        120),
+                    [planet],
+                    [],
+                    seasonalStates:
+                        [originalSeasonalState]));
+
+        var originalTimeline =
+            session.Timeline;
+
+        var overrideContext =
+            new SeasonalContext(
+                "cold",
+                0.75);
+
+        var timeline =
+            session.OverridePlanetSeasonalState(
+                planet.Id,
+                overrideContext);
+
+        var seasonalState =
+            Assert.Single(
+                timeline.CurrentWorld.SeasonalStates);
+
+        Assert.Equal(
+            SeasonalControlMode.Override,
+            seasonalState.ControlMode);
+
+        Assert.Equal(
+            derivedContext,
+            seasonalState.DerivedContext);
+
+        Assert.Equal(
+            overrideContext,
+            seasonalState.OverrideContext);
+
+        Assert.Equal(
+            overrideContext,
+            seasonalState.EffectiveContext);
+
+        Assert.Equal(
+            120,
+            timeline.CurrentWorld.CurrentTime.TotalSeconds);
+
+        Assert.Equal(
+            originalTimeline.Id,
+            timeline.Id);
+
+        var intervention =
+            Assert.Single(
+                timeline.Events);
+
+        Assert.Equal(
+            0,
+            intervention.ElapsedSeconds);
+
+        Assert.Equal(
+            planet.Id,
+            intervention.AffectedPlanetId);
+
+        Assert.Equal(
+            120,
+            intervention.OccurredAt.TotalSeconds);
+
+        Assert.Equal(
+            "User intervention",
+            intervention.Cause);
+
+        Assert.Empty(
+            originalTimeline.Events);
+
+        var originalState =
+            Assert.Single(
+                originalTimeline.CurrentWorld.SeasonalStates);
+
+        Assert.Equal(
+            SeasonalControlMode.Derived,
+            originalState.ControlMode);
+
+        Assert.Equal(
+            derivedContext,
+            originalState.EffectiveContext);
+    }
+
+    [Fact]
+    public void OverridePlanetSeasonalState_RejectsUnknownPlanetWithoutChangingState()
+    {
+        var planet =
+            CreatePlanet();
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var originalTimeline =
+            session.Timeline;
+
+        Assert.Throws<PlanetNotFoundException>(
+            () =>
+                session.OverridePlanetSeasonalState(
+                    PlanetId.New(),
+                    new SeasonalContext(
+                        "cold")));
+
+        Assert.Same(
+            originalTimeline,
+            session.Timeline);
+
+        Assert.Empty(
+            session.Timeline.Events);
+
+        Assert.Empty(
+            session.CurrentWorld.SeasonalStates);
     }
 
     private static PlanetState CreatePlanet() =>

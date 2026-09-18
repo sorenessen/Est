@@ -67,12 +67,26 @@ export interface AnimalResponse {
   }
 }
 
+export interface SeasonalContextResponse {
+  phaseId: string
+  cycleFraction: number | null
+}
+
+export interface SeasonalStateResponse {
+  planetId: string
+  controlMode: string
+  derivedContext: SeasonalContextResponse | null
+  overrideContext: SeasonalContextResponse | null
+  effectiveContext: SeasonalContextResponse | null
+}
+
 export interface WorldResponse {
   worldId: string
   currentTimeSeconds: number
   planets: PlanetResponse[]
   population: PopulationPersonResponse[]
   animals: AnimalResponse[]
+  seasonalStates: SeasonalStateResponse[]
 }
 
 export interface SurfaceGridResponse {

@@ -8,6 +8,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
@@ -18,7 +19,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 21;
+    public const int CurrentSchemaVersion = 22;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -40,6 +41,7 @@ public static class WorldSnapshotSerializer
     private const int GrazerRecruitmentSchemaVersion = 19;
     private const int InvertebrateMaterialSchemaVersion = 20;
     private const int BirdRecruitmentSchemaVersion = 21;
+    private const int SeasonalStateSchemaVersion = 22;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -88,6 +90,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             Biogeochemistry = world.Biogeochemistry
                 .Select(ToSnapshot)
+                .ToArray(),
+            SeasonalStates = world.SeasonalStates
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -131,6 +136,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != WolfLifecycleSchemaVersion &&
             snapshot.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != InvertebrateMaterialSchemaVersion &&
+            snapshot.SchemaVersion != BirdRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -398,6 +404,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetSeasonalState[] seasonalStates;
+
+        if (snapshot.SchemaVersion <
+            SeasonalStateSchemaVersion)
+        {
+            seasonalStates = [];
+        }
+        else
+        {
+            if (snapshot.SeasonalStates is null)
+            {
+                throw new JsonException(
+                    "Snapshot seasonal states collection is required.");
+            }
+
+            seasonalStates = snapshot.SeasonalStates
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -410,7 +436,69 @@ public static class WorldSnapshotSerializer
             invertebrates,
             birdFlocks,
             grazerCohorts,
-            biogeochemistry);
+            biogeochemistry,
+            seasonalStates);
+    }
+
+    private static PlanetSeasonalSnapshot ToSnapshot(
+        PlanetSeasonalState seasonalState)
+    {
+        return new PlanetSeasonalSnapshot
+        {
+            PlanetId =
+                seasonalState.PlanetId.Value,
+            ControlMode =
+                seasonalState.ControlMode,
+            DerivedContext =
+                seasonalState.DerivedContext is null
+                    ? null
+                    : ToSnapshot(
+                        seasonalState.DerivedContext),
+            OverrideContext =
+                seasonalState.OverrideContext is null
+                    ? null
+                    : ToSnapshot(
+                        seasonalState.OverrideContext)
+        };
+    }
+
+    private static PlanetSeasonalState FromSnapshot(
+        PlanetSeasonalSnapshot snapshot)
+    {
+        return new PlanetSeasonalState(
+            new PlanetId(
+                snapshot.PlanetId),
+            snapshot.ControlMode,
+            derivedContext:
+                snapshot.DerivedContext is null
+                    ? null
+                    : FromSnapshot(
+                        snapshot.DerivedContext),
+            overrideContext:
+                snapshot.OverrideContext is null
+                    ? null
+                    : FromSnapshot(
+                        snapshot.OverrideContext));
+    }
+
+    private static SeasonalContextSnapshot ToSnapshot(
+        SeasonalContext context)
+    {
+        return new SeasonalContextSnapshot
+        {
+            PhaseId =
+                context.PhaseId,
+            CycleFraction =
+                context.CycleFraction
+        };
+    }
+
+    private static SeasonalContext FromSnapshot(
+        SeasonalContextSnapshot snapshot)
+    {
+        return new SeasonalContext(
+            snapshot.PhaseId,
+            snapshot.CycleFraction);
     }
 
     private static BirdFlockSnapshot ToSnapshot(
@@ -1297,6 +1385,25 @@ public static class WorldSnapshotSerializer
         public BirdFlockSnapshot[]? BirdFlocks { get; set; }
         public GrazerCohortSnapshot[]? GrazerCohorts { get; set; }
         public PlanetBiogeochemistrySnapshot[]? Biogeochemistry { get; set; }
+        public PlanetSeasonalSnapshot[]? SeasonalStates { get; set; }
+    }
+
+    private sealed class PlanetSeasonalSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SeasonalControlMode ControlMode { get; set; }
+
+        public SeasonalContextSnapshot? DerivedContext { get; set; }
+
+        public SeasonalContextSnapshot? OverrideContext { get; set; }
+    }
+
+    private sealed class SeasonalContextSnapshot
+    {
+        public required string PhaseId { get; set; }
+
+        public double? CycleFraction { get; set; }
     }
 
     private sealed class PlanetBiogeochemistrySnapshot

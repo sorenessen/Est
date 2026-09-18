@@ -4,6 +4,7 @@ using Est.Persistence.Storage;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -179,6 +180,177 @@ public sealed class SimulationSessionArchiveServiceTests
 
             if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SaveAndLoad_PreservesSeasonalOverrideAndResumedBehavior()
+    {
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            "Est.Tests",
+            Guid.NewGuid().ToString("N"),
+            "timeline.json");
+
+        try
+        {
+            var manager =
+                new SimulationSessionManager();
+
+            var service =
+                new SimulationSessionArchiveService(
+                    manager,
+                    new TimelineArchiveFileStore());
+
+            var planet =
+                new PlanetState(
+                    PlanetId.New(),
+                    "Seasonal World",
+                    5.9722e24,
+                    6_371_000,
+                    new PlanetEnvironment(
+                        288.15,
+                        0.71,
+                        0.03,
+                        AtmosphereState.Vacuum));
+
+            var derivedContext =
+                new SeasonalContext(
+                    "warm",
+                    0.25);
+
+            var initialSeasonalState =
+                new PlanetSeasonalState(
+                    planet.Id,
+                    SeasonalControlMode.Derived,
+                    derivedContext:
+                        derivedContext);
+
+            var sessionId =
+                manager.Create(
+                    new WorldState(
+                        WorldId.New(),
+                        SimulationTime.Zero,
+                        [planet],
+                        [],
+                        seasonalStates:
+                            [initialSeasonalState]));
+
+            var original =
+                manager.Get(
+                    sessionId);
+
+            var overrideContext =
+                new SeasonalContext(
+                    "cold",
+                    0.75);
+
+            original.OverridePlanetSeasonalState(
+                planet.Id,
+                overrideContext);
+
+            Assert.Equal(
+                0,
+                original.CurrentWorld.CurrentTime.TotalSeconds);
+
+            service.Save(
+                sessionId,
+                path,
+                new TimelineArchiveProvenance(
+                    "Est",
+                    "0.1.0-alpha",
+                    "simulation"));
+
+            var restoredId =
+                service.Load(
+                    path);
+
+            var restored =
+                manager.Get(
+                    restoredId);
+
+            var restoredState =
+                Assert.Single(
+                    restored.CurrentWorld.SeasonalStates);
+
+            Assert.Equal(
+                SeasonalControlMode.Override,
+                restoredState.ControlMode);
+
+            Assert.Equal(
+                derivedContext,
+                restoredState.DerivedContext);
+
+            Assert.Equal(
+                overrideContext,
+                restoredState.OverrideContext);
+
+            Assert.Equal(
+                overrideContext,
+                restoredState.EffectiveContext);
+
+            Assert.Equal(
+                0,
+                restored.CurrentWorld.CurrentTime.TotalSeconds);
+
+            var intervention =
+                Assert.Single(
+                    restored.Timeline.Events);
+
+            Assert.Equal(
+                "User intervention",
+                intervention.Cause);
+
+            Assert.Equal(
+                planet.Id,
+                intervention.AffectedPlanetId);
+
+            Assert.Equal(
+                0,
+                intervention.ElapsedSeconds);
+
+            restored.Advance(
+                60);
+
+            Assert.Equal(
+                60,
+                restored.CurrentWorld.CurrentTime.TotalSeconds);
+
+            var advancedState =
+                Assert.Single(
+                    restored.CurrentWorld.SeasonalStates);
+
+            Assert.Equal(
+                SeasonalControlMode.Override,
+                advancedState.ControlMode);
+
+            Assert.Equal(
+                overrideContext,
+                advancedState.EffectiveContext);
+
+            Assert.Equal(
+                0,
+                original.CurrentWorld.CurrentTime.TotalSeconds);
+
+            Assert.Equal(
+                SeasonalControlMode.Override,
+                Assert.Single(
+                    original.CurrentWorld.SeasonalStates)
+                    .ControlMode);
+        }
+        finally
+        {
+            var directory =
+                Path.GetDirectoryName(
+                    path)!;
+
+            if (Directory.Exists(
+                    directory))
+            {
+                Directory.Delete(
+                    directory,
+                    recursive: true);
+            }
         }
     }
 

@@ -15,6 +15,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
@@ -1789,6 +1790,36 @@ static WorldResponse ToWorldResponse(
                         new OrganismMaterialResponse(
                             animal.Material.LiveBiomassKilograms,
                             animal.Material.LiveNitrogenKilograms)))
+            .ToArray(),
+        world.Planets
+            .Select(
+                planet =>
+                    world.SeasonalStates.FirstOrDefault(
+                        state =>
+                            state.PlanetId ==
+                            planet.Id)
+                    ?? new PlanetSeasonalState(
+                        planet.Id))
+            .Select(
+                state =>
+                    new SeasonalStateResponse(
+                        state.PlanetId.Value,
+                        state.ControlMode.ToString(),
+                        state.DerivedContext is null
+                            ? null
+                            : new SeasonalContextResponse(
+                                state.DerivedContext.PhaseId,
+                                state.DerivedContext.CycleFraction),
+                        state.OverrideContext is null
+                            ? null
+                            : new SeasonalContextResponse(
+                                state.OverrideContext.PhaseId,
+                                state.OverrideContext.CycleFraction),
+                        state.EffectiveContext is null
+                            ? null
+                            : new SeasonalContextResponse(
+                                state.EffectiveContext.PhaseId,
+                                state.EffectiveContext.CycleFraction)))
             .ToArray());
 }
 

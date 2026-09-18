@@ -7,6 +7,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Terrain;
 using Est.Simulation.Vegetation;
@@ -60,7 +61,8 @@ public sealed record WorldState
         IEnumerable<PlanetInvertebrateState>? invertebrates = null,
         IEnumerable<BirdFlockState>? birdFlocks = null,
         IEnumerable<GrazerCohortState>? grazerCohorts = null,
-        IEnumerable<PlanetBiogeochemistryState>? biogeochemistry = null)
+        IEnumerable<PlanetBiogeochemistryState>? biogeochemistry = null,
+        IEnumerable<PlanetSeasonalState>? seasonalStates = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -96,6 +98,9 @@ public sealed record WorldState
 
         var biogeochemistryArray =
             (biogeochemistry ?? []).ToImmutableArray();
+
+        var seasonalStateArray =
+            (seasonalStates ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -290,6 +295,38 @@ public sealed record WorldState
         var planetIds = planetArray
             .Select(planet => planet.Id)
             .ToHashSet();
+
+        if (seasonalStateArray.Any(
+                state =>
+                    state is null))
+        {
+            throw new ArgumentException(
+                "World seasonal states cannot contain null entries.",
+                nameof(seasonalStates));
+        }
+
+        if (seasonalStateArray
+            .GroupBy(
+                state =>
+                    state.PlanetId)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain more than one seasonal state for a planet.",
+                nameof(seasonalStates));
+        }
+
+        if (seasonalStateArray.Any(
+                state =>
+                    !planetIds.Contains(
+                        state.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every seasonal state must belong to a planet in the world.",
+                nameof(seasonalStates));
+        }
 
         if (populationArray.Any(
                 person =>
@@ -551,6 +588,7 @@ public sealed record WorldState
         BirdFlocks = birdFlockArray;
         GrazerCohorts = grazerCohortArray;
         Biogeochemistry = biogeochemistryArray;
+        SeasonalStates = seasonalStateArray;
     }
 
     public WorldId Id { get; private init; }
@@ -609,6 +647,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<PlanetSeasonalState> SeasonalStates
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -631,7 +675,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState Fork()
@@ -648,7 +693,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplacePopulation(
@@ -668,7 +714,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceAnimals(
@@ -688,7 +735,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceTerrain(
@@ -708,7 +756,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceHydrology(
@@ -729,7 +778,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceVegetation(
@@ -750,7 +800,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceInvertebrates(
@@ -771,7 +822,8 @@ public sealed record WorldState
             invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceBirdFlocks(
@@ -792,7 +844,8 @@ public sealed record WorldState
             Invertebrates,
             birdFlocks,
             GrazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceGrazerCohorts(
@@ -813,7 +866,8 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             grazerCohorts,
-            Biogeochemistry);
+            Biogeochemistry,
+            SeasonalStates);
     }
 
     public WorldState ReplaceBiogeochemistry(
@@ -834,7 +888,30 @@ public sealed record WorldState
             Invertebrates,
             BirdFlocks,
             GrazerCohorts,
-            biogeochemistry);
+            biogeochemistry,
+            SeasonalStates);
+    }
+
+    public WorldState ReplaceSeasonalStates(
+        IEnumerable<PlanetSeasonalState> seasonalStates)
+    {
+        ArgumentNullException.ThrowIfNull(
+            seasonalStates);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            Invertebrates,
+            BirdFlocks,
+            GrazerCohorts,
+            Biogeochemistry,
+            seasonalStates);
     }
 
     public WorldState AddPlanet(PlanetState planet)

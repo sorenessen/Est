@@ -5,7 +5,19 @@ public sealed record WorldResponse(
     long CurrentTimeSeconds,
     PlanetResponse[] Planets,
     PopulationPersonResponse[] Population,
-    AnimalResponse[] Animals);
+    AnimalResponse[] Animals,
+    SeasonalStateResponse[] SeasonalStates);
+
+public sealed record SeasonalStateResponse(
+    Guid PlanetId,
+    string ControlMode,
+    SeasonalContextResponse? DerivedContext,
+    SeasonalContextResponse? OverrideContext,
+    SeasonalContextResponse? EffectiveContext);
+
+public sealed record SeasonalContextResponse(
+    string PhaseId,
+    double? CycleFraction);
 
 public sealed record PopulationPersonResponse(
     Guid PersonId,

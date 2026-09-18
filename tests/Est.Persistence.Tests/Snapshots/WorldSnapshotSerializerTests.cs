@@ -8,6 +8,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
@@ -1633,6 +1634,131 @@ public class WorldSnapshotSerializerTests
             WorldId.New(),
             SimulationTime.Zero,
             [planet]);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesSeasonalStates()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Seasonal World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var derived =
+            new SeasonalContext(
+                "warm",
+                0.25);
+
+        var overridden =
+            new SeasonalContext(
+                "cold",
+                0.75);
+
+        var seasonalState =
+            new PlanetSeasonalState(
+                planet.Id,
+                SeasonalControlMode.Override,
+                derivedContext:
+                    derived,
+                overrideContext:
+                    overridden);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(
+                    123_456),
+                [planet],
+                [],
+                seasonalStates:
+                    [seasonalState]);
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                WorldSnapshotSerializer.Serialize(
+                    world));
+
+        var restoredState =
+            Assert.Single(
+                restored.SeasonalStates);
+
+        Assert.Equal(
+            planet.Id,
+            restoredState.PlanetId);
+
+        Assert.Equal(
+            SeasonalControlMode.Override,
+            restoredState.ControlMode);
+
+        Assert.Equal(
+            "warm",
+            restoredState.DerivedContext?.PhaseId);
+
+        Assert.Equal(
+            0.25,
+            restoredState.DerivedContext?.CycleFraction);
+
+        Assert.Equal(
+            "cold",
+            restoredState.OverrideContext?.PhaseId);
+
+        Assert.Equal(
+            0.75,
+            restoredState.OverrideContext?.CycleFraction);
+
+        Assert.Equal(
+            restoredState.OverrideContext,
+            restoredState.EffectiveContext);
+
+        Assert.Equal(
+            123_456,
+            restored.CurrentTime.TotalSeconds);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyOneGetsEmptySeasonalStates()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node["schemaVersion"] = 21;
+        node.Remove(
+            "seasonalStates");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.SeasonalStates);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyTwoRequiresSeasonalStates()
+    {
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    CreateVacuumWorld()))!
+                .AsObject();
+
+        node.Remove(
+            "seasonalStates");
+
+        Assert.Throws<JsonException>(
+            () =>
+                WorldSnapshotSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

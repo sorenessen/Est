@@ -11,6 +11,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Vegetation;
@@ -306,6 +307,58 @@ public sealed class SimulationSession
                     operation,
                     "User intervention",
                     "Replaced planetary environment.",
+                    planetId,
+                    0);
+
+            _timeline =
+                _timeline.RecordStep(
+                    new SimulationStepResult(
+                        world,
+                        change));
+
+            return _timeline;
+        }
+    }
+
+    public SimulationTimeline OverridePlanetSeasonalState(
+        PlanetId planetId,
+        SeasonalContext overrideContext)
+    {
+        ArgumentNullException.ThrowIfNull(
+            overrideContext);
+
+        lock (_sync)
+        {
+            var existingState =
+                _timeline.CurrentWorld.SeasonalStates
+                    .FirstOrDefault(
+                        state =>
+                            state.PlanetId ==
+                            planetId);
+
+            var seasonalState =
+                new PlanetSeasonalState(
+                    planetId,
+                    SeasonalControlMode.Override,
+                    derivedContext:
+                        existingState?.DerivedContext,
+                    overrideContext:
+                        overrideContext);
+
+            var operation =
+                new ReplacePlanetSeasonalStateOperation(
+                    seasonalState);
+
+            var world =
+                SimulationOperationExecutor.Apply(
+                    _timeline.CurrentWorld,
+                    operation);
+
+            var change =
+                new SimulationChange(
+                    operation,
+                    "User intervention",
+                    "Overrode planetary seasonal state.",
                     planetId,
                     0);
 
