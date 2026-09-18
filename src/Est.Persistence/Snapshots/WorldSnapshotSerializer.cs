@@ -19,7 +19,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 22;
+    public const int CurrentSchemaVersion = 23;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -137,6 +137,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != InvertebrateMaterialSchemaVersion &&
             snapshot.SchemaVersion != BirdRecruitmentSchemaVersion &&
+            snapshot.SchemaVersion != SeasonalStateSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -489,7 +490,9 @@ public static class WorldSnapshotSerializer
             PhaseId =
                 context.PhaseId,
             CycleFraction =
-                context.CycleFraction
+                context.CycleFraction,
+            SubsolarLatitudeDegrees =
+                context.SubsolarLatitudeDegrees
         };
     }
 
@@ -498,7 +501,8 @@ public static class WorldSnapshotSerializer
     {
         return new SeasonalContext(
             snapshot.PhaseId,
-            snapshot.CycleFraction);
+            snapshot.CycleFraction,
+            snapshot.SubsolarLatitudeDegrees);
     }
 
     private static BirdFlockSnapshot ToSnapshot(
@@ -1404,6 +1408,8 @@ public static class WorldSnapshotSerializer
         public required string PhaseId { get; set; }
 
         public double? CycleFraction { get; set; }
+
+        public double? SubsolarLatitudeDegrees { get; set; }
     }
 
     private sealed class PlanetBiogeochemistrySnapshot

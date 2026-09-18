@@ -1,4 +1,7 @@
 using Est.Application.Sessions;
+using Est.Simulation.Definitions;
+using Est.Simulation.Planets;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 using Microsoft.Extensions.DependencyInjection;
@@ -1808,6 +1811,135 @@ public sealed class SessionEndpointTests
     }
 
 
+
+    [Fact]
+    public async Task SeasonalDefinitionAndWorldResources_ReturnDerivedAstronomicalState()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var manager =
+            factory.Services
+                .GetRequiredService<SimulationSessionManager>();
+
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Seasonal World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var parameters =
+            new CircularOrbitSeasonalParameters(
+                orbitalPeriodSeconds: 400,
+                axialTiltDegrees: 23.5,
+                cycleFractionAtTimeZero: 0);
+
+        var definition =
+            new SimulationDefinition(
+                seasonalModels:
+                [
+                    new CircularOrbitSeasonalModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var sessionId =
+            manager.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]),
+                definition);
+
+        var definitionResponse =
+            await client.GetFromJsonAsync<
+                SimulationDefinitionResponse>(
+                $"/sessions/{sessionId.Value}/definition");
+
+        Assert.NotNull(
+            definitionResponse);
+
+        var seasonalModel =
+            Assert.Single(
+                definitionResponse.SeasonalModels);
+
+        Assert.Equal(
+            planet.Id.Value,
+            seasonalModel.PlanetId);
+
+        Assert.Equal(
+            400,
+            seasonalModel.OrbitalPeriodSeconds);
+
+        Assert.Equal(
+            23.5,
+            seasonalModel.AxialTiltDegrees);
+
+        Assert.Equal(
+            0,
+            seasonalModel.CycleFractionAtTimeZero);
+
+        var advanceResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{sessionId.Value}/advance",
+                new AdvanceTimeRequest(100));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            advanceResponse.StatusCode);
+
+        var world =
+            await client.GetFromJsonAsync<WorldResponse>(
+                $"/sessions/{sessionId.Value}/world");
+
+        Assert.NotNull(
+            world);
+
+        var seasonalState =
+            Assert.Single(
+                world.SeasonalStates);
+
+        Assert.Equal(
+            planet.Id.Value,
+            seasonalState.PlanetId);
+
+        Assert.Equal(
+            "Derived",
+            seasonalState.ControlMode);
+
+        Assert.NotNull(
+            seasonalState.DerivedContext);
+
+        Assert.Equal(
+            "circular-orbit",
+            seasonalState.DerivedContext.PhaseId);
+
+        Assert.Equal(
+            0.25,
+            seasonalState.DerivedContext.CycleFraction);
+
+        Assert.Equal(
+            23.5,
+            seasonalState.DerivedContext
+                .SubsolarLatitudeDegrees!.Value,
+            precision: 10);
+
+        Assert.Equal(
+            seasonalState.DerivedContext,
+            seasonalState.EffectiveContext);
+
+        Assert.Null(
+            seasonalState.OverrideContext);
+    }
 
     [Fact]
     public async Task DefinitionResource_ReturnsConfiguredEnergyBalanceModel()

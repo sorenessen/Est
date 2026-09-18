@@ -70,6 +70,7 @@ export interface AnimalResponse {
 export interface SeasonalContextResponse {
   phaseId: string
   cycleFraction: number | null
+  subsolarLatitudeDegrees: number | null
 }
 
 export interface SeasonalStateResponse {

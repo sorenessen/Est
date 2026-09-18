@@ -8,7 +8,8 @@ public sealed record SeasonalContext
 {
     public SeasonalContext(
         string phaseId,
-        double? cycleFraction = null)
+        double? cycleFraction = null,
+        double? subsolarLatitudeDegrees = null)
     {
         if (string.IsNullOrWhiteSpace(phaseId))
         {
@@ -27,8 +28,21 @@ public sealed record SeasonalContext
                 "Seasonal cycle fraction must be finite and in the range [0, 1).");
         }
 
+        if (subsolarLatitudeDegrees.HasValue &&
+            (!double.IsFinite(
+                 subsolarLatitudeDegrees.Value) ||
+             subsolarLatitudeDegrees.Value < -90 ||
+             subsolarLatitudeDegrees.Value > 90))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(subsolarLatitudeDegrees),
+                "Subsolar latitude must be finite and in the range [-90, 90] degrees.");
+        }
+
         PhaseId = phaseId;
         CycleFraction = cycleFraction;
+        SubsolarLatitudeDegrees =
+            subsolarLatitudeDegrees;
     }
 
     public string PhaseId { get; }
@@ -39,4 +53,12 @@ public sealed record SeasonalContext
     /// one at the end. The simulation core assigns no calendar meaning to it.
     /// </summary>
     public double? CycleFraction { get; }
+
+    /// <summary>
+    /// Optional latitude of the subsolar point in degrees.
+    ///
+    /// This is a physical derived signal rather than a calendar label.
+    /// Positive values are north of the equator and negative values are south.
+    /// </summary>
+    public double? SubsolarLatitudeDegrees { get; }
 }

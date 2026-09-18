@@ -1654,7 +1654,8 @@ public class WorldSnapshotSerializerTests
         var derived =
             new SeasonalContext(
                 "warm",
-                0.25);
+                0.25,
+                23.5);
 
         var overridden =
             new SeasonalContext(
@@ -1706,6 +1707,11 @@ public class WorldSnapshotSerializerTests
             restoredState.DerivedContext?.CycleFraction);
 
         Assert.Equal(
+            23.5,
+            restoredState.DerivedContext
+                ?.SubsolarLatitudeDegrees);
+
+        Assert.Equal(
             "cold",
             restoredState.OverrideContext?.PhaseId);
 
@@ -1744,7 +1750,75 @@ public class WorldSnapshotSerializerTests
     }
 
     [Fact]
-    public void Deserialize_VersionTwentyTwoRequiresSeasonalStates()
+    public void Deserialize_VersionTwentyTwoDefaultsSubsolarLatitudeToNull()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Legacy Seasonal World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                SimulationTime.Zero,
+                [planet],
+                [],
+                seasonalStates:
+                [
+                    new PlanetSeasonalState(
+                        planet.Id,
+                        SeasonalControlMode.Derived,
+                        derivedContext:
+                            new SeasonalContext(
+                                "legacy-derived",
+                                0.25))
+                ]);
+
+        var node =
+            JsonNode.Parse(
+                WorldSnapshotSerializer.Serialize(
+                    world))!
+                .AsObject();
+
+        node["schemaVersion"] = 22;
+
+        node["seasonalStates"]!
+            .AsArray()[0]!
+            ["derivedContext"]!
+            .AsObject()
+            .Remove(
+                "subsolarLatitudeDegrees");
+
+        var restored =
+            WorldSnapshotSerializer.Deserialize(
+                node.ToJsonString());
+
+        var state =
+            Assert.Single(
+                restored.SeasonalStates);
+
+        Assert.Equal(
+            "legacy-derived",
+            state.DerivedContext?.PhaseId);
+
+        Assert.Equal(
+            0.25,
+            state.DerivedContext?.CycleFraction);
+
+        Assert.Null(
+            state.DerivedContext
+                ?.SubsolarLatitudeDegrees);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyThreeRequiresSeasonalStates()
     {
         var node =
             JsonNode.Parse(

@@ -17,7 +17,8 @@ public sealed record SeasonalStateResponse(
 
 public sealed record SeasonalContextResponse(
     string PhaseId,
-    double? CycleFraction);
+    double? CycleFraction,
+    double? SubsolarLatitudeDegrees);
 
 public sealed record PopulationPersonResponse(
     Guid PersonId,

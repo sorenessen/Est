@@ -20,6 +20,9 @@ public class SeasonalControlStateTests
         Assert.Equal(
             0.75,
             context.CycleFraction);
+
+        Assert.Null(
+            context.SubsolarLatitudeDegrees);
     }
 
     [Theory]
@@ -34,6 +37,21 @@ public class SeasonalControlStateTests
                 new SeasonalContext(
                     "phase",
                     cycleFraction));
+    }
+
+    [Theory]
+    [InlineData(-90.01)]
+    [InlineData(90.01)]
+    [InlineData(double.PositiveInfinity)]
+    public void Context_RejectsInvalidSubsolarLatitude(
+        double subsolarLatitudeDegrees)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new SeasonalContext(
+                    "phase",
+                    0.25,
+                    subsolarLatitudeDegrees));
     }
 
     [Fact]

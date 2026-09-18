@@ -9,6 +9,7 @@ using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
 using Est.Simulation.Surface;
@@ -1816,6 +1817,116 @@ public class TimelineArchiveSerializerTests
         Assert.Empty(
             restored.Definition
                 .PlanetaryEnergyBalanceModels);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesSeasonalModelDefinition()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Seasonal Model World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var timeline =
+            SimulationTimeline.Create(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        var parameters =
+            new CircularOrbitSeasonalParameters(
+                orbitalPeriodSeconds:
+                    31_556_925.216,
+                axialTiltDegrees:
+                    23.439281,
+                cycleFractionAtTimeZero:
+                    0.125);
+
+        var definition =
+            new SimulationDefinition(
+                seasonalModels:
+                [
+                    new CircularOrbitSeasonalModelDefinition(
+                        planet.Id,
+                        parameters)
+                ]);
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                TimelineArchiveSerializer.Serialize(
+                    timeline,
+                    definition,
+                    CreateProvenance()));
+
+        var model =
+            Assert.Single(
+                restored.Definition
+                    .SeasonalModels);
+
+        Assert.Equal(
+            planet.Id,
+            model.PlanetId);
+
+        Assert.Equal(
+            parameters,
+            model.Parameters);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyTwoDefaultsSeasonalModelsToEmpty()
+    {
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    CreateTimelineWithHistory(),
+                    SimulationDefinition.Empty,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["schemaVersion"] = 22;
+
+        node["definition"]!
+            .AsObject()
+            .Remove(
+                "seasonalModels");
+
+        var restored =
+            TimelineArchiveSerializer.Deserialize(
+                node.ToJsonString());
+
+        Assert.Empty(
+            restored.Definition
+                .SeasonalModels);
+    }
+
+    [Fact]
+    public void Deserialize_VersionTwentyThreeRequiresSeasonalModels()
+    {
+        var node =
+            JsonNode.Parse(
+                TimelineArchiveSerializer.Serialize(
+                    CreateTimelineWithHistory(),
+                    SimulationDefinition.Empty,
+                    CreateProvenance()))!
+                .AsObject();
+
+        node["definition"]!
+            .AsObject()
+            .Remove(
+                "seasonalModels");
+
+        Assert.Throws<JsonException>(
+            () =>
+                TimelineArchiveSerializer.Deserialize(
+                    node.ToJsonString()));
     }
 
     [Fact]

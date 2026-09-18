@@ -143,6 +143,143 @@ public sealed class SimulationSessionTests
     }
 
     [Fact]
+    public void Advance_WithoutSeasonalConfigurationPreservesDisabledBehavior()
+    {
+        var planet =
+            CreatePlanet();
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]));
+
+        session.Advance(100);
+
+        Assert.Empty(
+            session.CurrentWorld.SeasonalStates);
+    }
+
+    [Fact]
+    public void Advance_WithSeasonalConfigurationDerivesResultingState()
+    {
+        var planet =
+            CreatePlanet();
+
+        var definition =
+            new SimulationDefinition(
+                seasonalModels:
+                [
+                    new CircularOrbitSeasonalModelDefinition(
+                        planet.Id,
+                        new CircularOrbitSeasonalParameters(
+                            orbitalPeriodSeconds: 400,
+                            axialTiltDegrees: 23.5))
+                ]);
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]),
+                definition);
+
+        session.Advance(100);
+
+        var state =
+            Assert.Single(
+                session.CurrentWorld.SeasonalStates);
+
+        Assert.Equal(
+            SeasonalControlMode.Derived,
+            state.ControlMode);
+
+        Assert.Equal(
+            0.25,
+            state.DerivedContext!
+                .CycleFraction!.Value,
+            precision: 12);
+
+        Assert.Equal(
+            23.5,
+            state.DerivedContext
+                .SubsolarLatitudeDegrees!.Value,
+            precision: 10);
+
+        Assert.Equal(
+            100,
+            session.CurrentWorld
+                .CurrentTime.TotalSeconds);
+    }
+
+    [Fact]
+    public void Advance_WithOverrideUpdatesDerivedContextButKeepsOverrideEffective()
+    {
+        var planet =
+            CreatePlanet();
+
+        var definition =
+            new SimulationDefinition(
+                seasonalModels:
+                [
+                    new CircularOrbitSeasonalModelDefinition(
+                        planet.Id,
+                        new CircularOrbitSeasonalParameters(
+                            orbitalPeriodSeconds: 400,
+                            axialTiltDegrees: 23.5))
+                ]);
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    SimulationTime.Zero,
+                    [planet]),
+                definition);
+
+        var overridden =
+            new SeasonalContext(
+                "forced-cold",
+                0.90);
+
+        session.OverridePlanetSeasonalState(
+            planet.Id,
+            overridden);
+
+        session.Advance(100);
+
+        var state =
+            Assert.Single(
+                session.CurrentWorld.SeasonalStates);
+
+        Assert.Equal(
+            SeasonalControlMode.Override,
+            state.ControlMode);
+
+        Assert.Equal(
+            0.25,
+            state.DerivedContext!
+                .CycleFraction!.Value,
+            precision: 12);
+
+        Assert.Equal(
+            23.5,
+            state.DerivedContext
+                .SubsolarLatitudeDegrees!.Value,
+            precision: 10);
+
+        Assert.Equal(
+            overridden,
+            state.OverrideContext);
+
+        Assert.Equal(
+            overridden,
+            state.EffectiveContext);
+    }
+
+    [Fact]
     public void OverridePlanetSeasonalState_ChangesEffectiveContextWithoutAdvancingTime()
     {
         var planet = CreatePlanet();

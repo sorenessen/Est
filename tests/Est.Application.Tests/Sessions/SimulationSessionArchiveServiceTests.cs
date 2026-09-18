@@ -402,12 +402,24 @@ public sealed class SimulationSessionArchiveServiceTests
                     273.15,
                     31_536_000);
 
+            var seasonalParameters =
+                new CircularOrbitSeasonalParameters(
+                    orbitalPeriodSeconds: 400,
+                    axialTiltDegrees: 23.5,
+                    cycleFractionAtTimeZero: 0.125);
+
             var definition =
                 new SimulationDefinition(
                 [
                     new PlanetaryEnergyBalanceModelDefinition(
                         planet.Id,
                         parameters)
+                ],
+                seasonalModels:
+                [
+                    new CircularOrbitSeasonalModelDefinition(
+                        planet.Id,
+                        seasonalParameters)
                 ]);
 
             var originalId =
@@ -441,6 +453,36 @@ public sealed class SimulationSessionArchiveServiceTests
             Assert.Equal(
                 parameters,
                 model.Parameters);
+
+            var seasonalModel =
+                Assert.Single(
+                    restored.Definition
+                        .SeasonalModels);
+
+            Assert.Equal(
+                planet.Id,
+                seasonalModel.PlanetId);
+
+            Assert.Equal(
+                seasonalParameters,
+                seasonalModel.Parameters);
+
+            restored.Advance(50);
+
+            var seasonalState =
+                Assert.Single(
+                    restored.CurrentWorld
+                        .SeasonalStates);
+
+            Assert.Equal(
+                SeasonalControlMode.Derived,
+                seasonalState.ControlMode);
+
+            Assert.Equal(
+                0.25,
+                seasonalState.DerivedContext!
+                    .CycleFraction!.Value,
+                precision: 12);
         }
         finally
         {

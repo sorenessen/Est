@@ -1809,17 +1809,23 @@ static WorldResponse ToWorldResponse(
                             ? null
                             : new SeasonalContextResponse(
                                 state.DerivedContext.PhaseId,
-                                state.DerivedContext.CycleFraction),
+                                state.DerivedContext.CycleFraction,
+                                state.DerivedContext
+                                    .SubsolarLatitudeDegrees),
                         state.OverrideContext is null
                             ? null
                             : new SeasonalContextResponse(
                                 state.OverrideContext.PhaseId,
-                                state.OverrideContext.CycleFraction),
+                                state.OverrideContext.CycleFraction,
+                                state.OverrideContext
+                                    .SubsolarLatitudeDegrees),
                         state.EffectiveContext is null
                             ? null
                             : new SeasonalContextResponse(
                                 state.EffectiveContext.PhaseId,
-                                state.EffectiveContext.CycleFraction)))
+                                state.EffectiveContext.CycleFraction,
+                                state.EffectiveContext
+                                    .SubsolarLatitudeDegrees)))
             .ToArray());
 }
 
@@ -2014,6 +2020,18 @@ static SimulationDefinitionResponse ToDefinitionResponse(
                             .MaximumDecompositionTemperatureKelvin,
                         model.Parameters
                             .TemperatureLapseRateKelvinPerMeter))
+            .ToArray(),
+        definition.SeasonalModels
+            .Select(
+                model =>
+                    new CircularOrbitSeasonalModelResponse(
+                        model.PlanetId.Value,
+                        model.Parameters
+                            .OrbitalPeriodSeconds,
+                        model.Parameters
+                            .AxialTiltDegrees,
+                        model.Parameters
+                            .CycleFractionAtTimeZero))
             .ToArray());
 }
 

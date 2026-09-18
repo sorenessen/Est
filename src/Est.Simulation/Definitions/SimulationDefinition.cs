@@ -5,6 +5,7 @@ using Est.Simulation.Grazers;
 using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
@@ -20,7 +21,8 @@ public sealed record SimulationDefinition
         IEnumerable<InvertebrateModelDefinition>? invertebrateModels = null,
         IEnumerable<BirdModelDefinition>? birdModels = null,
         IEnumerable<GrazerModelDefinition>? grazerModels = null,
-        IEnumerable<BiogeochemistryModelDefinition>? biogeochemistryModels = null)
+        IEnumerable<BiogeochemistryModelDefinition>? biogeochemistryModels = null,
+        IEnumerable<CircularOrbitSeasonalModelDefinition>? seasonalModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -53,6 +55,10 @@ public sealed record SimulationDefinition
         var biogeochemistry = biogeochemistryModels?
             .ToImmutableArray()
             ?? ImmutableArray<BiogeochemistryModelDefinition>.Empty;
+
+        var seasonal = seasonalModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<CircularOrbitSeasonalModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -108,6 +114,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null biogeochemistry model definitions.",
                 nameof(biogeochemistryModels));
+        }
+
+        if (seasonal.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null seasonal model definitions.",
+                nameof(seasonalModels));
         }
 
         if (models
@@ -182,6 +195,15 @@ public sealed record SimulationDefinition
                 nameof(biogeochemistryModels));
         }
 
+        if (seasonal
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one seasonal model definition.",
+                nameof(seasonalModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
@@ -190,6 +212,7 @@ public sealed record SimulationDefinition
         BirdModels = birds;
         GrazerModels = grazers;
         BiogeochemistryModels = biogeochemistry;
+        SeasonalModels = seasonal;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -215,6 +238,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<BiogeochemistryModelDefinition>
         BiogeochemistryModels { get; }
+
+    public ImmutableArray<CircularOrbitSeasonalModelDefinition>
+        SeasonalModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -366,6 +392,16 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Biogeochemistry model for planet '{model.PlanetId.Value}' requires authoritative biogeochemistry state for that planet.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in SeasonalModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Seasonal model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
                     nameof(world));
             }
         }

@@ -14,7 +14,9 @@ public sealed record SimulationDefinitionResponse(
     GrazerModelResponse[]
         GrazerModels,
     BiogeochemistryModelResponse[]
-        BiogeochemistryModels);
+        BiogeochemistryModels,
+    CircularOrbitSeasonalModelResponse[]
+        SeasonalModels);
 
 public sealed record PlanetaryEnergyBalanceModelResponse(
     Guid PlanetId,
@@ -113,3 +115,9 @@ public sealed record BiogeochemistryModelResponse(
     double OptimumDecompositionTemperatureKelvin,
     double MaximumDecompositionTemperatureKelvin,
     double TemperatureLapseRateKelvinPerMeter);
+
+public sealed record CircularOrbitSeasonalModelResponse(
+    Guid PlanetId,
+    double OrbitalPeriodSeconds,
+    double AxialTiltDegrees,
+    double CycleFractionAtTimeZero);

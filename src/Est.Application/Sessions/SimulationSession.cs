@@ -60,6 +60,16 @@ public sealed class SimulationSession
         _timeline = timeline;
         Definition = definition;
 
+        var seasonalSystems =
+            definition.SeasonalModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new DerivedSeasonalSystem(
+                                model.PlanetId,
+                                new CircularOrbitSeasonalProvider(
+                                    model.Parameters)));
+
         var energyBalanceSystems =
             definition.PlanetaryEnergyBalanceModels
                 .Select(
@@ -210,7 +220,8 @@ public sealed class SimulationSession
                                 model.Parameters));
 
         _causalSystems =
-            energyBalanceSystems
+            seasonalSystems
+                .Concat(energyBalanceSystems)
                 .Concat(hydrologySystems)
                 .Concat(biogeochemistrySystems)
                 .Concat(vegetationSystems)

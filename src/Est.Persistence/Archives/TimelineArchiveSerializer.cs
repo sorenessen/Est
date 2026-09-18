@@ -10,6 +10,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Vegetation;
@@ -18,7 +19,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 22;
+    public const int CurrentSchemaVersion = 23;
+    private const int SeasonalModelSchemaVersion = 23;
     private const int BirdRecruitmentSchemaVersion = 22;
     private const int InvertebrateMaterialSchemaVersion = 21;
     private const int GrazerRecruitmentSchemaVersion = 20;
@@ -142,6 +144,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != GrazerSurfaceWaterMovementSchemaVersion &&
             archive.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             archive.SchemaVersion != InvertebrateMaterialSchemaVersion &&
+            archive.SchemaVersion != BirdRecruitmentSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -695,6 +698,29 @@ public static class TimelineArchiveSerializer
                                         TemperatureLapseRateKelvinPerMeter =
                                             model.Parameters
                                                 .TemperatureLapseRateKelvinPerMeter
+                                    }
+                            })
+                    .ToArray(),
+            SeasonalModels =
+                definition.SeasonalModels
+                    .Select(
+                        model =>
+                            new CircularOrbitSeasonalModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new CircularOrbitSeasonalParametersSnapshot
+                                    {
+                                        OrbitalPeriodSeconds =
+                                            model.Parameters
+                                                .OrbitalPeriodSeconds,
+                                        AxialTiltDegrees =
+                                            model.Parameters
+                                                .AxialTiltDegrees,
+                                        CycleFractionAtTimeZero =
+                                            model.Parameters
+                                                .CycleFractionAtTimeZero
                                     }
                             })
                     .ToArray()
@@ -1325,6 +1351,47 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        CircularOrbitSeasonalModelDefinition[]
+            seasonalModels;
+
+        if (schemaVersion <
+            SeasonalModelSchemaVersion)
+        {
+            seasonalModels = [];
+        }
+        else
+        {
+            if (snapshot.SeasonalModels is null)
+            {
+                throw new JsonException(
+                    "Seasonal model collection is required.");
+            }
+
+            seasonalModels =
+                snapshot.SeasonalModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Seasonal model parameters are required.");
+                            }
+
+                            return new CircularOrbitSeasonalModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new CircularOrbitSeasonalParameters(
+                                    model.Parameters
+                                        .OrbitalPeriodSeconds,
+                                    model.Parameters
+                                        .AxialTiltDegrees,
+                                    model.Parameters
+                                        .CycleFractionAtTimeZero));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
@@ -1333,7 +1400,8 @@ public static class TimelineArchiveSerializer
             invertebrateModels,
             birdModels,
             grazerModels,
-            biogeochemistryModels);
+            biogeochemistryModels,
+            seasonalModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -1408,6 +1476,29 @@ public static class TimelineArchiveSerializer
 
         public BiogeochemistryModelSnapshot[]?
             BiogeochemistryModels { get; set; }
+
+        public CircularOrbitSeasonalModelSnapshot[]?
+            SeasonalModels { get; set; }
+    }
+
+    private sealed class CircularOrbitSeasonalModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required CircularOrbitSeasonalParametersSnapshot Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class CircularOrbitSeasonalParametersSnapshot
+    {
+        public required double OrbitalPeriodSeconds { get; set; }
+
+        public required double AxialTiltDegrees { get; set; }
+
+        public required double CycleFractionAtTimeZero { get; set; }
     }
 
     private sealed class BiogeochemistryModelSnapshot
