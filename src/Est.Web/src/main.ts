@@ -66,14 +66,101 @@ app.innerHTML = `
     aria-label="Est planetary renderer"
   ></canvas>
 
-  <div class="planet-foundation-status">
-    <strong>Est Planet Renderer</strong>
-    <span>R4 · procedural terrain materials</span>
-    <span id="terrainStatus">preparing terrain…</span>
-    <span id="lodStatus">building spherical terrain…</span>
-    <span id="faunaStatus">fauna symbols waiting for simulation session…</span>
-    <span>drag to orbit · wheel to zoom</span>
-  </div>
+  <section
+    id="observerPanel"
+    class="babylon-observer-panel"
+    aria-label="Est observatory"
+  >
+    <div
+      id="observerPanelDragHandle"
+      class="babylon-observer-heading"
+    >
+      <div class="babylon-observer-heading-copy">
+        <strong>Est Observatory</strong>
+        <span>Live authoritative simulation</span>
+      </div>
+
+      <div class="render-evaluation-window-actions">
+        <button
+          id="observerPanelViewerModeButton"
+          type="button"
+          aria-label="Enter clean viewer mode"
+          title="Clean viewer mode"
+        >Viewer</button>
+
+        <button
+          id="observerPanelCollapseButton"
+          type="button"
+          aria-label="Collapse observatory panel"
+          aria-expanded="true"
+          title="Collapse panel"
+        >−</button>
+
+        <button
+          id="observerPanelHideButton"
+          type="button"
+          aria-label="Hide observatory panel"
+          title="Hide panel"
+        >×</button>
+      </div>
+    </div>
+
+    <div id="observerPanelBody" class="babylon-observer-body">
+      <section
+        id="sessionStatus"
+        class="simulation-telemetry babylon-simulation-telemetry"
+        aria-label="Simulation telemetry"
+      >
+        <div class="simulation-telemetry-empty">
+          Loading live simulation telemetry…
+        </div>
+      </section>
+
+      <details
+        class="simulation-diagnostics babylon-observer-diagnostics"
+      >
+        <summary>Diagnostics</summary>
+
+        <div class="babylon-diagnostics-grid">
+          <div>
+            <span>Renderer</span>
+            <strong>R4 · Babylon immutable sphere</strong>
+          </div>
+
+          <div>
+            <span>Terrain</span>
+            <strong id="terrainStatus">preparing terrain…</strong>
+          </div>
+
+          <div>
+            <span>Geometry</span>
+            <strong id="lodStatus">building spherical terrain…</strong>
+          </div>
+
+          <div>
+            <span>Living presentation</span>
+            <strong id="faunaStatus">
+              fauna symbols waiting for simulation session…
+            </strong>
+          </div>
+
+          <div>
+            <span>Navigation</span>
+            <strong>drag to orbit · wheel to zoom</strong>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <button
+    id="observerPanelRestoreButton"
+    class="render-evaluation-restore babylon-observer-restore"
+    type="button"
+    aria-label="Show Est observatory"
+    title="Show observatory"
+    hidden
+  >Observatory</button>
 `
 
 const canvas =
@@ -243,6 +330,411 @@ const faunaStatus =
   document.querySelector<HTMLSpanElement>(
     '#faunaStatus',
   )
+
+const sessionStatus =
+  document.querySelector<HTMLElement>(
+    '#sessionStatus',
+  )
+
+const observerPanel =
+  document.querySelector<HTMLElement>(
+    '#observerPanel',
+  )
+
+const observerPanelDragHandle =
+  document.querySelector<HTMLElement>(
+    '#observerPanelDragHandle',
+  )
+
+const observerPanelBody =
+  document.querySelector<HTMLElement>(
+    '#observerPanelBody',
+  )
+
+const observerPanelViewerModeButton =
+  document.querySelector<HTMLButtonElement>(
+    '#observerPanelViewerModeButton',
+  )
+
+const observerPanelCollapseButton =
+  document.querySelector<HTMLButtonElement>(
+    '#observerPanelCollapseButton',
+  )
+
+const observerPanelHideButton =
+  document.querySelector<HTMLButtonElement>(
+    '#observerPanelHideButton',
+  )
+
+const observerPanelRestoreButton =
+  document.querySelector<HTMLButtonElement>(
+    '#observerPanelRestoreButton',
+  )
+
+if (
+  !observerPanel ||
+  !observerPanelDragHandle ||
+  !observerPanelBody ||
+  !observerPanelViewerModeButton ||
+  !observerPanelCollapseButton ||
+  !observerPanelHideButton ||
+  !observerPanelRestoreButton
+) {
+  throw new Error(
+    'Observatory panel controls were not created.',
+  )
+}
+
+const observerPanelViewportMargin =
+  8
+
+const clampObserverPanelToViewport = (): void => {
+  if (observerPanel.hidden) {
+    return
+  }
+
+  const panelRect =
+    observerPanel.getBoundingClientRect()
+
+  const appRect =
+    app.getBoundingClientRect()
+
+  const maxLeft =
+    Math.max(
+      observerPanelViewportMargin,
+      appRect.width -
+        panelRect.width -
+        observerPanelViewportMargin,
+    )
+
+  const maxTop =
+    Math.max(
+      observerPanelViewportMargin,
+      appRect.height -
+        panelRect.height -
+        observerPanelViewportMargin,
+    )
+
+  const currentLeft =
+    panelRect.left -
+    appRect.left
+
+  const currentTop =
+    panelRect.top -
+    appRect.top
+
+  observerPanel.style.right =
+    'auto'
+
+  observerPanel.style.left =
+    `${Math.min(
+      Math.max(
+        currentLeft,
+        observerPanelViewportMargin,
+      ),
+      maxLeft,
+    )}px`
+
+  observerPanel.style.top =
+    `${Math.min(
+      Math.max(
+        currentTop,
+        observerPanelViewportMargin,
+      ),
+      maxTop,
+    )}px`
+}
+
+let observerPanelDragPointerId:
+  number | undefined
+
+let observerPanelDragStartPointerX =
+  0
+
+let observerPanelDragStartPointerY =
+  0
+
+let observerPanelDragStartLeft =
+  0
+
+let observerPanelDragStartTop =
+  0
+
+observerPanelDragHandle.addEventListener(
+  'pointerdown',
+  event => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('button')
+    ) {
+      return
+    }
+
+    const panelRect =
+      observerPanel.getBoundingClientRect()
+
+    const appRect =
+      app.getBoundingClientRect()
+
+    observerPanelDragPointerId =
+      event.pointerId
+
+    observerPanelDragStartPointerX =
+      event.clientX
+
+    observerPanelDragStartPointerY =
+      event.clientY
+
+    observerPanelDragStartLeft =
+      panelRect.left -
+      appRect.left
+
+    observerPanelDragStartTop =
+      panelRect.top -
+      appRect.top
+
+    observerPanel.style.right =
+      'auto'
+
+    observerPanel.style.left =
+      `${observerPanelDragStartLeft}px`
+
+    observerPanelDragHandle.setPointerCapture(
+      event.pointerId,
+    )
+
+    observerPanel.classList.add(
+      'is-dragging',
+    )
+
+    event.preventDefault()
+  },
+)
+
+observerPanelDragHandle.addEventListener(
+  'pointermove',
+  event => {
+    if (
+      observerPanelDragPointerId !==
+      event.pointerId
+    ) {
+      return
+    }
+
+    const panelRect =
+      observerPanel.getBoundingClientRect()
+
+    const appRect =
+      app.getBoundingClientRect()
+
+    const maxLeft =
+      Math.max(
+        observerPanelViewportMargin,
+        appRect.width -
+          panelRect.width -
+          observerPanelViewportMargin,
+      )
+
+    const maxTop =
+      Math.max(
+        observerPanelViewportMargin,
+        appRect.height -
+          panelRect.height -
+          observerPanelViewportMargin,
+      )
+
+    const requestedLeft =
+      observerPanelDragStartLeft +
+      event.clientX -
+      observerPanelDragStartPointerX
+
+    const requestedTop =
+      observerPanelDragStartTop +
+      event.clientY -
+      observerPanelDragStartPointerY
+
+    observerPanel.style.left =
+      `${Math.min(
+        Math.max(
+          requestedLeft,
+          observerPanelViewportMargin,
+        ),
+        maxLeft,
+      )}px`
+
+    observerPanel.style.top =
+      `${Math.min(
+        Math.max(
+          requestedTop,
+          observerPanelViewportMargin,
+        ),
+        maxTop,
+      )}px`
+  },
+)
+
+const finishObserverPanelDrag = (
+  event: PointerEvent,
+): void => {
+  if (
+    observerPanelDragPointerId !==
+    event.pointerId
+  ) {
+    return
+  }
+
+  if (
+    observerPanelDragHandle
+      .hasPointerCapture(
+        event.pointerId,
+      )
+  ) {
+    observerPanelDragHandle
+      .releasePointerCapture(
+        event.pointerId,
+      )
+  }
+
+  observerPanelDragPointerId =
+    undefined
+
+  observerPanel.classList.remove(
+    'is-dragging',
+  )
+}
+
+observerPanelDragHandle.addEventListener(
+  'pointerup',
+  finishObserverPanelDrag,
+)
+
+observerPanelDragHandle.addEventListener(
+  'pointercancel',
+  finishObserverPanelDrag,
+)
+
+const enterCleanViewerMode = (): void => {
+  app.classList.add(
+    'is-clean-viewer',
+  )
+}
+
+const exitCleanViewerMode = (): void => {
+  app.classList.remove(
+    'is-clean-viewer',
+  )
+}
+
+observerPanelViewerModeButton.addEventListener(
+  'click',
+  enterCleanViewerMode,
+)
+
+window.addEventListener(
+  'keydown',
+  event => {
+    if (
+      event.key === 'Escape' &&
+      app.classList.contains(
+        'is-clean-viewer',
+      )
+    ) {
+      exitCleanViewerMode()
+    }
+  },
+)
+
+observerPanelCollapseButton.addEventListener(
+  'click',
+  () => {
+    const collapsed =
+      !observerPanel.classList.contains(
+        'is-collapsed',
+      )
+
+    observerPanel.classList.toggle(
+      'is-collapsed',
+      collapsed,
+    )
+
+    observerPanelBody.hidden =
+      collapsed
+
+    observerPanelCollapseButton.textContent =
+      collapsed ? '+' : '−'
+
+    observerPanelCollapseButton.setAttribute(
+      'aria-expanded',
+      String(!collapsed),
+    )
+
+    observerPanelCollapseButton.title =
+      collapsed
+        ? 'Expand panel'
+        : 'Collapse panel'
+
+    observerPanelCollapseButton.setAttribute(
+      'aria-label',
+      collapsed
+        ? 'Expand observatory panel'
+        : 'Collapse observatory panel',
+    )
+
+    requestAnimationFrame(
+      clampObserverPanelToViewport,
+    )
+  },
+)
+
+observerPanelHideButton.addEventListener(
+  'click',
+  () => {
+    observerPanel.hidden =
+      true
+
+    observerPanelRestoreButton.hidden =
+      false
+  },
+)
+
+observerPanelRestoreButton.addEventListener(
+  'click',
+  () => {
+    observerPanelRestoreButton.hidden =
+      true
+
+    observerPanel.hidden =
+      false
+
+    requestAnimationFrame(
+      clampObserverPanelToViewport,
+    )
+  },
+)
+
+window.addEventListener(
+  'resize',
+  () =>
+    requestAnimationFrame(
+      clampObserverPanelToViewport,
+    ),
+)
+
+const observerPanelResizeObserver =
+  new ResizeObserver(
+    () =>
+      requestAnimationFrame(
+        clampObserverPanelToViewport,
+      ),
+  )
+
+observerPanelResizeObserver.observe(
+  observerPanel,
+)
+
+requestAnimationFrame(
+  clampObserverPanelToViewport,
+)
 
 
 const reportPlanetStartupStage = (
@@ -499,7 +991,28 @@ if (sessionId) {
   const api =
     new EstApi('/api')
 
-  const world =
+  const observedTimelineEvents =
+    new Set<string>()
+
+  const cumulativeMetrics = {
+    births: 0,
+    demographicDeaths: 0,
+    starvationDeaths: 0,
+    feedingEvents: 0,
+    travelFeedingEvents: 0,
+    continuedFoodTravel: 0,
+    demographicMigrations: 0,
+    foodSeekingTravel: 0,
+    scarcityMigrations: 0,
+    noViableFoodFound: 0,
+    wolfAttacks: 0,
+    failedAttacks: 0,
+    predationDeaths: 0,
+    grazerKills: 0,
+    wolfBirths: 0,
+  }
+
+  let world =
     await api.getWorld(
       sessionId,
     )
@@ -532,7 +1045,7 @@ if (sessionId) {
     'loading surface + terrain + standing water…',
   )
 
-  const [
+  let [
     surface,
     terrain,
     standingWater,
@@ -648,164 +1161,169 @@ if (sessionId) {
     },
   )
 
-  const vegetationCoverageGridWidth =
-    vegetation?.grid.longitudeBandCount ??
-    1
+  const updateVegetationCoverageState = () => {
+    const vegetationCoverageGridWidth =
+      vegetation?.grid.longitudeBandCount ??
+      1
 
-  const vegetationCoverageGridHeight =
-    vegetation?.grid.latitudeBandCount ??
-    1
+    const vegetationCoverageGridHeight =
+      vegetation?.grid.latitudeBandCount ??
+      1
 
-  const vegetationCoverageGrid =
-    new Float32Array(
-      vegetationCoverageGridWidth *
-        vegetationCoverageGridHeight,
-    )
-
-  if (vegetation !== null) {
-    if (
-      vegetation.grid.latitudeBandCount !==
-        surface.grid.latitudeBandCount ||
-      vegetation.grid.longitudeBandCount !==
-        surface.grid.longitudeBandCount
-    ) {
-      throw new Error(
-        'Vegetation and surface grids must match.',
-      )
-    }
-
-    const surfaceCellsById =
-      new Map(
-        surface.cells.map(
-          cell => [
-            cell.cellId,
-            cell,
-          ] as const,
-        ),
+    const vegetationCoverageGrid =
+      new Float32Array(
+        vegetationCoverageGridWidth *
+          vegetationCoverageGridHeight,
       )
 
-    const maximumBiomass =
-      vegetation.cells.reduce(
-        (maximum, cell) =>
-          Math.max(
-            maximum,
-            cell.liveBiomassKilogramsPerSquareMeter,
-          ),
-        0,
-      )
-
-    const assignedCoverageCells =
-      new Set<number>()
-
-    for (const cell of vegetation.cells) {
-      const surfaceCell =
-        surfaceCellsById.get(
-          cell.surfaceCellId,
-        )
-
-      if (!surfaceCell) {
-        throw new Error(
-          `Vegetation cell ${cell.surfaceCellId} has no matching surface cell.`,
-        )
-      }
-
-      const row =
-        Math.min(
-          vegetationCoverageGridHeight - 1,
-          Math.max(
-            0,
-            Math.floor(
-              (
-                (
-                  surfaceCell.centerLatitudeDegrees +
-                  90
-                ) /
-                180
-              ) *
-                vegetationCoverageGridHeight,
-            ),
-          ),
-        )
-
-      const normalizedLongitude =
-        (
-          (
-            surfaceCell.centerLongitudeDegrees +
-            180
-          ) %
-            360 +
-          360
-        ) %
-        360
-
-      const column =
-        Math.min(
-          vegetationCoverageGridWidth - 1,
-          Math.max(
-            0,
-            Math.floor(
-              (
-                normalizedLongitude /
-                360
-              ) *
-                vegetationCoverageGridWidth,
-            ),
-          ),
-        )
-
-      const coverageIndex =
-        row *
-          vegetationCoverageGridWidth +
-        column
-
+    if (vegetation !== null) {
       if (
-        assignedCoverageCells.has(
-          coverageIndex,
-        )
+        vegetation.grid.latitudeBandCount !==
+          surface.grid.latitudeBandCount ||
+        vegetation.grid.longitudeBandCount !==
+          surface.grid.longitudeBandCount
       ) {
         throw new Error(
-          `Multiple vegetation cells map to coverage cell ${coverageIndex}.`,
+          'Vegetation and surface grids must match.',
         )
       }
 
-      assignedCoverageCells.add(
-        coverageIndex,
-      )
+      const surfaceCellsById =
+        new Map(
+          surface.cells.map(
+            cell => [
+              cell.cellId,
+              cell,
+            ] as const,
+          ),
+        )
 
-      const biomass =
-        cell.liveBiomassKilogramsPerSquareMeter
+      const maximumBiomass =
+        vegetation.cells.reduce(
+          (maximum, cell) =>
+            Math.max(
+              maximum,
+              cell.liveBiomassKilogramsPerSquareMeter,
+            ),
+          0,
+        )
 
-      vegetationCoverageGrid[
-        coverageIndex
-      ] =
-        biomass <= 0 ||
-        maximumBiomass <= 0
-          ? 0
-          : Math.min(
-              1,
-              biomass /
-                maximumBiomass,
-            )
+      const assignedCoverageCells =
+        new Set<number>()
+
+      for (const cell of vegetation.cells) {
+        const surfaceCell =
+          surfaceCellsById.get(
+            cell.surfaceCellId,
+          )
+
+        if (!surfaceCell) {
+          throw new Error(
+            `Vegetation cell ${cell.surfaceCellId} has no matching surface cell.`,
+          )
+        }
+
+        const row =
+          Math.min(
+            vegetationCoverageGridHeight - 1,
+            Math.max(
+              0,
+              Math.floor(
+                (
+                  (
+                    surfaceCell.centerLatitudeDegrees +
+                    90
+                  ) /
+                  180
+                ) *
+                  vegetationCoverageGridHeight,
+              ),
+            ),
+          )
+
+        const normalizedLongitude =
+          (
+            (
+              surfaceCell.centerLongitudeDegrees +
+              180
+            ) %
+              360 +
+            360
+          ) %
+          360
+
+        const column =
+          Math.min(
+            vegetationCoverageGridWidth - 1,
+            Math.max(
+              0,
+              Math.floor(
+                (
+                  normalizedLongitude /
+                  360
+                ) *
+                  vegetationCoverageGridWidth,
+              ),
+            ),
+          )
+
+        const coverageIndex =
+          row *
+            vegetationCoverageGridWidth +
+          column
+
+        if (
+          assignedCoverageCells.has(
+            coverageIndex,
+          )
+        ) {
+          throw new Error(
+            `Multiple vegetation cells map to coverage cell ${coverageIndex}.`,
+          )
+        }
+
+        assignedCoverageCells.add(
+          coverageIndex,
+        )
+
+        const biomass =
+          cell.liveBiomassKilogramsPerSquareMeter
+
+        vegetationCoverageGrid[
+          coverageIndex
+        ] =
+          biomass <= 0 ||
+          maximumBiomass <= 0
+            ? 0
+            : Math.min(
+                1,
+                biomass /
+                  maximumBiomass,
+              )
+      }
+
+      if (
+        assignedCoverageCells.size !==
+        vegetation.cells.length
+      ) {
+        throw new Error(
+          'Vegetation coverage grid did not receive every authoritative cell.',
+        )
+      }
     }
 
-    if (
-      assignedCoverageCells.size !==
-      vegetation.cells.length
-    ) {
-      throw new Error(
-        'Vegetation coverage grid did not receive every authoritative cell.',
-      )
-    }
+    vegetationCoverageData =
+      vegetationCoverageGrid
+
+    vegetationCoverageWidth =
+      vegetationCoverageGridWidth
+
+    vegetationCoverageHeight =
+      vegetationCoverageGridHeight
+
   }
 
-  vegetationCoverageData =
-    vegetationCoverageGrid
-
-  vegetationCoverageWidth =
-    vegetationCoverageGridWidth
-
-  vegetationCoverageHeight =
-    vegetationCoverageGridHeight
+  updateVegetationCoverageState()
 
   reportPlanetStartupStage(
     'creating terrain material…',
@@ -868,90 +1386,623 @@ if (sessionId) {
       )
     }
 
-  const secondsPerYear =
-    31_536_000
+  let livingPresentationMeshes: Mesh[] = []
+  let faunaFocusApplied = false
 
-  const humanAdultDisplayAgeSeconds =
-    18 * secondsPerYear
+  const renderLivingWorld = () => {
+    for (const mesh of livingPresentationMeshes) {
+      mesh.dispose()
+    }
 
-  const wolfJuvenileDisplayAgeSeconds =
-    180 * 86_400
+    livingPresentationMeshes = []
 
-  const livingSymbolRadialLift =
-    0.006
+    const secondsPerYear =
+      31_536_000
 
-  const visiblePopulation =
-    world.population.filter(
-      person =>
-        person.planetId ===
-        planet.planetId,
-    )
+    const humanAdultDisplayAgeSeconds =
+      18 * secondsPerYear
 
-  const visibleWolves =
-    world.animals.filter(
-      animal =>
-        animal.planetId ===
-          planet.planetId &&
-        animal.species === 'Wolf',
-    )
+    const wolfJuvenileDisplayAgeSeconds =
+      180 * 86_400
 
-  const visibleBirdFlocks =
-    birdFlocks?.flocks ?? []
+    const livingSymbolRadialLift =
+      0.006
 
-  const visibleGrazerCohorts =
-    grazerCohorts?.cohorts ?? []
+    const visiblePopulation =
+      world.population.filter(
+        person =>
+          person.planetId ===
+          planet.planetId,
+      )
 
-  const surfaceCellById =
-    new Map(
-      surface.cells.map(
-        cell => [
-          cell.cellId,
+    const visibleWolves =
+      world.animals.filter(
+        animal =>
+          animal.planetId ===
+            planet.planetId &&
+          animal.species === 'Wolf',
+      )
+
+    const visibleBirdFlocks =
+      birdFlocks?.flocks ?? []
+
+    const visibleGrazerCohorts =
+      grazerCohorts?.cohorts ?? []
+
+    const surfaceCellById =
+      new Map(
+        surface.cells.map(
+          cell => [
+            cell.cellId,
+            cell,
+          ] as const,
+        ),
+      )
+
+    const activeVegetationCells =
+      vegetation === null
+        ? []
+        : [...vegetation.cells]
+            .filter(
+              cell =>
+                cell.liveBiomassKilogramsPerSquareMeter >
+                0,
+            )
+            .sort(
+              (left, right) =>
+                right.liveBiomassKilogramsPerSquareMeter -
+                left.liveBiomassKilogramsPerSquareMeter,
+            )
+
+    const activeInvertebrateCells =
+      invertebrates === null
+        ? []
+        : [...invertebrates.cells]
+            .filter(
+              cell =>
+                cell.liveBiomassKilogramsPerSquareMeter >
+                0,
+            )
+            .sort(
+              (left, right) =>
+                right.liveBiomassKilogramsPerSquareMeter -
+                left.liveBiomassKilogramsPerSquareMeter,
+            )
+
+    const selectSpatiallyDistributedInvertebrateCells = (
+      cells: typeof activeInvertebrateCells,
+      maximumCount: number,
+    ): typeof activeInvertebrateCells => {
+      const candidates: Array<{
+        cell:
+          (typeof activeInvertebrateCells)[number]
+        direction: Vector3
+      }> = []
+
+      for (const cell of cells) {
+        const surfaceCell =
+          surfaceCellById.get(
+            cell.surfaceCellId,
+          )
+
+        if (!surfaceCell) {
+          continue
+        }
+
+        candidates.push({
           cell,
-        ] as const,
-      ),
-    )
+          direction:
+            geographicDegreesToSphereDirection(
+              surfaceCell.centerLatitudeDegrees,
+              surfaceCell.centerLongitudeDegrees,
+            ),
+        })
+      }
 
-  const activeVegetationCells =
-    vegetation === null
-      ? []
-      : [...vegetation.cells]
-          .filter(
-            cell =>
-              cell.liveBiomassKilogramsPerSquareMeter >
-              0,
-          )
-          .sort(
-            (left, right) =>
-              right.liveBiomassKilogramsPerSquareMeter -
-              left.liveBiomassKilogramsPerSquareMeter,
+      candidates.sort(
+        (left, right) => {
+          const biomassDifference =
+            right.cell
+              .liveBiomassKilogramsPerSquareMeter -
+            left.cell
+              .liveBiomassKilogramsPerSquareMeter
+
+          if (biomassDifference !== 0) {
+            return biomassDifference
+          }
+
+          return left.cell.surfaceCellId
+            .localeCompare(
+              right.cell.surfaceCellId,
+            )
+        },
+      )
+
+      if (
+        candidates.length <=
+        maximumCount
+      ) {
+        return candidates.map(
+          candidate =>
+            candidate.cell,
+        )
+      }
+
+      const selected = [
+        candidates[0],
+      ]
+
+      const remaining =
+        candidates
+          .slice(1)
+          .map(
+            candidate => ({
+              ...candidate,
+              minimumDistance:
+                1 -
+                Vector3.Dot(
+                  candidates[0].direction,
+                  candidate.direction,
+                ),
+            }),
           )
 
-  const activeInvertebrateCells =
-    invertebrates === null
-      ? []
-      : [...invertebrates.cells]
-          .filter(
-            cell =>
-              cell.liveBiomassKilogramsPerSquareMeter >
-              0,
-          )
-          .sort(
-            (left, right) =>
-              right.liveBiomassKilogramsPerSquareMeter -
-              left.liveBiomassKilogramsPerSquareMeter,
-          )
+      const tolerance =
+        1e-12
 
-  const selectSpatiallyDistributedInvertebrateCells = (
-    cells: typeof activeInvertebrateCells,
-    maximumCount: number,
-  ): typeof activeInvertebrateCells => {
-    const candidates: Array<{
-      cell:
-        (typeof activeInvertebrateCells)[number]
-      direction: Vector3
-    }> = []
+      while (
+        selected.length <
+          maximumCount &&
+        remaining.length >
+          0
+      ) {
+        let bestIndex =
+          0
 
-    for (const cell of cells) {
+        for (
+          let index = 1;
+          index <
+          remaining.length;
+          index++
+        ) {
+          const candidate =
+            remaining[index]
+
+          const currentBest =
+            remaining[bestIndex]
+
+          if (
+            candidate.minimumDistance >
+            currentBest.minimumDistance +
+              tolerance
+          ) {
+            bestIndex =
+              index
+
+            continue
+          }
+
+          if (
+            Math.abs(
+              candidate.minimumDistance -
+                currentBest.minimumDistance,
+            ) <= tolerance
+          ) {
+            const biomassDifference =
+              candidate.cell
+                .liveBiomassKilogramsPerSquareMeter -
+              currentBest.cell
+                .liveBiomassKilogramsPerSquareMeter
+
+            if (
+              biomassDifference >
+              0 ||
+              (
+                biomassDifference ===
+                  0 &&
+                candidate.cell
+                  .surfaceCellId <
+                  currentBest.cell
+                    .surfaceCellId
+              )
+            ) {
+              bestIndex =
+                index
+            }
+          }
+        }
+
+        const next =
+          remaining[
+            bestIndex
+          ]
+
+        selected.push(
+          next,
+        )
+
+        remaining.splice(
+          bestIndex,
+          1,
+        )
+
+        for (
+          const candidate of
+          remaining
+        ) {
+          const distance =
+            1 -
+            Vector3.Dot(
+              next.direction,
+              candidate.direction,
+            )
+
+          candidate.minimumDistance =
+            Math.min(
+              candidate.minimumDistance,
+              distance,
+            )
+        }
+      }
+
+      return selected.map(
+        candidate =>
+          candidate.cell,
+      )
+    }
+
+    const visibleInvertebrateCells =
+      selectSpatiallyDistributedInvertebrateCells(
+        activeInvertebrateCells,
+        64,
+      )
+
+    const createBillboardPlane = (
+      name: string,
+      material: StandardMaterial,
+      latitudeDegrees: number,
+      longitudeDegrees: number,
+      size: number,
+      radialLift =
+        livingSymbolRadialLift,
+    ): Mesh => {
+      const direction =
+        geographicDegreesToSphereDirection(
+          latitudeDegrees,
+          longitudeDegrees,
+        )
+
+      const terrainOffset =
+        terrainRadialOffset?.(
+          direction,
+        ) ?? 0
+
+      const position =
+        direction.scale(
+          1 +
+            terrainOffset +
+            radialLift,
+        )
+
+      const plane =
+        CreatePlane(
+          name,
+          {
+            width: size,
+            height: size,
+            sideOrientation:
+              Mesh.DOUBLESIDE,
+          },
+          scene,
+        )
+
+      plane.position =
+        position
+
+      plane.material =
+        material
+
+      plane.billboardMode =
+        Mesh.BILLBOARDMODE_ALL
+
+      plane.isPickable =
+        false
+
+      plane.renderingGroupId =
+        2
+
+      livingPresentationMeshes.push(
+        plane,
+      )
+
+      return plane
+    }
+
+    for (const person of visiblePopulation) {
+      const ageSeconds =
+        Math.max(
+          0,
+          world.currentTimeSeconds -
+            person.birthTimeSeconds,
+        )
+
+      const isChild =
+        ageSeconds <
+        humanAdultDisplayAgeSeconds
+
+      const material =
+        isChild
+          ? person.sex === 'Female'
+            ? humanGirlSpriteMaterial
+            : humanBoySpriteMaterial
+          : person.sex === 'Female'
+            ? humanWomanSpriteMaterial
+            : humanManSpriteMaterial
+
+      createBillboardPlane(
+        `human-${person.personId}`,
+        material,
+        person.latitudeDegrees,
+        person.longitudeDegrees,
+        isChild
+          ? 0.026
+          : 0.032,
+      )
+    }
+
+    for (const wolf of visibleWolves) {
+      const ageSeconds =
+        Math.max(
+          0,
+          world.currentTimeSeconds -
+            wolf.birthTimeSeconds,
+        )
+
+      const isJuvenile =
+        ageSeconds <
+        wolfJuvenileDisplayAgeSeconds
+
+      const material =
+        isJuvenile
+          ? wolfPupSpriteMaterial
+          : wolf.sex === 'Female'
+            ? femaleWolfSpriteMaterial
+            : maleWolfSpriteMaterial
+
+      createBillboardPlane(
+        `wolf-${wolf.animalId}`,
+        material,
+        wolf.latitudeDegrees,
+        wolf.longitudeDegrees,
+        isJuvenile
+          ? 0.028
+          : 0.036,
+      )
+    }
+
+    for (const flock of visibleBirdFlocks) {
+      const scale =
+        Math.min(
+          0.055,
+          0.030 +
+            Math.log10(
+              flock.memberCount + 1,
+            ) *
+              0.004,
+        )
+
+      createBillboardPlane(
+        `bird-flock-${flock.flockId}`,
+        birdFlockSpriteMaterial,
+        flock.latitudeDegrees,
+        flock.longitudeDegrees,
+        scale,
+        0.012,
+      )
+    }
+
+    interface GrazerPresentationCluster {
+      memberCount: number
+      cohortCount: number
+      weightedDirection: Vector3
+    }
+
+    const grazerLatitudeClusterDegrees =
+      45
+
+    const grazerLongitudeClusterDegrees =
+      60
+
+    const grazerClusterMap =
+      new Map<
+        string,
+        GrazerPresentationCluster
+      >()
+
+    for (
+      const cohort of visibleGrazerCohorts
+    ) {
+      const normalizedLongitude =
+        (
+          (
+            cohort.longitudeDegrees +
+            180
+          ) %
+            360 +
+          360
+        ) %
+          360 -
+        180
+
+      const latitudeBin =
+        Math.min(
+          3,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                cohort.latitudeDegrees +
+                90
+              ) /
+                grazerLatitudeClusterDegrees,
+            ),
+          ),
+        )
+
+      const longitudeBin =
+        Math.min(
+          5,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                normalizedLongitude +
+                180
+              ) /
+                grazerLongitudeClusterDegrees,
+            ),
+          ),
+        )
+
+      const key =
+        `${latitudeBin}:${longitudeBin}`
+
+      const direction =
+        geographicDegreesToSphereDirection(
+          cohort.latitudeDegrees,
+          cohort.longitudeDegrees,
+        )
+
+      const weightedDirection =
+        direction.scale(
+          cohort.memberCount,
+        )
+
+      const existing =
+        grazerClusterMap.get(
+          key,
+        )
+
+      if (existing) {
+        existing.memberCount +=
+          cohort.memberCount
+
+        existing.cohortCount +=
+          1
+
+        existing.weightedDirection
+          .addInPlace(
+            weightedDirection,
+          )
+      } else {
+        grazerClusterMap.set(
+          key,
+          {
+            memberCount:
+              cohort.memberCount,
+            cohortCount: 1,
+            weightedDirection,
+          },
+        )
+      }
+    }
+
+    const grazerPresentationClusters =
+      Array.from(
+        grazerClusterMap.entries(),
+      )
+        .map(
+          ([key, cluster]) => {
+            const direction =
+              cluster.weightedDirection
+                .normalize()
+
+            const coordinate =
+              sphereDirectionToGeographicDegrees(
+                direction,
+              )
+
+            return {
+              key,
+              memberCount:
+                cluster.memberCount,
+              cohortCount:
+                cluster.cohortCount,
+              latitudeDegrees:
+                coordinate.latitudeDegrees,
+              longitudeDegrees:
+                coordinate.longitudeDegrees,
+            }
+          },
+        )
+        .sort(
+          (left, right) =>
+            right.memberCount -
+            left.memberCount,
+        )
+
+    const totalGrazerMembers =
+      visibleGrazerCohorts.reduce(
+        (total, cohort) =>
+          total +
+          cohort.memberCount,
+        0,
+      )
+
+    const formatLivingCount = (
+      value: number,
+    ): string => {
+      if (value >= 1_000_000) {
+        return (
+          `${(
+            value /
+            1_000_000
+          ).toFixed(1)}m`
+        )
+      }
+
+      if (value >= 1_000) {
+        return (
+          `${(
+            value /
+            1_000
+          ).toFixed(1)}k`
+        )
+      }
+
+      return value.toLocaleString()
+    }
+
+    for (
+      const cluster of
+        grazerPresentationClusters
+    ) {
+      const scale =
+        Math.min(
+          0.068,
+          0.046 +
+            Math.log10(
+              cluster.memberCount + 1,
+            ) *
+              0.0025,
+        )
+
+      createBillboardPlane(
+        `grazer-cluster-${cluster.key}`,
+        grazerCohortSpriteMaterial,
+        cluster.latitudeDegrees,
+        cluster.longitudeDegrees,
+        scale,
+      )
+    }
+
+    let renderedInvertebrateCells =
+      0
+
+    for (
+      const cell of
+        visibleInvertebrateCells
+    ) {
       const surfaceCell =
         surfaceCellById.get(
           cell.surfaceCellId,
@@ -961,601 +2012,594 @@ if (sessionId) {
         continue
       }
 
-      candidates.push({
-        cell,
-        direction:
-          geographicDegreesToSphereDirection(
-            surfaceCell.centerLatitudeDegrees,
-            surfaceCell.centerLongitudeDegrees,
-          ),
-      })
-    }
-
-    candidates.sort(
-      (left, right) => {
-        const biomassDifference =
-          right.cell
-            .liveBiomassKilogramsPerSquareMeter -
-          left.cell
-            .liveBiomassKilogramsPerSquareMeter
-
-        if (biomassDifference !== 0) {
-          return biomassDifference
-        }
-
-        return left.cell.surfaceCellId
-          .localeCompare(
-            right.cell.surfaceCellId,
-          )
-      },
-    )
-
-    if (
-      candidates.length <=
-      maximumCount
-    ) {
-      return candidates.map(
-        candidate =>
-          candidate.cell,
-      )
-    }
-
-    const selected = [
-      candidates[0],
-    ]
-
-    const remaining =
-      candidates
-        .slice(1)
-        .map(
-          candidate => ({
-            ...candidate,
-            minimumDistance:
-              1 -
-              Vector3.Dot(
-                candidates[0].direction,
-                candidate.direction,
-              ),
-          }),
+      const scale =
+        Math.min(
+          0.040,
+          0.020 +
+            Math.log10(
+              1 +
+                cell.liveBiomassKilogramsPerSquareMeter *
+                  1_000,
+            ) *
+              0.004,
         )
 
-    const tolerance =
-      1e-12
-
-    while (
-      selected.length <
-        maximumCount &&
-      remaining.length >
-        0
-    ) {
-      let bestIndex =
-        0
-
-      for (
-        let index = 1;
-        index <
-        remaining.length;
-        index++
-      ) {
-        const candidate =
-          remaining[index]
-
-        const currentBest =
-          remaining[bestIndex]
-
-        if (
-          candidate.minimumDistance >
-          currentBest.minimumDistance +
-            tolerance
-        ) {
-          bestIndex =
-            index
-
-          continue
-        }
-
-        if (
-          Math.abs(
-            candidate.minimumDistance -
-              currentBest.minimumDistance,
-          ) <= tolerance
-        ) {
-          const biomassDifference =
-            candidate.cell
-              .liveBiomassKilogramsPerSquareMeter -
-            currentBest.cell
-              .liveBiomassKilogramsPerSquareMeter
-
-          if (
-            biomassDifference >
-            0 ||
-            (
-              biomassDifference ===
-                0 &&
-              candidate.cell
-                .surfaceCellId <
-                currentBest.cell
-                  .surfaceCellId
-            )
-          ) {
-            bestIndex =
-              index
-          }
-        }
-      }
-
-      const next =
-        remaining[
-          bestIndex
-        ]
-
-      selected.push(
-        next,
+      createBillboardPlane(
+        `invertebrates-${cell.surfaceCellId}`,
+        invertebrateSpriteMaterial,
+        surfaceCell.centerLatitudeDegrees,
+        surfaceCell.centerLongitudeDegrees,
+        scale,
+        0.009,
       )
 
-      remaining.splice(
-        bestIndex,
-        1,
-      )
-
-      for (
-        const candidate of
-        remaining
-      ) {
-        const distance =
-          1 -
-          Vector3.Dot(
-            next.direction,
-            candidate.direction,
-          )
-
-        candidate.minimumDistance =
-          Math.min(
-            candidate.minimumDistance,
-            distance,
-          )
-      }
-    }
-
-    return selected.map(
-      candidate =>
-        candidate.cell,
-    )
-  }
-
-  const visibleInvertebrateCells =
-    selectSpatiallyDistributedInvertebrateCells(
-      activeInvertebrateCells,
-      64,
-    )
-
-  const createBillboardPlane = (
-    name: string,
-    material: StandardMaterial,
-    latitudeDegrees: number,
-    longitudeDegrees: number,
-    size: number,
-    radialLift =
-      livingSymbolRadialLift,
-  ): Mesh => {
-    const direction =
-      geographicDegreesToSphereDirection(
-        latitudeDegrees,
-        longitudeDegrees,
-      )
-
-    const terrainOffset =
-      terrainRadialOffset?.(
-        direction,
-      ) ?? 0
-
-    const position =
-      direction.scale(
-        1 +
-          terrainOffset +
-          radialLift,
-      )
-
-    const plane =
-      CreatePlane(
-        name,
-        {
-          width: size,
-          height: size,
-          sideOrientation:
-            Mesh.DOUBLESIDE,
-        },
-        scene,
-      )
-
-    plane.position =
-      position
-
-    plane.material =
-      material
-
-    plane.billboardMode =
-      Mesh.BILLBOARDMODE_ALL
-
-    plane.isPickable =
-      false
-
-    plane.renderingGroupId =
-      2
-
-    return plane
-  }
-
-  for (const person of visiblePopulation) {
-    const ageSeconds =
-      Math.max(
-        0,
-        world.currentTimeSeconds -
-          person.birthTimeSeconds,
-      )
-
-    const isChild =
-      ageSeconds <
-      humanAdultDisplayAgeSeconds
-
-    const material =
-      isChild
-        ? person.sex === 'Female'
-          ? humanGirlSpriteMaterial
-          : humanBoySpriteMaterial
-        : person.sex === 'Female'
-          ? humanWomanSpriteMaterial
-          : humanManSpriteMaterial
-
-    createBillboardPlane(
-      `human-${person.personId}`,
-      material,
-      person.latitudeDegrees,
-      person.longitudeDegrees,
-      isChild
-        ? 0.026
-        : 0.032,
-    )
-  }
-
-  for (const wolf of visibleWolves) {
-    const ageSeconds =
-      Math.max(
-        0,
-        world.currentTimeSeconds -
-          wolf.birthTimeSeconds,
-      )
-
-    const isJuvenile =
-      ageSeconds <
-      wolfJuvenileDisplayAgeSeconds
-
-    const material =
-      isJuvenile
-        ? wolfPupSpriteMaterial
-        : wolf.sex === 'Female'
-          ? femaleWolfSpriteMaterial
-          : maleWolfSpriteMaterial
-
-    createBillboardPlane(
-      `wolf-${wolf.animalId}`,
-      material,
-      wolf.latitudeDegrees,
-      wolf.longitudeDegrees,
-      isJuvenile
-        ? 0.028
-        : 0.036,
-    )
-  }
-
-  for (const flock of visibleBirdFlocks) {
-    const scale =
-      Math.min(
-        0.055,
-        0.030 +
-          Math.log10(
-            flock.memberCount + 1,
-          ) *
-            0.004,
-      )
-
-    createBillboardPlane(
-      `bird-flock-${flock.flockId}`,
-      birdFlockSpriteMaterial,
-      flock.latitudeDegrees,
-      flock.longitudeDegrees,
-      scale,
-      0.012,
-    )
-  }
-
-  interface GrazerPresentationCluster {
-    memberCount: number
-    cohortCount: number
-    weightedDirection: Vector3
-  }
-
-  const grazerLatitudeClusterDegrees =
-    45
-
-  const grazerLongitudeClusterDegrees =
-    60
-
-  const grazerClusterMap =
-    new Map<
-      string,
-      GrazerPresentationCluster
-    >()
-
-  for (
-    const cohort of visibleGrazerCohorts
-  ) {
-    const normalizedLongitude =
-      (
-        (
-          cohort.longitudeDegrees +
-          180
-        ) %
-          360 +
-        360
-      ) %
-        360 -
-      180
-
-    const latitudeBin =
-      Math.min(
-        3,
-        Math.max(
-          0,
-          Math.floor(
-            (
-              cohort.latitudeDegrees +
-              90
-            ) /
-              grazerLatitudeClusterDegrees,
-          ),
-        ),
-      )
-
-    const longitudeBin =
-      Math.min(
-        5,
-        Math.max(
-          0,
-          Math.floor(
-            (
-              normalizedLongitude +
-              180
-            ) /
-              grazerLongitudeClusterDegrees,
-          ),
-        ),
-      )
-
-    const key =
-      `${latitudeBin}:${longitudeBin}`
-
-    const direction =
-      geographicDegreesToSphereDirection(
-        cohort.latitudeDegrees,
-        cohort.longitudeDegrees,
-      )
-
-    const weightedDirection =
-      direction.scale(
-        cohort.memberCount,
-      )
-
-    const existing =
-      grazerClusterMap.get(
-        key,
-      )
-
-    if (existing) {
-      existing.memberCount +=
-        cohort.memberCount
-
-      existing.cohortCount +=
+      renderedInvertebrateCells +=
         1
-
-      existing.weightedDirection
-        .addInPlace(
-          weightedDirection,
-        )
-    } else {
-      grazerClusterMap.set(
-        key,
-        {
-          memberCount:
-            cohort.memberCount,
-          cohortCount: 1,
-          weightedDirection,
-        },
-      )
-    }
-  }
-
-  const grazerPresentationClusters =
-    Array.from(
-      grazerClusterMap.entries(),
-    )
-      .map(
-        ([key, cluster]) => {
-          const direction =
-            cluster.weightedDirection
-              .normalize()
-
-          const coordinate =
-            sphereDirectionToGeographicDegrees(
-              direction,
-            )
-
-          return {
-            key,
-            memberCount:
-              cluster.memberCount,
-            cohortCount:
-              cluster.cohortCount,
-            latitudeDegrees:
-              coordinate.latitudeDegrees,
-            longitudeDegrees:
-              coordinate.longitudeDegrees,
-          }
-        },
-      )
-      .sort(
-        (left, right) =>
-          right.memberCount -
-          left.memberCount,
-      )
-
-  const totalGrazerMembers =
-    visibleGrazerCohorts.reduce(
-      (total, cohort) =>
-        total +
-        cohort.memberCount,
-      0,
-    )
-
-  const formatLivingCount = (
-    value: number,
-  ): string => {
-    if (value >= 1_000_000) {
-      return (
-        `${(
-          value /
-          1_000_000
-        ).toFixed(1)}m`
-      )
     }
 
-    if (value >= 1_000) {
-      return (
-        `${(
-          value /
-          1_000
-        ).toFixed(1)}k`
-      )
-    }
-
-    return value.toLocaleString()
-  }
-
-  for (
-    const cluster of
-      grazerPresentationClusters
-  ) {
-    const scale =
-      Math.min(
-        0.068,
-        0.046 +
-          Math.log10(
-            cluster.memberCount + 1,
-          ) *
-            0.0025,
-      )
-
-    createBillboardPlane(
-      `grazer-cluster-${cluster.key}`,
-      grazerCohortSpriteMaterial,
-      cluster.latitudeDegrees,
-      cluster.longitudeDegrees,
-      scale,
-    )
-  }
-
-  let renderedInvertebrateCells =
-    0
-
-  for (
-    const cell of
-      visibleInvertebrateCells
-  ) {
-    const surfaceCell =
-      surfaceCellById.get(
-        cell.surfaceCellId,
-      )
-
-    if (!surfaceCell) {
-      continue
-    }
-
-    const scale =
-      Math.min(
-        0.040,
-        0.020 +
-          Math.log10(
-            1 +
-              cell.liveBiomassKilogramsPerSquareMeter *
-                1_000,
-          ) *
-            0.004,
-      )
-
-    createBillboardPlane(
-      `invertebrates-${cell.surfaceCellId}`,
-      invertebrateSpriteMaterial,
-      surfaceCell.centerLatitudeDegrees,
-      surfaceCell.centerLongitudeDegrees,
-      scale,
-      0.009,
-    )
-
-    renderedInvertebrateCells +=
-      1
-  }
-
-  const faunaFocusRequested =
-    new URLSearchParams(
-      window.location.search,
-    ).get('focus') === 'fauna'
-
-  if (faunaFocusRequested) {
-    const target =
-      visibleWolves[0] ??
-      visiblePopulation[0] ??
-      visibleGrazerCohorts[0] ??
-      visibleBirdFlocks[0]
+    const faunaFocusRequested =
+      new URLSearchParams(
+        window.location.search,
+      ).get('focus') === 'fauna'
 
     if (
-      target &&
-      'latitudeDegrees' in target &&
-      'longitudeDegrees' in target
+      faunaFocusRequested &&
+      !faunaFocusApplied
     ) {
-      const focusDirection =
-        geographicDegreesToSphereDirection(
-          target.latitudeDegrees,
-          target.longitudeDegrees,
+      const target =
+        visibleWolves[0] ??
+        visiblePopulation[0] ??
+        visibleGrazerCohorts[0] ??
+        visibleBirdFlocks[0]
+
+      if (
+        target &&
+        'latitudeDegrees' in target &&
+        'longitudeDegrees' in target
+      ) {
+        const focusDirection =
+          geographicDegreesToSphereDirection(
+            target.latitudeDegrees,
+            target.longitudeDegrees,
+          )
+
+        camera.setPosition(
+          focusDirection.scale(
+            3.2,
+          ),
         )
 
-      camera.setPosition(
-        focusDirection.scale(
-          3.2,
-        ),
-      )
+        faunaFocusApplied =
+          true
+      }
     }
+
+    if (faunaStatus) {
+      const simulatedDay =
+        world.currentTimeSeconds /
+        86_400
+
+      const juvenileWolfCount =
+        visibleWolves.filter(
+          wolf =>
+            Math.max(
+              0,
+              world.currentTimeSeconds -
+                wolf.birthTimeSeconds,
+            ) <
+            wolfJuvenileDisplayAgeSeconds,
+        ).length
+
+      faunaStatus.textContent =
+        `Day ${simulatedDay.toFixed(0)} · living world · ${visiblePopulation.length} humans · ${visibleWolves.length} wolves (${juvenileWolfCount} pups) · ${visibleBirdFlocks.length} bird flocks · ${grazerPresentationClusters.length} grazer markers representing ${formatLivingCount(totalGrazerMembers)} grazers / ${visibleGrazerCohorts.length} cohorts · ${activeVegetationCells.length} active vegetation cells · ${renderedInvertebrateCells} spatial insect samples / ${activeInvertebrateCells.length} active cells${faunaFocusRequested ? ' · FAUNA FOCUS' : ''}`
+    }
+
   }
 
-  if (faunaStatus) {
-    const juvenileWolfCount =
-      visibleWolves.filter(
-        wolf =>
-          Math.max(
-            0,
-            world.currentTimeSeconds -
-              wolf.birthTimeSeconds,
-          ) <
-          wolfJuvenileDisplayAgeSeconds,
+  renderLivingWorld()
+
+  const telemetrySection = (
+    title: string,
+    metrics: ReadonlyArray<
+      readonly [string, string | number]
+    >,
+  ): string =>
+    `
+      <div class="simulation-telemetry-section">
+        <div class="simulation-telemetry-section-title">
+          ${title}
+        </div>
+        <div class="simulation-telemetry-grid">
+          ${metrics.map(
+            ([label, value]) =>
+              `<div class="simulation-metric">
+                <span class="simulation-metric-label">${label}</span>
+                <strong>${value}</strong>
+              </div>`,
+          ).join('')}
+        </div>
+      </div>
+    `
+
+  const renderSimulationTelemetry = () => {
+    if (!sessionStatus) {
+      return
+    }
+
+    const population =
+      world.population.filter(
+        person =>
+          person.planetId ===
+          planet.planetId,
+      )
+
+    const wolves =
+      world.animals.filter(
+        animal =>
+          animal.planetId ===
+            planet.planetId &&
+          animal.species === 'Wolf',
+      )
+
+    const activityCounts =
+      population.reduce(
+        (counts, person) => {
+          counts[person.activity] =
+            (counts[person.activity] ?? 0) + 1
+          return counts
+        },
+        {} as Record<string, number>,
+      )
+
+    const pregnantPeople =
+      population.filter(
+        person => person.isPregnant,
       ).length
 
-    faunaStatus.textContent =
-      `living world · ${visiblePopulation.length} humans · ${visibleWolves.length} wolves (${juvenileWolfCount} pups) · ${visibleBirdFlocks.length} bird flocks · ${grazerPresentationClusters.length} grazer markers representing ${formatLivingCount(totalGrazerMembers)} grazers / ${visibleGrazerCohorts.length} cohorts · ${activeVegetationCells.length} active vegetation cells · ${renderedInvertebrateCells} spatial insect samples / ${activeInvertebrateCells.length} active cells${faunaFocusRequested ? ' · FAUNA FOCUS' : ''}`
+    const pregnantWolves =
+      wolves.filter(
+        wolf => wolf.isPregnant,
+      ).length
+
+    const averageEnergy =
+      population.length === 0
+        ? 0
+        : population.reduce(
+            (sum, person) =>
+              sum + person.energyReserve,
+            0,
+          ) / population.length
+
+    const averageHealth =
+      population.length === 0
+        ? 0
+        : population.reduce(
+            (sum, person) =>
+              sum + person.health,
+            0,
+          ) / population.length
+
+    const birdMembers =
+      birdFlocks?.flocks.reduce(
+        (sum, flock) =>
+          sum + flock.memberCount,
+        0,
+      ) ?? 0
+
+    const grazerMembers =
+      grazerCohorts?.cohorts.reduce(
+        (sum, cohort) =>
+          sum + cohort.memberCount,
+        0,
+      ) ?? 0
+
+    const day =
+      world.currentTimeSeconds /
+      86_400
+
+    sessionStatus.innerHTML =
+      `
+        <div class="simulation-telemetry-header">
+          <div>
+            <div class="simulation-telemetry-kicker">
+              ${planet.name}
+            </div>
+            <div class="simulation-telemetry-population">
+              ${population.length.toLocaleString()}
+            </div>
+            <div class="simulation-telemetry-caption">
+              Population
+            </div>
+          </div>
+
+          <div class="simulation-telemetry-day">
+            <div class="simulation-telemetry-kicker">
+              Simulation
+            </div>
+            <div class="simulation-telemetry-day-value">
+              Day ${day.toFixed(0)}
+            </div>
+          </div>
+        </div>
+      ` +
+      telemetrySection(
+        'Human activity',
+        [
+          ['Idle', activityCounts.Idle ?? 0],
+          ['Foraging', activityCounts.Foraging ?? 0],
+          ['Eating', activityCounts.Eating ?? 0],
+          ['Traveling', activityCounts.Traveling ?? 0],
+          ['Fleeing', activityCounts.Fleeing ?? 0],
+          ['Seeking partner', activityCounts.SeekingPartner ?? 0],
+          ['Mating', activityCounts.Mating ?? 0],
+          ['Pregnant', pregnantPeople],
+        ],
+      ) +
+      telemetrySection(
+        'Condition',
+        [
+          ['Average energy', averageEnergy.toFixed(2)],
+          ['Average health', averageHealth.toFixed(2)],
+        ],
+      ) +
+      telemetrySection(
+        'Living world',
+        [
+          ['Wolves', wolves.length],
+          ['Pregnant wolves', pregnantWolves],
+          ['Bird flocks', birdFlocks?.flocks.length ?? 0],
+          ['Birds', birdMembers.toLocaleString()],
+          ['Grazer cohorts', grazerCohorts?.cohorts.length ?? 0],
+          ['Grazers', grazerMembers.toLocaleString()],
+        ],
+      ) +
+      telemetrySection(
+        'Population change',
+        [
+          ['Births', `+${cumulativeMetrics.births}`],
+          ['Natural deaths', `−${cumulativeMetrics.demographicDeaths}`],
+          ['Starvation deaths', `−${cumulativeMetrics.starvationDeaths}`],
+        ],
+      ) +
+      telemetrySection(
+        'Movement & feeding',
+        [
+          ['Food-seeking steps', cumulativeMetrics.foodSeekingTravel],
+          ['Continued travel', cumulativeMetrics.continuedFoodTravel],
+          ['Feeding events', cumulativeMetrics.feedingEvents],
+          ['Travel feedings', cumulativeMetrics.travelFeedingEvents],
+          ['Random migrations', cumulativeMetrics.demographicMigrations],
+          ['Scarcity migrations', cumulativeMetrics.scarcityMigrations],
+          ['No viable food', cumulativeMetrics.noViableFoodFound],
+        ],
+      ) +
+      telemetrySection(
+        'Predation',
+        [
+          ['Wolf attacks', cumulativeMetrics.wolfAttacks],
+          ['Failed attacks', cumulativeMetrics.failedAttacks],
+          ['Human predation deaths', cumulativeMetrics.predationDeaths],
+          ['Grazer kills', cumulativeMetrics.grazerKills],
+          ['Wolf births', cumulativeMetrics.wolfBirths],
+        ],
+      )
   }
+
+  const refreshTimelineMetrics = async () => {
+    const timeline =
+      await api.getTimeline(
+        sessionId,
+      )
+
+    for (const event of timeline.events) {
+      if (
+        observedTimelineEvents.has(
+          event.eventId,
+        )
+      ) {
+        continue
+      }
+
+      observedTimelineEvents.add(
+        event.eventId,
+      )
+
+      if (
+        event.cause ===
+        'population-dynamics'
+      ) {
+        cumulativeMetrics.demographicDeaths +=
+          event.metrics.deaths ?? 0
+
+        cumulativeMetrics.demographicMigrations +=
+          event.metrics.migrations ?? 0
+      }
+
+      if (
+        event.cause ===
+        'reproduction'
+      ) {
+        cumulativeMetrics.births +=
+          event.metrics.births ?? 0
+      }
+
+      if (
+        event.cause ===
+          'vegetation-foraging' ||
+        event.cause ===
+          'foraging'
+      ) {
+        cumulativeMetrics.starvationDeaths +=
+          event.metrics.starvationDeaths ?? 0
+
+        cumulativeMetrics.feedingEvents +=
+          event.metrics.feedingEvents ?? 0
+
+        cumulativeMetrics.travelFeedingEvents +=
+          event.metrics.travelFeedingEvents ?? 0
+
+        cumulativeMetrics.continuedFoodTravel +=
+          event.metrics.continuedFoodTravel ?? 0
+
+        cumulativeMetrics.foodSeekingTravel +=
+          event.metrics.foodSeekingTravel ?? 0
+
+        cumulativeMetrics.scarcityMigrations +=
+          event.metrics.scarcityMigrations ?? 0
+
+        cumulativeMetrics.noViableFoodFound +=
+          event.metrics.noViableFoodFound ?? 0
+      }
+
+      if (
+        event.cause ===
+        'predation'
+      ) {
+        cumulativeMetrics.wolfAttacks +=
+          event.metrics.wolfAttacks ?? 0
+
+        cumulativeMetrics.failedAttacks +=
+          event.metrics.failedAttacks ?? 0
+
+        cumulativeMetrics.predationDeaths +=
+          event.metrics.predationDeaths ?? 0
+
+        cumulativeMetrics.grazerKills +=
+          event.metrics.grazerKills ?? 0
+      }
+
+      if (
+        event.cause ===
+        'wolf-reproduction'
+      ) {
+        cumulativeMetrics.wolfBirths +=
+          event.metrics.births ?? 0
+      }
+    }
+  }
+
+  await refreshTimelineMetrics()
+  renderSimulationTelemetry()
 
   if (terrainStatus) {
     terrainStatus.textContent =
       `authoritative terrain · ${terrain.cells.length.toLocaleString()} cells · ${minimumElevationMeters.toFixed(0)} to ${maximumElevationMeters.toFixed(0)} m`
   }
+  const simulationStepSeconds =
+    86_400
+
+  const simulationTickMilliseconds =
+    500
+
+  let simulationTickInProgress =
+    false
+
+  let simulationTickCount =
+    0
+
+  const updatePlanetVegetationCoverage = () => {
+    const positions =
+      planetMesh.getVerticesData(
+        'position',
+      )
+
+    if (!positions) {
+      throw new Error(
+        'Planet position buffer is unavailable for vegetation refresh.',
+      )
+    }
+
+    const coverage: number[] = []
+
+    for (
+      let index = 0;
+      index < positions.length;
+      index += 3
+    ) {
+      const x = positions[index]
+      const y = positions[index + 1]
+      const z = positions[index + 2]
+
+      const length =
+        Math.hypot(
+          x,
+          y,
+          z,
+        )
+
+      if (
+        !Number.isFinite(length) ||
+        length <= 0
+      ) {
+        throw new Error(
+          'Planet contains an invalid vertex direction during vegetation refresh.',
+        )
+      }
+
+      const coordinate =
+        sphereDirectionToGeographicDegrees({
+          x: x / length,
+          y: y / length,
+          z: z / length,
+        })
+
+      const row =
+        Math.min(
+          vegetationCoverageHeight - 1,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                (
+                  coordinate.latitudeDegrees +
+                  90
+                ) /
+                180
+              ) *
+                vegetationCoverageHeight,
+            ),
+          ),
+        )
+
+      const normalizedLongitude =
+        (
+          (
+            coordinate.longitudeDegrees +
+            180
+          ) %
+            360 +
+          360
+        ) %
+        360
+
+      const column =
+        Math.min(
+          vegetationCoverageWidth - 1,
+          Math.max(
+            0,
+            Math.floor(
+              (
+                normalizedLongitude /
+                360
+              ) *
+                vegetationCoverageWidth,
+            ),
+          ),
+        )
+
+      coverage.push(
+        vegetationCoverageData?.[
+          row *
+            vegetationCoverageWidth +
+            column
+        ] ?? 0,
+      )
+    }
+
+    planetMesh.updateVerticesData(
+      'vegetationCoverage',
+      coverage,
+      false,
+      false,
+    )
+  }
+
+  const refreshSimulation = async () => {
+    if (simulationTickInProgress) {
+      return
+    }
+
+    simulationTickInProgress =
+      true
+
+    try {
+      await api.advanceSession(
+        sessionId,
+        simulationStepSeconds,
+      )
+
+      const [
+        nextWorld,
+        nextVegetation,
+        nextInvertebrates,
+        nextBirdFlocks,
+        nextGrazerCohorts,
+      ] =
+        await Promise.all([
+          api.getWorld(
+            sessionId,
+          ),
+          api.getPlanetVegetation(
+            sessionId,
+            planet.planetId,
+          ),
+          api.getPlanetInvertebrates(
+            sessionId,
+            planet.planetId,
+          ),
+          api.getPlanetBirdFlocks(
+            sessionId,
+            planet.planetId,
+          ),
+          api.getPlanetGrazerCohorts(
+            sessionId,
+            planet.planetId,
+          ),
+        ])
+
+      world =
+        nextWorld
+
+      vegetation =
+        nextVegetation
+
+      invertebrates =
+        nextInvertebrates
+
+      birdFlocks =
+        nextBirdFlocks
+
+      grazerCohorts =
+        nextGrazerCohorts
+
+      simulationTickCount +=
+        1
+
+      if (
+        simulationTickCount %
+          10 ===
+        0
+      ) {
+        await refreshTimelineMetrics()
+      }
+
+      updateVegetationCoverageState()
+      updatePlanetVegetationCoverage()
+      renderLivingWorld()
+      renderSimulationTelemetry()
+    } catch (error) {
+      console.error(
+        '[Est Babylon] live simulation heartbeat failed',
+        error,
+      )
+
+      if (faunaStatus) {
+        faunaStatus.textContent =
+          'LIVE UPDATE ERROR · see browser console'
+      }
+    } finally {
+      simulationTickInProgress =
+        false
+    }
+  }
+
+  window.setInterval(
+    () => {
+      void refreshSimulation()
+    },
+    simulationTickMilliseconds,
+  )
+
 } else {
   if (terrainStatus) {
     terrainStatus.textContent =
@@ -1752,7 +2796,7 @@ planetVertexData.applyToMesh(
 planetMesh.setVerticesData(
   'vegetationCoverage',
   planetVegetationCoverage,
-  false,
+  true,
   1,
 )
 

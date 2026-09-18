@@ -45,10 +45,24 @@ function gridsMatch(
 }
 
 function readOceanSurfaceElevationMeters(
+  surface: SurfaceResponse,
   standingWater: StandingWaterResponse,
 ): number | undefined {
-  let oceanSurfaceElevationMeters:
-    number | undefined
+  const surfaceAreaByCellId =
+    new Map(
+      surface.cells.map(
+        cell => [
+          cell.cellId,
+          cell.areaSquareMeters,
+        ] as const,
+      ),
+    )
+
+  let weightedElevationMeters =
+    0
+
+  let totalAreaSquareMeters =
+    0
 
   for (
     const cell
@@ -74,48 +88,59 @@ function readOceanSurfaceElevationMeters(
       )
     }
 
-    if (
-      oceanSurfaceElevationMeters ===
-      undefined
-    ) {
-      oceanSurfaceElevationMeters =
-        elevation
-
-      continue
-    }
-
-    const comparisonScale =
-      Math.max(
-        1,
-        Math.abs(
-          oceanSurfaceElevationMeters,
-        ),
-        Math.abs(
-          elevation,
-        ),
-      )
-
-    const toleranceMeters =
-      Math.max(
-        0.000001,
-        comparisonScale *
-          0.000000000001,
+    const areaSquareMeters =
+      surfaceAreaByCellId.get(
+        cell.cellId,
       )
 
     if (
-      Math.abs(
-        elevation -
-          oceanSurfaceElevationMeters,
-      ) >
-      toleranceMeters
+      areaSquareMeters === undefined ||
+      !Number.isFinite(
+        areaSquareMeters,
+      ) ||
+      areaSquareMeters <= 0
     ) {
       throw new Error(
-        'Ocean standing-water cells do not share one authoritative surface elevation.',
+        'Ocean standing-water state has no valid authoritative surface area.',
       )
     }
+
+    weightedElevationMeters +=
+      elevation *
+      areaSquareMeters
+
+    totalAreaSquareMeters +=
+      areaSquareMeters
   }
 
-  return oceanSurfaceElevationMeters
+  if (
+    totalAreaSquareMeters <= 0
+  ) {
+    return undefined
+  }
+
+  const presentationElevationMeters =
+    weightedElevationMeters /
+    totalAreaSquareMeters
+
+  if (
+    !Number.isFinite(
+      presentationElevationMeters,
+    )
+  ) {
+    throw new Error(
+      'Ocean standing-water state produced an invalid presentation elevation.',
+    )
+  }
+
+  /*
+   * Authoritative hydrology is cell-local and does not require every cell
+   * in a connected ocean to have an identical instantaneous surface
+   * elevation. Babylon presents that spatially varying state as one
+   * continuous renderer-resolution shell, so use the surface-area-weighted
+   * authoritative ocean elevation as the shell level.
+   */
+  return presentationElevationMeters
 }
 
 export function createStandingWaterMesh(
@@ -166,6 +191,7 @@ export function createStandingWaterMesh(
 
   const oceanSurfaceElevationMeters =
     readOceanSurfaceElevationMeters(
+      surface,
       standingWater,
     )
 

@@ -326,7 +326,7 @@ body {
 
 .simulation-metric {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
   min-height: 25px;
   gap: 8px;
@@ -335,7 +335,7 @@ body {
 }
 
 .activity-grid .simulation-metric {
-  grid-template-columns: 10px minmax(0, 1fr) 34px;
+  grid-template-columns: 10px minmax(0, 1fr) max-content;
 }
 
 .simulation-metric strong {
@@ -453,4 +453,209 @@ body {
 
 .planet-foundation-status span:first-of-type {
   color: rgb(255 255 255 / 76%);
+}
+
+
+.babylon-observer-panel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 20;
+  width: min(360px, calc(100% - 36px));
+  min-width: 300px;
+  min-height: 150px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  overflow: hidden;
+  resize: both;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(13, 23, 32, 0.96),
+      rgba(5, 11, 17, 0.94)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 50px rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(18px);
+}
+
+.babylon-observer-panel.is-dragging {
+  user-select: none;
+}
+
+.babylon-observer-panel.is-collapsed {
+  min-height: 0;
+  height: auto !important;
+  resize: none;
+}
+
+.babylon-observer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  touch-action: none;
+}
+
+.babylon-observer-panel.is-dragging
+.babylon-observer-heading {
+  cursor: grabbing;
+}
+
+.babylon-observer-panel.is-collapsed
+.babylon-observer-heading {
+  border-bottom: 0;
+}
+
+.babylon-observer-heading-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.babylon-observer-heading-copy strong {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.babylon-observer-heading-copy span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.babylon-observer-body {
+  max-height: calc(100vh - 100px);
+  overflow: auto;
+}
+
+.babylon-simulation-telemetry {
+  width: 100%;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.babylon-observer-restore {
+  top: 18px;
+  right: 18px;
+  left: auto;
+}
+
+.babylon-observer-panel[hidden],
+.babylon-observer-restore[hidden] {
+  display: none;
+}
+
+
+/* Babylon Observatory diagnostics + clean viewing mode */
+
+.babylon-observer-diagnostics {
+  margin: 0;
+  padding: 0 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.babylon-observer-diagnostics > summary {
+  padding: 12px 0 0;
+  cursor: pointer;
+  user-select: none;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.babylon-observer-diagnostics[open] > summary {
+  margin-bottom: 12px;
+}
+
+.babylon-diagnostics-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.babylon-diagnostics-grid > div {
+  display: grid;
+  gap: 3px;
+}
+
+.babylon-diagnostics-grid span {
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.babylon-diagnostics-grid strong {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+#observerPanelViewerModeButton {
+  min-width: auto;
+  padding-inline: 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#app.is-clean-viewer .babylon-observer-panel,
+#app.is-clean-viewer .babylon-observer-restore {
+  display: none !important;
+}
+
+/* Observatory resized-window behavior:
+   fixed header, scrolling telemetry, pinned diagnostics footer. */
+
+.babylon-observer-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.babylon-observer-heading {
+  flex: 0 0 auto;
+}
+
+.babylon-observer-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.babylon-simulation-telemetry {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.babylon-observer-diagnostics {
+  flex: 0 0 auto;
+  margin: 0;
+  background: rgba(5, 11, 17, 0.96);
+}
+
+.babylon-observer-diagnostics[open] {
+  max-height: 45%;
+  overflow-y: auto;
 }
