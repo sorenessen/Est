@@ -241,6 +241,13 @@ public sealed class BirdFlockSystem
                 stepSeconds /
                 SecondsPerDay;
 
+            var regionalCellBudget =
+                Math.Max(
+                    1,
+                    (int)Math.Ceiling(
+                        (double)grid.CellCount /
+                        _parameters.MaximumInitialFlockCount));
+
             foreach (var flock in flocks)
             {
                 var currentCell =
@@ -255,7 +262,8 @@ public sealed class BirdFlockSystem
                         grid,
                         hydrology,
                         vegetation,
-                        invertebrateBiomassByCellId);
+                        invertebrateBiomassByCellId,
+                        regionalCellBudget);
 
                 if (target.Cell.Id ==
                     currentCell.Id)
@@ -320,14 +328,25 @@ public sealed class BirdFlockSystem
                 0)
             {
                 foreach (var group in
-                         flocks.GroupBy(
-                             flock =>
-                                 occupiedCellsByFlockId[
-                                     flock.Id]
-                                     .Id))
+                         flocks
+                             .GroupBy(
+                                 flock =>
+                                     occupiedCellsByFlockId[
+                                         flock.Id]
+                                         .Id)
+                             .OrderBy(
+                                 group =>
+                                     group.Key.Value))
                 {
                     var cellId =
                         group.Key;
+
+                    var regionalCellIds =
+                        GetRegionalCellIds(
+                            grid.GetCell(
+                                cellId),
+                            grid,
+                            regionalCellBudget);
 
                     var totalDemandKilograms =
                         group.Sum(
@@ -349,40 +368,71 @@ public sealed class BirdFlockSystem
                     }
 
                     var availableBiomassKilograms =
-                        invertebrateBiomassByCellId[
-                            cellId];
+                        regionalCellIds.Sum(
+                            regionalCellId =>
+                                invertebrateBiomassByCellId[
+                                    regionalCellId]);
 
-                    var availableNitrogenKilograms =
-                        invertebrateNitrogenByCellId[
-                            cellId];
+                    if (!double.IsFinite(
+                            availableBiomassKilograms))
+                    {
+                        throw new InvalidOperationException(
+                            "Bird regional prey support produced non-finite biomass.");
+                    }
 
-                    var consumedBiomassKilograms =
-                        Math.Min(
-                            availableBiomassKilograms,
-                            totalDemandKilograms);
-
-                    var consumedNitrogenKilograms =
+                    var consumptionFraction =
                         availableBiomassKilograms <= 0
                             ? 0
                             : Math.Min(
-                                availableNitrogenKilograms,
-                                availableNitrogenKilograms *
-                                consumedBiomassKilograms /
+                                1,
+                                totalDemandKilograms /
                                 availableBiomassKilograms);
 
-                    invertebrateBiomassByCellId[
-                        cellId] =
-                        Math.Max(
-                            0,
-                            availableBiomassKilograms -
-                            consumedBiomassKilograms);
+                    var consumedBiomassKilograms =
+                        0d;
 
-                    invertebrateNitrogenByCellId[
-                        cellId] =
-                        Math.Max(
-                            0,
-                            availableNitrogenKilograms -
-                            consumedNitrogenKilograms);
+                    var consumedNitrogenKilograms =
+                        0d;
+
+                    foreach (var regionalCellId in
+                             regionalCellIds)
+                    {
+                        var cellBiomassKilograms =
+                            invertebrateBiomassByCellId[
+                                regionalCellId];
+
+                        var cellNitrogenKilograms =
+                            invertebrateNitrogenByCellId[
+                                regionalCellId];
+
+                        var cellConsumedBiomassKilograms =
+                            cellBiomassKilograms *
+                            consumptionFraction;
+
+                        var cellConsumedNitrogenKilograms =
+                            cellNitrogenKilograms *
+                            consumptionFraction;
+
+                        invertebrateBiomassByCellId[
+                            regionalCellId] =
+                            Math.Max(
+                                0,
+                                cellBiomassKilograms -
+                                cellConsumedBiomassKilograms);
+
+                        invertebrateNitrogenByCellId[
+                            regionalCellId] =
+                            Math.Max(
+                                0,
+                                cellNitrogenKilograms -
+                                cellConsumedNitrogenKilograms);
+
+                        consumedBiomassKilograms +=
+                            cellConsumedBiomassKilograms;
+
+                        consumedNitrogenKilograms +=
+                            cellConsumedNitrogenKilograms;
+                    }
 
                     preyBiomassConsumedKilograms +=
                         consumedBiomassKilograms;
@@ -557,11 +607,13 @@ public sealed class BirdFlockSystem
                         flock.Id];
 
                 var occupiedAssessment =
-                    AssessCell(
+                    AssessRegion(
                         occupiedCell,
+                        grid,
                         hydrology,
                         vegetation,
-                        invertebrateBiomassByCellId);
+                        invertebrateBiomassByCellId,
+                        regionalCellBudget);
 
                 var totalMembersInCell =
                     totalMembersByCellId[
@@ -886,14 +938,17 @@ public sealed class BirdFlockSystem
         PlanetHydrologyState hydrology,
         PlanetVegetationState vegetation,
         IReadOnlyDictionary<SurfaceCellId, double>
-            invertebrateBiomassByCellId)
+            invertebrateBiomassByCellId,
+        int regionalCellBudget)
     {
         var current =
-            AssessCell(
+            AssessRegion(
                 currentCell,
+                grid,
                 hydrology,
                 vegetation,
-                invertebrateBiomassByCellId);
+                invertebrateBiomassByCellId,
+                regionalCellBudget);
 
         if (current.HasSurfaceWater &&
             current.HasVegetationHabitat &&
@@ -911,12 +966,14 @@ public sealed class BirdFlockSystem
                      currentCell.Id))
         {
             var candidate =
-                AssessCell(
+                AssessRegion(
                     grid.GetCell(
                         neighborId),
+                    grid,
                     hydrology,
                     vegetation,
-                    invertebrateBiomassByCellId);
+                    invertebrateBiomassByCellId,
+                    regionalCellBudget);
 
             if (IsBetter(
                     candidate,
@@ -931,46 +988,124 @@ public sealed class BirdFlockSystem
         return best;
     }
 
-    private CellAssessment AssessCell(
-        SurfaceCell cell,
+    private CellAssessment AssessRegion(
+        SurfaceCell centerCell,
+        IPlanetSurfaceGrid grid,
         PlanetHydrologyState hydrology,
         PlanetVegetationState vegetation,
         IReadOnlyDictionary<SurfaceCellId, double>
-            invertebrateBiomassByCellId)
+            invertebrateBiomassByCellId,
+        int regionalCellBudget)
     {
-        var hydrologyCell =
-            hydrology.GetCell(
-                cell.Id);
+        var hasSurfaceWater =
+            false;
 
-        var vegetationCell =
-            vegetation.GetCell(
-                cell.Id);
-
-        var totalInvertebrateBiomassKilograms =
-            invertebrateBiomassByCellId[
-                cell.Id];
+        var hasVegetationHabitat =
+            false;
 
         var supportCapacityBirds =
-            totalInvertebrateBiomassKilograms *
-            _parameters
-                .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass;
+            0d;
+
+        foreach (var cellId in
+                 GetRegionalCellIds(
+                     centerCell,
+                     grid,
+                     regionalCellBudget))
+        {
+            var hydrologyCell =
+                hydrology.GetCell(
+                    cellId);
+
+            var vegetationCell =
+                vegetation.GetCell(
+                    cellId);
+
+            hasSurfaceWater |=
+                hydrologyCell
+                    .SurfaceLiquidWaterKilogramsPerSquareMeter >
+                0;
+
+            hasVegetationHabitat |=
+                vegetationCell
+                    .LiveBiomassKilogramsPerSquareMeter >
+                0;
+
+            supportCapacityBirds +=
+                invertebrateBiomassByCellId[
+                    cellId] *
+                _parameters
+                    .CarryingCapacityBirdsPerKilogramLiveInvertebrateBiomass;
+        }
 
         if (!double.IsFinite(
                 supportCapacityBirds))
         {
             throw new InvalidOperationException(
-                "Bird ecological support produced a non-finite carrying capacity.");
+                "Bird regional ecological support produced a non-finite carrying capacity.");
         }
 
         return new CellAssessment(
-            cell,
-            hydrologyCell
-                .SurfaceLiquidWaterKilogramsPerSquareMeter >
-                0,
-            vegetationCell
-                .LiveBiomassKilogramsPerSquareMeter >
-                0,
+            centerCell,
+            hasSurfaceWater,
+            hasVegetationHabitat,
             supportCapacityBirds);
+    }
+
+    private static IReadOnlyList<SurfaceCellId>
+        GetRegionalCellIds(
+            SurfaceCell centerCell,
+            IPlanetSurfaceGrid grid,
+            int regionalCellBudget)
+    {
+        if (regionalCellBudget <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(regionalCellBudget),
+                "Bird regional cell budget must be positive.");
+        }
+
+        var visited =
+            new HashSet<SurfaceCellId>
+            {
+                centerCell.Id
+            };
+
+        var queue =
+            new Queue<SurfaceCellId>();
+
+        var regionalCellIds =
+            new List<SurfaceCellId>(
+                Math.Min(
+                    regionalCellBudget,
+                    grid.CellCount));
+
+        queue.Enqueue(
+            centerCell.Id);
+
+        while (queue.Count > 0 &&
+               regionalCellIds.Count <
+                   regionalCellBudget)
+        {
+            var cellId =
+                queue.Dequeue();
+
+            regionalCellIds.Add(
+                cellId);
+
+            foreach (var neighborId in
+                     grid.GetNeighbors(
+                         cellId))
+            {
+                if (visited.Add(
+                        neighborId))
+                {
+                    queue.Enqueue(
+                        neighborId);
+                }
+            }
+        }
+
+        return regionalCellIds;
     }
 
     private static bool IsBetter(

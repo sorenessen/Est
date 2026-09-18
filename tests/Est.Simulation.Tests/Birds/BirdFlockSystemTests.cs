@@ -161,6 +161,90 @@ public sealed class BirdFlockSystemTests
     }
 
     [Fact]
+    public void Evaluate_RegionalFlockUsesDistributedEcologicalSupport()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var supportCell =
+            fixture.Grid.Cells[5];
+
+        var world =
+            CreateWorld(
+                fixture,
+                startCell,
+                memberCount: 100,
+                water:
+                    cell =>
+                        cell.Id == supportCell.Id
+                            ? 100
+                            : 0,
+                vegetation:
+                    cell =>
+                        cell.Id == supportCell.Id
+                            ? 1
+                            : 0,
+                invertebrates:
+                    cell =>
+                        cell.Id == supportCell.Id
+                            ? 100 /
+                              supportCell.AreaSquareMeters
+                            : 0);
+
+        var system =
+            new BirdFlockSystem(
+                fixture.Planet.Id,
+                new BirdModelParameters(
+                    carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                        1,
+                    maximumInitialFlockCount:
+                        2,
+                    maximumIntegrationStepSeconds:
+                        86_400,
+                    maximumTravelMetersPerDay:
+                        0,
+                    foodShortageMortalityRatePerDay:
+                        Math.Log(2),
+                    waterAbsenceMortalityRatePerDay:
+                        Math.Log(2),
+                    habitatAbsenceMortalityRatePerDay:
+                        Math.Log(2)));
+
+        var change =
+            system.Evaluate(
+                world,
+                86_400);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        Assert.Equal(
+            100,
+            Assert.Single(
+                    changed.BirdFlocks)
+                .MemberCount);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "foodStressSteps"]);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "waterStressSteps"]);
+
+        Assert.Equal(
+            0,
+            change.Metrics[
+                "habitatStressSteps"]);
+    }
+
+    [Fact]
     public void Evaluate_FoodShortageReducesOnlyUnsupportedPopulation()
     {
         var fixture =
@@ -310,6 +394,127 @@ public sealed class BirdFlockSystemTests
             changed.BirdFlocks.Sum(
                 flock =>
                     flock.MemberCount));
+    }
+
+    [Fact]
+    public void Evaluate_RegionalFlockConsumesPreyAcrossFootprint()
+    {
+        var fixture =
+            CreateFixture();
+
+        var startCell =
+            fixture.Grid.Cells[4];
+
+        var preyCell =
+            fixture.Grid.Cells[5];
+
+        var parameters =
+            new BirdModelParameters(
+                carryingCapacityBirdsPerKilogramLiveInvertebrateBiomass:
+                    10,
+                maximumInitialFlockCount:
+                    2,
+                maximumIntegrationStepSeconds:
+                    86_400,
+                maximumTravelMetersPerDay:
+                    0,
+                foodShortageMortalityRatePerDay:
+                    0,
+                waterAbsenceMortalityRatePerDay:
+                    0,
+                habitatAbsenceMortalityRatePerDay:
+                    0,
+                liveBiomassKilogramsPerBird:
+                    1,
+                liveNitrogenKilogramsPerBird:
+                    0,
+                maximumPreyConsumptionKilogramsPerBirdPerDay:
+                    2,
+                maximumRecruitmentRatePerDay:
+                    0.1);
+
+        var world =
+            CreateWorld(
+                fixture,
+                startCell,
+                memberCount:
+                    10,
+                water:
+                    _ =>
+                        100,
+                vegetation:
+                    _ =>
+                        1,
+                invertebrates:
+                    cell =>
+                        cell.Id ==
+                        preyCell.Id
+                            ? 20 /
+                              cell.AreaSquareMeters
+                            : 0);
+
+        var source =
+            Assert.Single(
+                world.BirdFlocks);
+
+        world =
+            world.ReplaceBirdFlocks(
+            [
+                new BirdFlockState(
+                    source.Id,
+                    source.PlanetId,
+                    source.MemberCount,
+                    source.LatitudeDegrees,
+                    source.LongitudeDegrees,
+                    parameters
+                        .MaterialPerBird
+                        .ForUnits(
+                            source.MemberCount))
+            ]);
+
+        var change =
+            new BirdFlockSystem(
+                fixture.Planet.Id,
+                parameters)
+                .Evaluate(
+                    world,
+                    86_400);
+
+        var changed =
+            change.Operation.Apply(
+                world);
+
+        var flock =
+            Assert.Single(
+                changed.BirdFlocks);
+
+        var remainingPreyKilograms =
+            Assert.Single(
+                    changed.Invertebrates)
+                .GetCell(
+                    preyCell.Id)
+                .LiveBiomassKilogramsPerSquareMeter *
+            preyCell.AreaSquareMeters;
+
+        Assert.Equal(
+            11,
+            flock.MemberCount);
+
+        Assert.Equal(
+            0,
+            remainingPreyKilograms,
+            6);
+
+        Assert.Equal(
+            20,
+            change.Metrics[
+                "preyBiomassConsumedKilograms"],
+            6);
+
+        Assert.Equal(
+            1,
+            change.Metrics[
+                "recruitedMembers"]);
     }
 
     [Fact]

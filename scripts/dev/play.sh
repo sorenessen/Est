@@ -75,9 +75,15 @@ payload='{
         "minimumInitialFlockMemberCount": 10,
         "maximumInitialFlockCount": 32,
         "liveBiomassKilogramsPerBird": 1,
-        "liveNitrogenKilogramsPerBird": 0.025
+        "liveNitrogenKilogramsPerBird": 0
       },
-      "birdModel": {},
+      "birdModel": {
+        "maximumInitialFlockCount": 32,
+        "liveBiomassKilogramsPerBird": 1,
+        "liveNitrogenKilogramsPerBird": 0,
+        "maximumPreyConsumptionKilogramsPerBirdPerDay": 0.01,
+        "maximumRecruitmentRatePerDay": 0.001
+      },
       "generatedGrazers": {
         "carryingCapacityGrazersPerKilogramLiveVegetationBiomass": 1e-06,
         "initialFractionOfLocalCarryingCapacity": 0.25,
