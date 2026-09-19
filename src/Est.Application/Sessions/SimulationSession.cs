@@ -12,6 +12,7 @@ using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Thermal;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Vegetation;
@@ -78,6 +79,20 @@ public sealed class SimulationSession
                             new PlanetaryEnergyBalanceSystem(
                                 model.PlanetId,
                                 model.Parameters));
+
+        var regionalThermalSystems =
+            definition.RegionalThermalModels
+                .Select(
+                    model =>
+                        (ICausalSystem)
+                            new RegionalThermalSystem(
+                                model.PlanetId,
+                                model.Parameters,
+                                hasConfiguredSeasonalModel:
+                                    definition.SeasonalModels.Any(
+                                        seasonalModel =>
+                                            seasonalModel.PlanetId ==
+                                            model.PlanetId)));
 
         var hydrologySystems =
             definition.HydrologyModels
@@ -222,6 +237,7 @@ public sealed class SimulationSession
         _causalSystems =
             seasonalSystems
                 .Concat(energyBalanceSystems)
+                .Concat(regionalThermalSystems)
                 .Concat(hydrologySystems)
                 .Concat(biogeochemistrySystems)
                 .Concat(vegetationSystems)
