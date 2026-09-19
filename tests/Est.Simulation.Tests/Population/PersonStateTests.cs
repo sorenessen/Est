@@ -1,5 +1,7 @@
+using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
+using Est.Simulation.Social;
 
 namespace Est.Simulation.Tests.Population;
 
@@ -116,6 +118,108 @@ public sealed class PersonStateTests
 
         Assert.Equal(0, advanced.EnergyReserve);
         Assert.Equal(0, advanced.Health);
+    }
+
+    [Fact]
+    public void Constructor_DefaultsToEmptySocialState()
+    {
+        var person = CreatePerson();
+        var ester =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        Assert.Empty(person.SocialState.Contacts);
+        Assert.False(
+            person.SocialState.HasEncountered(
+                ester));
+    }
+
+    [Fact]
+    public void Constructor_RejectsSelfAsSocialContact()
+    {
+        var personId = PersonId.New();
+
+        var socialState =
+            new PersonSocialState()
+                .RecordEncounter(
+                    SocialActorIdentity.ForPerson(
+                        personId),
+                    encounterTimeSeconds: 10);
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                new PersonState(
+                    personId,
+                    PlanetId.New(),
+                    PersonSex.Male,
+                    birthTimeSeconds: 0,
+                    latitudeDegrees: 0,
+                    longitudeDegrees: 0,
+                    socialState: socialState));
+    }
+
+    [Fact]
+    public void StateTransitions_PreserveSocialState()
+    {
+        var socialState =
+            new PersonSocialState()
+                .RecordEncounter(
+                    SocialActorIdentity.ForEster(
+                        EsterId.New()),
+                    encounterTimeSeconds: 100);
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                PlanetId.New(),
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 10,
+                longitudeDegrees: 20,
+                socialState: socialState);
+
+        var survival =
+            person.WithSurvivalState(
+                new PersonNeedsState(
+                    energyReserve: 0.4,
+                    health: 0.9),
+                PersonActivity.Foraging);
+
+        var moved =
+            person.MoveTo(
+                latitudeDegrees: 11,
+                longitudeDegrees: 21);
+
+        var pregnant =
+            person.WithPregnancy(
+                new PregnancyState(
+                    conceptionTimeSeconds: 200,
+                    fatherId: PersonId.New()));
+
+        var withoutPregnancy =
+            pregnant.WithoutPregnancy();
+
+        var material =
+            person.WithMaterial(
+                new OrganismMaterialState(
+                    liveBiomassKilograms: 70,
+                    liveNitrogenKilograms: 1.75));
+
+        Assert.Equal(
+            socialState,
+            survival.SocialState);
+        Assert.Equal(
+            socialState,
+            moved.SocialState);
+        Assert.Equal(
+            socialState,
+            pregnant.SocialState);
+        Assert.Equal(
+            socialState,
+            withoutPregnancy.SocialState);
+        Assert.Equal(
+            socialState,
+            material.SocialState);
     }
 
     private static PersonState CreatePerson()

@@ -1,5 +1,6 @@
 using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
+using Est.Simulation.Social;
 
 namespace Est.Simulation.Population;
 
@@ -16,7 +17,8 @@ public sealed record PersonState
         PersonNeedsState? needs = null,
         PersonActivity activity = PersonActivity.Idle,
         PregnancyState? pregnancy = null,
-        OrganismMaterialState? material = null)
+        OrganismMaterialState? material = null,
+        PersonSocialState? socialState = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -58,6 +60,17 @@ public sealed record PersonState
                 nameof(pregnancy));
         }
 
+        var resolvedSocialState =
+            socialState ?? PersonSocialState.Empty;
+
+        if (resolvedSocialState.HasEncountered(
+                SocialActorIdentity.ForPerson(id)))
+        {
+            throw new ArgumentException(
+                "A person cannot contain themselves as a social contact.",
+                nameof(socialState));
+        }
+
         Id = id;
         PlanetId = planetId;
         Sex = sex;
@@ -73,6 +86,7 @@ public sealed record PersonState
             new OrganismMaterialState(
                 liveBiomassKilograms: 0,
                 liveNitrogenKilograms: 0);
+        SocialState = resolvedSocialState;
     }
 
     public PersonId Id { get; private init; }
@@ -96,6 +110,8 @@ public sealed record PersonState
     public PregnancyState? Pregnancy { get; private init; }
 
     public OrganismMaterialState Material { get; private init; }
+
+    public PersonSocialState SocialState { get; private init; }
 
     public double AgeYears(long currentTimeSeconds)
     {
@@ -124,7 +140,8 @@ public sealed record PersonState
             needs,
             activity,
             Pregnancy,
-            Material);
+            Material,
+            SocialState);
     }
 
     public PersonState MoveTo(
@@ -142,7 +159,8 @@ public sealed record PersonState
             Needs,
             Activity,
             Pregnancy,
-            Material);
+            Material,
+            SocialState);
     }
 
     public PersonState WithPregnancy(
@@ -161,7 +179,8 @@ public sealed record PersonState
             Needs,
             Activity,
             pregnancy,
-            Material);
+            Material,
+            SocialState);
     }
 
     public PersonState WithMaterial(
@@ -180,7 +199,8 @@ public sealed record PersonState
             Needs,
             Activity,
             Pregnancy,
-            material);
+            material,
+            SocialState);
     }
 
     public PersonState WithoutPregnancy()
@@ -196,6 +216,7 @@ public sealed record PersonState
             Needs,
             Activity,
             pregnancy: null,
-            material: Material);
+            material: Material,
+            socialState: SocialState);
     }
 }
