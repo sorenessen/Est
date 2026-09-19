@@ -2143,6 +2143,331 @@ The current working principle is:
 a world rich enough that the player can walk into it and decide what kind of
 life, influence, or disruption they want to attempt.**
 
+### 8.63 Shared Worlds
+
+Living Worlds should preserve the possibility that other Est players can enter
+the same authoritative world.
+
+A player may invite another player into their world.
+
+A player may also grant another player continuing permission to visit that
+world.
+
+Likewise, a player may be invited into someone else's world.
+
+This should not require creating a disconnected multiplayer copy of the world.
+
+The visitor enters the host world's actual history.
+
+### 8.64 Worlds Are Private Unless Shared
+
+A Living World should not automatically become public merely because online
+features exist.
+
+The world owner should control who may enter.
+
+Access may eventually include concepts such as:
+
+- private,
+- invite-only,
+- approved visitors,
+- persistent trusted access,
+- scenario-specific participation.
+
+The exact account and networking model remains open.
+
+The important product principle is consent:
+
+**Another player enters a world because its owner or authorized controller
+allowed them to enter it.**
+
+### 8.65 Visiting Permission Is Not All-or-Nothing
+
+A world owner should eventually be able to decide what another Ester may do.
+
+Possible permission levels may include:
+
+- observe the world,
+- inspect permitted information,
+- manifest physically,
+- interact through ordinary embodied actions,
+- communicate with inhabitants,
+- use extraordinary abilities,
+- perform large-scale interventions,
+- control simulation time,
+- create branches,
+- alter scenario configuration,
+- administer world access.
+
+These are conceptual capabilities rather than a final permissions schema.
+
+A player might invite a friend simply to explore.
+
+Another friend might be allowed to manifest but not alter planetary systems.
+
+A trusted collaborator might receive broad god-like intervention authority.
+
+### 8.66 Visitors Become Causal Participants
+
+Once another Ester is permitted to interact with the world, their actions must
+follow the same authority rules as the owner's actions.
+
+A visitor who:
+
+- moves an object,
+- teaches a person,
+- starts a fight,
+- kills an animal,
+- saves someone,
+- builds something,
+- destroys something,
+- performs a miracle,
+- influences politics
+
+has changed the authoritative world.
+
+Those effects should not disappear merely because the visitor disconnects.
+
+The world continues with the consequences.
+
+### 8.67 Player Identity Should Be Attributable
+
+Shared worlds require the simulation to distinguish one player from another.
+
+Meaningful interventions and embodied actions should eventually be attributable
+to the player who performed them when the world has enough evidence to support
+that attribution.
+
+This matters for:
+
+- history,
+- witnesses,
+- relationships,
+- reputation,
+- religion,
+- politics,
+- permissions,
+- administration.
+
+The simulation should distinguish:
+
+> An extraordinary being did this.
+
+from:
+
+> This particular extraordinary being did this.
+
+when inhabitants or records have a causal basis for making that distinction.
+
+### 8.68 Inhabitants May Know Different Esters Differently
+
+Multiple manifested players create new emergent possibilities.
+
+One Ester may become known as a healer.
+
+Another may become feared as a destroyer.
+
+One religion may form around one player.
+
+Another community may follow a different player.
+
+Two Esters may cooperate.
+
+They may undermine each other.
+
+They may attempt to influence the same government.
+
+They may become allies, rivals, competing religious figures, political forces,
+or simply two strange people drinking in the same bar.
+
+The simulation should not assume that inhabitants understand what an Ester is.
+
+They experience what those players do.
+
+Interpretation belongs to the inhabitants and their culture.
+
+### 8.69 Players May Interact With Each Other Inside the World
+
+Shared-world embodiment should eventually allow manifested players to encounter
+one another directly.
+
+They may potentially:
+
+- speak,
+- travel together,
+- cooperate,
+- trade,
+- build,
+- teach,
+- fight,
+- protect one another,
+- interfere with one another,
+- participate in the same institutions or communities.
+
+When possible, those interactions should use the same world systems used for
+interactions with simulated inhabitants.
+
+The multiplayer layer should not create a second reality that sits beside the
+simulation.
+
+### 8.70 Shared Power Requires World Authority
+
+Multiple god-like players create special authority problems.
+
+Two players may attempt incompatible actions at nearly the same time.
+
+One may attempt to destroy something another is using.
+
+One may attempt to advance time while another is engaged in embodied
+interaction.
+
+One may perform a large intervention another player opposes.
+
+The world must still have one authoritative history.
+
+The eventual networking architecture must therefore resolve concurrent player
+actions through a single authoritative world state rather than allowing clients
+to invent conflicting realities.
+
+The exact server, host, synchronization, and conflict-resolution architecture
+remains open.
+
+### 8.71 Time Requires Coordination
+
+Simulation time is especially important in a shared world.
+
+One Ester should not necessarily be able to accelerate centuries while another
+is having a conversation in a bar.
+
+Possible future approaches include:
+
+- owner-controlled time,
+- permission-based time control,
+- consensus for major acceleration,
+- bounded acceleration while players are manifested,
+- scenario-specific time rules.
+
+No specific mechanism is chosen yet.
+
+The design requirement is that shared players experience one coherent
+authoritative timeline.
+
+### 8.72 Shared Worlds Preserve History
+
+A visitor's departure should not erase what happened during the visit.
+
+If another Ester spends a week in the world and:
+
+- forms relationships,
+- teaches people,
+- damages property,
+- starts a movement,
+- helps a settlement,
+- kills someone,
+- changes an ecosystem,
+
+those consequences remain part of world history.
+
+Future inhabitants may know that visitor through memories, records, stories,
+institutions, descendants, or cultural interpretation long after the visitor
+has left.
+
+This makes visiting another player's world consequential rather than
+spectatorial.
+
+### 8.73 Permission Can Be Revoked
+
+A world owner or authorized administrator should eventually be able to revoke a
+visitor's ability to return or restrict what they may do.
+
+Revoking access should stop future participation.
+
+It should not silently rewrite the history that already occurred.
+
+If protection against unwanted consequences is needed, timeline branching,
+snapshots, or scenario rules may provide safer experimentation without treating
+history as though it never happened.
+
+The exact recovery and moderation model remains open.
+
+### 8.74 Shared Worlds Do Not Replace Single Player
+
+Online participation should expand Living Worlds rather than make persistent
+connectivity mandatory.
+
+A player should still be able to create and inhabit a world alone.
+
+The simulation should remain meaningful with:
+
+- one player,
+- several invited players,
+- or no manifested players at all.
+
+The world remains the central object.
+
+Multiplayer is another way people may enter it.
+
+### 8.75 Visiting Across Different Worlds
+
+A persistent Ester identity may eventually participate in many independent
+worlds.
+
+A player may:
+
+- maintain their own world,
+- visit a friend's world,
+- return home,
+- participate in another shared scenario.
+
+These worlds do not need to share physical history.
+
+The same player may therefore acquire very different histories in different
+worlds.
+
+One civilization may know them as a benevolent figure.
+
+Another may remember them as a criminal.
+
+Another may never have encountered them.
+
+Player identity can persist across worlds without forcing those worlds into one
+shared universe.
+
+### 8.76 Shared-World Open Questions
+
+The following remain intentionally unresolved:
+
+- Is a world hosted locally, remotely, or either?
+- Can a world continue running while its owner is offline?
+- Can visitors join asynchronously?
+- How many Esters may inhabit one world concurrently?
+- Can ownership be transferred?
+- Can multiple players jointly own a world?
+- Can permission be scoped by region or civilization?
+- Can visitors use different manifestation forms?
+- Can one player physically harm another manifested player?
+- What happens when manifested players use incompatible powers?
+- Who controls time when multiple players are present?
+- Can a visitor create a branch of another player's world?
+- Can a host require approval for major interventions?
+- How are unwanted or abusive visitors handled?
+- Can worlds ever be discoverable publicly?
+- Can a world support spectators?
+- Can shared worlds later support persistent communities of human players?
+
+These are future product and architecture decisions.
+
+They should remain possible without forcing Est to become a conventional MMO.
+
+### 8.77 Shared-World Working Principle
+
+The current working principle is:
+
+**An Est world belongs to its own continuous history. Its owner may invite
+other Esters into that history, grant them meaningful agency, and allow their
+actions to become real parts of the world without surrendering control over
+who is allowed to participate.**
+
 ---
 
 ## 9. Consequence Instead of Moral Scoring
