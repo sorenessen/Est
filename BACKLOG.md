@@ -32,10 +32,10 @@ Build the smallest complete vertical foundation for Est: one persistent planet, 
 - [x] Define world state
 - [x] Define planet state
 - [x] Define simulation step/tick contract
-- [ ] Define event/history model
+- [x] Define event/history model
 - [ ] Define intervention model
-- [ ] Define provenance concept without overbuilding it
-- [ ] Record initial architecture decisions
+- [x] Define provenance concept without overbuilding it
+- [x] Record initial architecture decisions
 
 ## Phase 1 - Time Exists
 
@@ -91,7 +91,7 @@ Acceptance criteria:
   - [x] Simple fork creates a new world identity
   - [x] Fork preserves planet identities and starting state
   - [x] Immutable operations allow independent divergence
-  - [ ] Historical timeline branching remains Phase 4
+  - [x] Historical timeline branching completed in Phase 4
 - [x] Establish defined simulation-operation boundary
   - [x] Define ISimulationOperation and SimulationOperationExecutor
   - [x] Implement time advancement and planet-environment replacement operations
@@ -327,7 +327,7 @@ civilization simulation.
 - [ ] Replace the current proof-oriented ecology constants with explicit model policy when the next requirements justify it.
 - [x] Add meaningful resource renewal and depletion pressure.
 - [x] Add scarcity-driven migration toward viable food beyond the local foraging radius.
-- [ ] Evaluate a minimal prey/hunting loop.
+- [x] Evaluate a minimal prey/hunting loop.
 - [x] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.
 - [ ] Select a durable animated person presentation only after simulation behavior establishes its requirements.
@@ -471,7 +471,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         biomass and tracked nitrogen have explicit destinations.
   - [x] Replace count-and-energy-only predation with explicit prey-material
         accounting while preserving species-specific hunting behavior.
-  - [ ] Establish shared lifecycle semantics for birth/recruitment, growth,
+  - [x] Establish shared lifecycle semantics for birth/recruitment, growth,
         maturation, reproductive eligibility, aging, seasonal state, and death
         without forcing individual, flock, cohort, and spatial-aggregate
         organisms into one behavioral representation.
@@ -486,7 +486,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
         gestation/calving or equivalent recruitment, juvenile maturation,
         senescence, mortality, and species-appropriate seasonal behavior can
         occur without materializing every grazer.
-  - [ ] Make invertebrate aggregate reproduction and biomass growth draw from an
+  - [x] Make invertebrate aggregate reproduction and biomass growth draw from an
         authoritative material source rather than allowing carrying capacity to
         create tracked biomass implicitly.
   - [ ] Give every runtime birth, hatch, recruitment, and growth transition a
@@ -506,6 +506,56 @@ Current ownership rule:
 `Environment -> terrain -> hydrology -> biomass -> organisms -> needs -> decisions -> actions -> consequences`
 
 Simulation owns the chain. The renderer visualizes its results.
+
+### Regional climate and seasonal forcing foundation
+
+The first regional physical-climate chain is now established without replacing
+Est's broader long-term climate roadmap.
+
+Architecture:
+
+- `docs/architecture/0007-seasonal-control-foundation.md`
+- `docs/architecture/0009-derived-astronomical-seasonality.md`
+- `docs/architecture/0010-surface-solar-geometry.md`
+- `docs/architecture/0011-atmospheric-shortwave-transmission.md`
+- `docs/architecture/0012-atmospheric-shortwave-energy-partition.md`
+- `docs/architecture/0013-surface-shortwave-reflection-absorption.md`
+- `docs/architecture/0014-thermal-reservoir-longwave-foundation.md`
+- `docs/architecture/0015-regional-surface-atmosphere-radiative-energy-budget.md`
+- `docs/architecture/0016-regional-thermal-state-authority-migration.md`
+- `docs/architecture/0017-hydrology-regional-temperature-consumption.md`
+
+- [x] Add explicit dormant seasonal control without rewriting simulation time.
+- [x] Derive astronomical seasonality and physical subsolar latitude.
+- [x] Add deterministic latitude-specific surface solar geometry.
+- [x] Add clear-sky atmospheric direct-shortwave transmission.
+- [x] Partition atmospheric shortwave energy into direct, absorbed, downward
+      scattered, and upward-scattered components.
+- [x] Add surface shortwave reflection and absorption.
+- [x] Add thermal-reservoir response and longwave-radiation foundations.
+- [x] Add a two-reservoir regional surface-atmosphere radiative energy budget.
+- [x] Define explicit migration from planetary EBM authority to regional thermal
+      authority.
+- [x] Add durable per-cell regional surface and atmospheric thermal state.
+- [x] Persist regional thermal state and regional thermal model policy.
+- [x] Enforce per-planet mutual exclusion between planetary EBM authority and
+      regional thermal authority.
+- [x] Activate deterministic causal regional thermal evolution with bounded
+      integration.
+- [x] Derive the compatibility planetary mean from authoritative regional
+      surface temperatures under regional authority.
+- [x] Preserve seasonal -> thermal -> hydrology causal ordering.
+- [x] Make hydrology freezing and melting consume regional surface temperature
+      only when regional thermal authority is configured.
+- [x] Preserve planetary compatibility-temperature behavior for EBM worlds,
+      worlds without causal thermal authority, and dormant regional state.
+
+Further regional physical couplings remain intentionally deferred until a new
+architecture decision selects them. Current completion does not imply
+latent-heat coupling, regional cryosphere authority, temperature-dependent
+evaporation, humidity/vapor-pressure physics, horizontal heat transport,
+non-radiative surface-atmosphere exchange, or automatic migration of vegetation
+and biology to cell-local temperature.
 
 ## Phase 8 - First Intervention
 
