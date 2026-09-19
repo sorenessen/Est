@@ -1447,6 +1447,702 @@ powerful. It should make ordinary life meaningful because the player chooses
 how much power to use, and because every use of power enters a world that
 remembers and responds.**
 
+### 8.39 Social Play Requires Social Simulation
+
+Open-ended embodied play cannot be created only through animations, dialogue
+choices, or predefined jobs.
+
+If the player wants to act as a teacher, police officer, religious leader,
+politician, criminal, business owner, friend, romantic partner, agitator, or
+ordinary citizen, the surrounding world must contain enough authoritative
+social structure for those activities to mean something.
+
+The long-term requirement is not:
+
+> Give the player a list of roles.
+
+It is:
+
+> Simulate enough of society that recognizable roles can emerge from behavior.
+
+A player should be able to become important because people and institutions
+react to what they actually do.
+
+### 8.40 People Need Persistent Identity
+
+A human should eventually be more than a moving population unit.
+
+Individual identity may include authoritative concepts such as:
+
+- identity,
+- age,
+- body,
+- location,
+- household,
+- family relationships,
+- personal history,
+- health,
+- needs,
+- abilities,
+- knowledge,
+- beliefs,
+- memories,
+- relationships,
+- possessions,
+- employment,
+- institutional memberships,
+- social reputation.
+
+Not every system needs to reach full fidelity at once.
+
+The important design principle is continuity.
+
+The person encountered in a bar should be the same person who has parents,
+friends, work, memories, possessions, and a place in world history.
+
+### 8.41 Memory Creates Social Continuity
+
+People need some ability to remember meaningful events.
+
+Memory may eventually include:
+
+- people encountered,
+- conversations,
+- favors,
+- injuries,
+- threats,
+- crimes witnessed,
+- promises,
+- extraordinary events,
+- deaths,
+- relationships,
+- important places,
+- information learned.
+
+Memory does not need to be perfect.
+
+People may:
+
+- forget,
+- misremember,
+- disagree,
+- reinterpret events,
+- learn false information.
+
+The authoritative requirement is that social behavior should have temporal
+continuity.
+
+If the player starts a fight with someone on Monday, Tuesday should not begin as
+though they have never met.
+
+### 8.42 Knowledge Is Actor-Specific
+
+The simulation should distinguish between world truth and actor knowledge.
+
+A person should only know information available through some causal path.
+
+Possible paths include:
+
+- direct perception,
+- conversation,
+- education,
+- records,
+- media,
+- institutional communication,
+- inference,
+- rumor.
+
+This allows investigation, secrecy, deception, education, misinformation, and
+discovery to exist naturally.
+
+It also prevents omniscient NPC behavior.
+
+### 8.43 Communication Moves Information
+
+Communication should eventually move authoritative information between actors.
+
+A conversation may transmit:
+
+- facts,
+- claims,
+- requests,
+- threats,
+- promises,
+- beliefs,
+- rumors,
+- instructions,
+- questions,
+- emotional or social signals.
+
+Receiving information does not require believing it.
+
+The listener may:
+
+- accept it,
+- reject it,
+- doubt it,
+- misunderstand it,
+- remember it,
+- forget it,
+- repeat it.
+
+This distinction is important for politics, religion, crime, teaching, and
+ordinary relationships.
+
+### 8.44 Natural-Language Dialogue Must Remain Grounded
+
+Natural-language interaction may eventually be an important part of Est.
+
+Generated dialogue must not become an alternate source of simulation truth.
+
+A conversational system may express what an actor:
+
+- knows,
+- believes,
+- wants,
+- remembers,
+- fears,
+- intends.
+
+It must not silently invent:
+
+- possessions,
+- relationships,
+- jobs,
+- laws,
+- historical events,
+- institutional authority,
+- world facts
+
+that the authoritative simulation does not support.
+
+Language presentation may be generative.
+
+World state remains authoritative.
+
+### 8.45 Relationships Need Direction and History
+
+Social relationships should eventually be more expressive than one universal
+friendship score.
+
+Relationships may contain concepts such as:
+
+- familiarity,
+- trust,
+- affection,
+- attraction,
+- respect,
+- fear,
+- resentment,
+- obligation,
+- loyalty,
+- dependency,
+- hostility.
+
+These properties may be asymmetric.
+
+One person may trust another who does not trust them.
+
+One person may love another who does not reciprocate.
+
+A government official may respect the player while personally disliking them.
+
+Relationships should evolve from events and interaction.
+
+### 8.46 Skills and Learning Make Teaching Real
+
+For teaching to be meaningful, people need something that can actually change
+through learning.
+
+This may eventually include:
+
+- knowledge,
+- practical skills,
+- literacy,
+- technical capability,
+- professional expertise,
+- cultural knowledge.
+
+Teaching should not simply apply a generic intelligence bonus.
+
+A player acting as a teacher should transmit or develop something represented
+in authoritative state.
+
+Learning may depend on:
+
+- teacher capability,
+- student capability,
+- time,
+- communication,
+- prior knowledge,
+- practice,
+- available tools or institutions.
+
+This allows education to become causal rather than cosmetic.
+
+### 8.47 Households, Families, and Intimate Relationships
+
+Individual lives should eventually exist inside durable social structures.
+
+These may include:
+
+- parent-child relationships,
+- siblings,
+- partners,
+- marriages,
+- households,
+- dependents,
+- extended families,
+- inheritance.
+
+This gives ordinary events larger consequences.
+
+Saving one person may affect:
+
+- a partner,
+- children,
+- household income,
+- future descendants,
+- property,
+- social relationships.
+
+A death becomes more than decrementing population.
+
+### 8.48 Property and Ownership
+
+Many forms of embodied play require authoritative ownership and possession.
+
+The world may eventually need to understand:
+
+- personal property,
+- household property,
+- business property,
+- institutional property,
+- public property,
+- land,
+- money,
+- resources,
+- vehicles.
+
+Without ownership, concepts such as theft, trade, employment, business, taxes,
+inheritance, and property crime have little causal meaning.
+
+Ownership rules may vary between societies.
+
+Est should not assume one universal economic model.
+
+### 8.49 Work, Occupation, and Economic Activity
+
+A job should eventually represent participation in an economic or institutional
+system rather than a character label.
+
+A person may:
+
+- work,
+- produce something,
+- provide a service,
+- receive compensation,
+- own a business,
+- hire others,
+- lose employment,
+- change occupations,
+- retire.
+
+This allows the player to participate in ordinary economic life when desired.
+
+A player who spends time teaching for a school should be interacting with an
+actual institution, students, schedules, and knowledge transfer when those
+systems exist.
+
+### 8.50 Law, Crime, and Authority
+
+Playing a police officer, criminal, judge, investigator, or vigilante requires
+more than crime-themed animations.
+
+A society may eventually need authoritative concepts for:
+
+- laws,
+- jurisdiction,
+- prohibited acts,
+- evidence,
+- witnesses,
+- accusations,
+- arrest authority,
+- detention,
+- courts,
+- punishment,
+- enforcement institutions.
+
+Different societies may have different laws.
+
+An action may therefore be legal in one place and illegal in another.
+
+The player should not become law enforcement merely by selecting a costume.
+
+Authority should come from the surrounding social and institutional system, or
+the player may simply choose to behave as a vigilante and accept the resulting
+response.
+
+### 8.51 Institutions Make Roles Durable
+
+Institutions allow society to persist beyond individual actors.
+
+Examples may eventually include:
+
+- households,
+- businesses,
+- schools,
+- religious organizations,
+- governments,
+- courts,
+- police organizations,
+- militaries,
+- political parties,
+- civic organizations,
+- universities.
+
+Institutions may possess:
+
+- membership,
+- leadership,
+- rules,
+- property,
+- resources,
+- authority,
+- records,
+- goals,
+- relationships with other institutions.
+
+This allows roles to survive changes in individual personnel.
+
+### 8.52 Politics Requires Competing Human Interests
+
+Political simulation should emerge from people and institutions with competing
+goals, interests, identities, resources, and beliefs.
+
+Potential political concepts may eventually include:
+
+- authority,
+- legitimacy,
+- leadership,
+- representation,
+- factions,
+- policy,
+- elections,
+- succession,
+- protest,
+- coercion,
+- negotiation,
+- corruption,
+- revolution.
+
+The player may participate in those systems.
+
+They may:
+
+- support a faction,
+- oppose a government,
+- seek office,
+- influence policy,
+- organize people,
+- spread information,
+- undermine institutions,
+- attempt to seize power.
+
+Political outcomes should not simply be selected from a menu because the player
+possesses god-like power.
+
+The people and institutions involved should remain actors.
+
+### 8.53 Religion Requires Belief, Memory, and Community
+
+Religion should not exist merely as a civilization statistic.
+
+It may eventually emerge from interacting systems such as:
+
+- belief,
+- witnessed events,
+- testimony,
+- tradition,
+- ritual,
+- authority,
+- institutions,
+- cultural identity,
+- sacred places,
+- historical narratives.
+
+The player's existence creates unusual possibilities.
+
+A player may deliberately:
+
+- claim divinity,
+- deny divinity,
+- perform public miracles,
+- remain hidden,
+- preach doctrines,
+- create followers,
+- interfere with existing religions.
+
+The world should determine what happens next.
+
+People may believe.
+
+Others may reject the claim.
+
+Different groups may interpret the same event differently.
+
+A religion may form without the player's intention.
+
+A religion created by the player may later evolve into something the player no
+longer recognizes.
+
+### 8.54 Culture Gives Meaning to Events
+
+The same action may have different social meanings in different societies.
+
+Culture may eventually influence:
+
+- customs,
+- norms,
+- taboos,
+- family structures,
+- clothing,
+- language,
+- religion,
+- status,
+- hospitality,
+- violence,
+- law,
+- work,
+- political expectations.
+
+Culture should not need to be static.
+
+It may change through:
+
+- migration,
+- communication,
+- conflict,
+- technology,
+- generations,
+- institutions,
+- extraordinary historical events.
+
+This allows the player to encounter genuinely different societies rather than
+the same social simulation with different visual themes.
+
+### 8.55 Information Must Travel
+
+Large-scale social consequences require information flow.
+
+Information may move through:
+
+- direct conversation,
+- travelers,
+- families,
+- institutions,
+- writing,
+- postal systems,
+- telecommunications,
+- news media,
+- digital networks.
+
+The available mechanisms depend on technology and society.
+
+This matters because reputation, politics, religion, law, and rumor should not
+propagate instantaneously across the planet without a causal channel.
+
+As civilizations advance technologically, information may travel farther and
+faster.
+
+### 8.56 Transportation and Infrastructure Support Ordinary Life
+
+Embodied play requires the world to contain routes and infrastructure people
+actually use.
+
+These may eventually include:
+
+- paths,
+- roads,
+- bridges,
+- rail,
+- ports,
+- airports,
+- public transportation,
+- utilities,
+- buildings.
+
+Vehicles should belong to the same authoritative world.
+
+Driving a police car on an interstate should eventually mean:
+
+- the road exists,
+- the vehicle exists,
+- the player occupies it,
+- traffic and geography matter,
+- the destination exists.
+
+Transportation should not become a disconnected driving minigame.
+
+### 8.57 Buildings Need Social Meaning
+
+Buildings should eventually be more than visual geometry.
+
+A building may have:
+
+- location,
+- ownership,
+- occupants,
+- purpose,
+- access rules,
+- contents,
+- condition.
+
+This enables places such as:
+
+- homes,
+- bars,
+- schools,
+- police stations,
+- stores,
+- hospitals,
+- churches,
+- government buildings.
+
+A bar becomes meaningful because people actually visit it, work there,
+socialize there, buy things there, fight there, and remember what happened
+there.
+
+### 8.58 Technology Changes What Society Can Do
+
+Technology should eventually alter real capabilities rather than merely provide
+abstract bonuses.
+
+Technological development may enable:
+
+- tools,
+- agriculture,
+- medicine,
+- transportation,
+- communication,
+- industry,
+- energy,
+- weapons,
+- computation,
+- spaceflight.
+
+Technology therefore changes both civilization-scale behavior and embodied
+player possibilities.
+
+The player entering an early agricultural society should encounter a different
+range of institutions and daily activities than one entering a modern or
+interplanetary civilization.
+
+### 8.59 Society Must Continue Without the Player
+
+These systems exist first for the inhabitants, not merely as activities for the
+player.
+
+Teachers should be able to teach when the player is absent.
+
+Police should perform law enforcement when the player is elsewhere.
+
+Businesses should operate.
+
+Families should change.
+
+Politics should continue.
+
+Religions should evolve.
+
+Crimes should occur.
+
+Institutions should act.
+
+The player's participation becomes meaningful because they enter a society that
+already has processes of its own.
+
+### 8.60 Multi-Scale Social Simulation
+
+Est cannot require maximum individual fidelity for every person on a populated
+planet at every moment.
+
+The long-term social simulation must therefore support multiple scales of
+representation.
+
+Detailed individual simulation may be appropriate for:
+
+- nearby people,
+- followed people,
+- historically important people,
+- people directly interacting with the player.
+
+More distant populations may require aggregate or lower-frequency
+representations.
+
+Changing representation must not casually change authoritative history.
+
+When a person becomes detailed, Est should preserve continuity with what was
+already true about that person or population.
+
+This is a simulation architecture problem, but it is also a game-design
+requirement.
+
+A world containing billions of people is useful only if the player can still
+care about one of them.
+
+### 8.61 Social Simulation Development Principle
+
+These systems do not all need to be built before Est becomes playable.
+
+They provide the long-term dependency map for open-ended embodied society.
+
+The implementation sequence should follow playable causal slices.
+
+For example:
+
+**person -> memory -> relationship -> communication**
+
+can support meaningful recurring encounters before a complete economy exists.
+
+Later:
+
+**knowledge -> learning -> institution**
+
+can make teaching real.
+
+Later:
+
+**property -> law -> witnesses -> enforcement**
+
+can make crime and policing real.
+
+Later:
+
+**belief -> communication -> community -> institution**
+
+can make religious influence real.
+
+Later:
+
+**interests -> institutions -> authority -> policy**
+
+can make politics real.
+
+The objective is not to build an entire civilization simulator before returning
+to gameplay.
+
+The objective is to add social systems in slices where each addition creates
+new kinds of meaningful play.
+
+### 8.62 Social World Working Principle
+
+The current working principle is:
+
+**The player should not be offered a menu of simulated lives. Est should build
+a world rich enough that the player can walk into it and decide what kind of
+life, influence, or disruption they want to attempt.**
+
 ---
 
 ## 9. Consequence Instead of Moral Scoring
