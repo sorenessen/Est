@@ -1218,6 +1218,235 @@ These questions should be answered according to the central experience:
 **The player exists beyond the world, but when they enter it, what they do
 there is real.**
 
+### 8.28 Power Is Capability, Not a Character Class
+
+The player's extraordinary abilities should not require the player to choose a
+separate "god mode" character.
+
+The same persistent player may:
+
+- walk into a bar,
+- drive across a city,
+- teach a student,
+- participate in politics,
+- get into a fight,
+- and later alter a river or relocate instantly.
+
+These are different expressions of one player identity.
+
+The distinction should come from how the player chooses to act, not from
+switching between unrelated games.
+
+### 8.29 Ordinary Play Must Remain Deliberate
+
+Ordinary embodied play remains meaningful even when greater power exists.
+
+The player may intentionally choose to operate within local physical and social
+rules.
+
+For example, the player may choose to:
+
+- travel normally rather than teleport,
+- earn money rather than create resources,
+- persuade rather than compel,
+- fight physically rather than use overwhelming force,
+- seek legal authority rather than ignore institutions,
+- learn local information rather than inspect every hidden state.
+
+The product should make this choice comfortable.
+
+The player should not need to fight the interface in order to behave like an
+ordinary inhabitant.
+
+### 8.30 Extraordinary Power Should Not Be Accidental
+
+God-like intervention should require deliberate invocation.
+
+Ordinary controls should favor ordinary actions.
+
+Extraordinary actions should be clearly distinguishable.
+
+The player should not accidentally:
+
+- teleport while trying to walk,
+- alter matter while trying to pick something up,
+- heal someone while trying to inspect them,
+- manipulate weather while navigating the camera.
+
+This protects embodied play from being overwhelmed by the broader power set.
+
+### 8.31 Consequence Is the Primary Cost of Power
+
+Living Worlds should not assume that extraordinary abilities require an
+arbitrary energy meter, mana pool, or cooldown merely to create difficulty.
+
+The more important cost is causal consequence.
+
+Using extraordinary power may affect:
+
+- witnesses,
+- reputation,
+- beliefs,
+- religion,
+- politics,
+- law,
+- ecology,
+- resources,
+- settlement patterns,
+- institutions,
+- future behavior.
+
+A miracle performed publicly may solve one immediate problem while creating a
+century of cultural consequences.
+
+A river created casually may transform an ecosystem.
+
+A person rescued from death may later have descendants who otherwise would not
+have existed.
+
+The player may be extraordinarily powerful.
+
+The world should still make that power matter.
+
+### 8.32 Power Does Not Guarantee Desired Outcomes
+
+The player may control an intervention without controlling every consequence.
+
+The player can decide to create water.
+
+The player does not automatically decide everything that follows from the
+water.
+
+The player may save a political leader.
+
+The player does not automatically determine how that leader later governs.
+
+The player may teach an idea.
+
+The player does not automatically control how the idea spreads or changes.
+
+This preserves uncertainty and discovery even when the player's capabilities
+are enormous.
+
+### 8.33 Knowledge and Power Are Separate
+
+The player may possess broad observational capability without automatically
+knowing every hidden fact.
+
+Est should distinguish between:
+
+- what exists in authoritative simulation state,
+- what the interface permits the player to inspect,
+- what the manifested player could perceive locally,
+- what inhabitants know,
+- what the player has chosen to discover.
+
+This creates room for investigation and discovery.
+
+A player acting as a detective should not have that experience invalidated
+merely because Est internally knows who committed the crime.
+
+Whether the player may deliberately invoke deeper omniscient inspection remains
+a design choice.
+
+### 8.34 Presence Can Change the Meaning of Power
+
+The same intervention may have different historical meaning depending on how it
+occurs.
+
+Rain appearing while the player is nowhere nearby may be interpreted as
+weather.
+
+Rain beginning immediately after the player publicly promises rain may be
+interpreted very differently.
+
+Healing a person secretly may alter one life.
+
+Healing the same person before hundreds of witnesses may alter a culture.
+
+Therefore an intervention is not defined only by its physical result.
+
+Context, witnesses, attribution, and information flow may become part of its
+social consequence.
+
+### 8.35 Self-Limitation Is a Valid Form of Play
+
+The player should be allowed to create personal rules without the simulation
+needing to enforce every one of them.
+
+A player may decide:
+
+> I will live as an ordinary person for ten years.
+
+or:
+
+> I will never reveal my powers to this civilization.
+
+or:
+
+> I will help this town without performing anything visibly supernatural.
+
+or:
+
+> I am going to make them believe I am a god.
+
+All are legitimate ways to interact with the same world.
+
+Future scenarios may formalize such constraints when useful.
+
+The sandbox does not need to.
+
+### 8.36 Some Experiences May Constrain Power
+
+Living Worlds can allow broad freedom while specific scenarios impose stronger
+rules.
+
+A scenario may limit:
+
+- available powers,
+- manifestation location,
+- information access,
+- resurrection,
+- time manipulation,
+- direct material creation,
+- intervention scale.
+
+Such constraints should exist because they serve the scenario.
+
+They should not redefine the fundamental player fantasy of the unrestricted
+sandbox.
+
+### 8.37 Difficulty Comes From the World, Not From Artificial Helplessness
+
+Est does not need to make the player weak in order to create meaningful play.
+
+Challenge can arise from:
+
+- complex causality,
+- incomplete information,
+- unintended consequences,
+- conflicting goals,
+- social resistance,
+- institutional inertia,
+- ecological feedback,
+- large spatial scales,
+- long time scales,
+- moral ambiguity,
+- competing civilizations,
+- the impossibility of preserving everything at once.
+
+The player may be able to perform miracles and still discover that managing the
+consequences of miracles is difficult.
+
+### 8.38 Power Model Working Principle
+
+The current working principle is:
+
+**Est should not make ordinary life meaningful by pretending the player is not
+powerful. It should make ordinary life meaningful because the player chooses
+how much power to use, and because every use of power enters a world that
+remembers and responds.**
+
 ---
 
 ## 9. Consequence Instead of Moral Scoring
