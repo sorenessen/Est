@@ -870,6 +870,354 @@ The player supplies intention.
 
 The world supplies consequences.
 
+### 8.15 Manifestation
+
+Entering the world should eventually be a first-class gameplay action.
+
+The player begins from the broader world relationship and chooses a location
+at which to manifest.
+
+Manifestation creates a player presence that participates in the authoritative
+world.
+
+The player is no longer only a camera.
+
+They are somewhere.
+
+Other actors may be able to:
+
+- see them,
+- hear them,
+- approach them,
+- avoid them,
+- speak to them,
+- touch them,
+- attack them,
+- help them,
+- remember them.
+
+The manifested player should therefore have an authoritative location and
+physical relationship with the surrounding world.
+
+### 8.16 The Player and the Manifested Body Are Not Identical
+
+The player's persistent identity exists outside any single manifested body.
+
+A manifested body is how that player participates physically inside the world.
+
+This distinction allows embodied play to have physical stakes without requiring
+the god-like player to become an ordinary mortal character.
+
+A body may potentially:
+
+- become injured,
+- become restrained,
+- become unconscious,
+- be physically displaced,
+- be imprisoned,
+- be killed or destroyed.
+
+Such an event does not necessarily end the player's existence.
+
+Instead, destruction of the manifested body may return the player to the
+broader world view.
+
+Re-manifestation then becomes possible according to the eventual rules of the
+experience.
+
+This creates an important possibility:
+
+> The inhabitants may witness the player die.
+
+And later:
+
+> The inhabitants may witness the player return.
+
+Those events can become part of history.
+
+The exact vulnerability rules remain open.
+
+### 8.17 Embodiment Should Preserve Physical Meaning
+
+While manifested, ordinary physical interaction should matter.
+
+If the player walks somewhere, they actually move through the world.
+
+If the player drives a vehicle, the vehicle moves along authoritative terrain
+or infrastructure.
+
+If the player picks up an object, its physical state changes.
+
+If the player strikes someone, an actual physical interaction occurred.
+
+If the player is struck, restrained, or moved, that also occurred.
+
+Embodied play should not be a decorative animation layered over an unrelated
+simulation.
+
+The local experience and the planetary simulation must describe the same world.
+
+### 8.18 Ordinary Capability and Extraordinary Power
+
+The manifested player should have access to ordinary actions and may also have
+access to extraordinary actions.
+
+Ordinary actions might eventually include:
+
+- walking,
+- running,
+- climbing,
+- driving,
+- carrying objects,
+- using tools,
+- opening doors,
+- eating,
+- buying,
+- trading,
+- speaking,
+- fighting,
+- working,
+- teaching.
+
+Extraordinary actions might eventually include:
+
+- instant relocation,
+- healing,
+- material creation,
+- material destruction,
+- environmental manipulation,
+- extraordinary strength,
+- protection,
+- restoration,
+- large-scale intervention.
+
+These categories should not require separate worlds or characters.
+
+They are different levels of agency available to the same player.
+
+### 8.19 Power Should Be Invoked Deliberately
+
+Extraordinary capability should not constantly interfere with ordinary play.
+
+If the player wants to spend a day behaving like a normal inhabitant, the
+interface should support that without accidental divine intervention.
+
+God-like actions should therefore be deliberate.
+
+The player should be able to distinguish between:
+
+> Pick up this chair.
+
+and:
+
+> Move this chair through supernatural force.
+
+Likewise:
+
+> Drive across town.
+
+and:
+
+> Instantly relocate there.
+
+The interface for extraordinary power should preserve the possibility of
+ordinary embodied behavior.
+
+### 8.20 Perception and Visibility
+
+The world should not automatically treat every manifestation identically.
+
+Long-term possibilities include:
+
+- openly visible manifestation,
+- concealed or disguised manifestation,
+- appearance chosen by the player,
+- appearance constrained by scenario,
+- altered visibility to particular observers,
+- manifestations interpreted differently by different cultures.
+
+The authoritative requirement is simpler:
+
+If an inhabitant could perceive an action, that fact may become available to
+their cognition and social systems.
+
+If they could not perceive it, they should not gain direct knowledge of it.
+
+Appearance, disguise, concealment, and supernatural visibility remain open
+design questions.
+
+### 8.21 Communication
+
+Direct conversation is central to the intended embodied experience.
+
+A player who wants to teach, persuade, threaten, recruit, flirt, negotiate,
+investigate, preach, organize, or simply socialize needs to communicate with
+inhabitants.
+
+Communication should eventually interact with authoritative systems such as:
+
+- language,
+- knowledge,
+- memory,
+- beliefs,
+- relationships,
+- trust,
+- reputation,
+- social context.
+
+Conversation should not exist only as disconnected flavor text.
+
+What is said may eventually change what another actor:
+
+- knows,
+- believes,
+- remembers,
+- intends,
+- communicates to others.
+
+The exact natural-language interaction model remains open.
+
+### 8.22 Social Consequence Applies to the Player
+
+The player should not be exempt from social interpretation merely because they
+possess extraordinary power.
+
+If the player starts a fight in a bar, witnesses may remember it.
+
+If law enforcement exists, authorities may respond.
+
+If the player repeatedly commits crimes, reputation may spread.
+
+If the player helps a community, inhabitants may develop trust or gratitude.
+
+If the player claims authority, institutions may accept, reject, fear, exploit,
+or oppose that claim.
+
+If the player behaves impossibly, witnesses may reinterpret what they believe
+about the world.
+
+The player's actions should enter the same social causal network as actions by
+other actors wherever the relevant systems exist.
+
+### 8.23 Recognition Is Local and Historical
+
+The player should not have one universal reputation value.
+
+Recognition should eventually depend on history and information flow.
+
+One village may know the player as a healer.
+
+Another may know stories about a dangerous supernatural figure.
+
+A distant population may know nothing about the player.
+
+A government may possess records that ordinary citizens do not.
+
+A religion may interpret the same historical events differently from another
+religion.
+
+The player's identity can therefore become part of geography, culture, and
+history.
+
+### 8.24 Leaving the World
+
+The player must be able to return from embodied presence to the broader world
+view.
+
+Leaving should not erase what happened while manifested.
+
+The world continues.
+
+People remember what they are capable of remembering.
+
+Objects remain where they were left.
+
+Damage remains.
+
+Relationships remain.
+
+Historical events remain.
+
+The manifested session becomes another interval in the world's continuous
+history.
+
+### 8.25 Time While Embodied
+
+Extreme time acceleration is probably incompatible with meaningful direct
+embodiment.
+
+When the player is physically present, the experience should favor time scales
+at which local interaction remains intelligible.
+
+The broader world view may permit much greater acceleration.
+
+The eventual design must determine:
+
+- whether time acceleration is limited while manifested,
+- whether the player can pause during direct interaction,
+- what happens to embodiment during large time jumps,
+- whether the player can remain manifested across years,
+- how local and planetary simulation rates remain coherent.
+
+These are implementation and experience questions, but they should be resolved
+without creating separate realities.
+
+### 8.26 Death, Return, and Myth
+
+A persistent player combined with a destructible manifestation creates unique
+emergent possibilities.
+
+An inhabitant might witness:
+
+- the player being wounded,
+- the player apparently dying,
+- the body disappearing,
+- the player returning later,
+- the player returning with a different appearance.
+
+Different people may interpret those facts differently.
+
+Some may understand only that something impossible occurred.
+
+Others may construct stories, doctrines, conspiracies, institutions, or
+political claims around it.
+
+Est should not prescribe those interpretations.
+
+It should preserve the events from which interpretation can emerge.
+
+### 8.27 Embodiment Design Questions
+
+The following remain intentionally unresolved:
+
+- Is manifestation always humanoid?
+- Can the player customize appearance?
+- Can the player age while manifested?
+- Does the player experience hunger, fatigue, injury, or pain?
+- Can a manifested player permanently lose a body?
+- Is re-manifestation immediate or constrained?
+- Can the player manifest multiple bodies?
+- Can the player possess an existing inhabitant?
+- Can inhabitants imprison the player?
+- Can technology harm or contain a manifested player?
+- Can the player conceal supernatural abilities?
+- Can the player pass as an ordinary inhabitant?
+- Can the player own property?
+- Can the player hold legal office?
+- Can the player have recognized employment?
+- Can the player form marriages or families?
+- Can the player have children?
+- How does language work?
+- How does direct conversation work?
+- How does the camera transition between world view and embodiment?
+- How much of the world is rendered and simulated at individual fidelity while
+  the player is present?
+
+These questions should be answered according to the central experience:
+
+**The player exists beyond the world, but when they enter it, what they do
+there is real.**
+
 ---
 
 ## 9. Consequence Instead of Moral Scoring
