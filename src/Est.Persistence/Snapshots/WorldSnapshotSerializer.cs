@@ -11,6 +11,7 @@ using Est.Simulation.Population;
 using Est.Simulation.Seasons;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
+using Est.Simulation.Thermal;
 using Est.Simulation.Time;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
@@ -19,7 +20,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 23;
+    public const int CurrentSchemaVersion = 24;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -42,6 +43,8 @@ public static class WorldSnapshotSerializer
     private const int InvertebrateMaterialSchemaVersion = 20;
     private const int BirdRecruitmentSchemaVersion = 21;
     private const int SeasonalStateSchemaVersion = 22;
+    private const int SubsolarLatitudeSchemaVersion = 23;
+    private const int RegionalThermalStateSchemaVersion = 24;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -93,6 +96,9 @@ public static class WorldSnapshotSerializer
                 .ToArray(),
             SeasonalStates = world.SeasonalStates
                 .Select(ToSnapshot)
+                .ToArray(),
+            RegionalThermal = world.RegionalThermal
+                .Select(ToSnapshot)
                 .ToArray()
         };
 
@@ -138,6 +144,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != InvertebrateMaterialSchemaVersion &&
             snapshot.SchemaVersion != BirdRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != SeasonalStateSchemaVersion &&
+            snapshot.SchemaVersion != SubsolarLatitudeSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -425,6 +432,26 @@ public static class WorldSnapshotSerializer
                 .ToArray();
         }
 
+        PlanetRegionalThermalState[] regionalThermal;
+
+        if (snapshot.SchemaVersion <
+            RegionalThermalStateSchemaVersion)
+        {
+            regionalThermal = [];
+        }
+        else
+        {
+            if (snapshot.RegionalThermal is null)
+            {
+                throw new JsonException(
+                    "Snapshot regional thermal state collection is required.");
+            }
+
+            regionalThermal = snapshot.RegionalThermal
+                .Select(FromSnapshot)
+                .ToArray();
+        }
+
         return new WorldState(
             new WorldId(snapshot.WorldId),
             new SimulationTime(snapshot.CurrentTimeSeconds),
@@ -438,7 +465,8 @@ public static class WorldSnapshotSerializer
             birdFlocks,
             grazerCohorts,
             biogeochemistry,
-            seasonalStates);
+            seasonalStates,
+            regionalThermal);
     }
 
     private static PlanetSeasonalSnapshot ToSnapshot(
@@ -808,6 +836,76 @@ public static class WorldSnapshotSerializer
                         new SurfaceCellId(
                             cell.SurfaceCellId),
                         cell.LiveBiomassKilogramsPerSquareMeter)));
+    }
+
+    private static PlanetRegionalThermalSnapshot ToSnapshot(
+        PlanetRegionalThermalState regionalThermal)
+    {
+        return new PlanetRegionalThermalSnapshot
+        {
+            PlanetId =
+                regionalThermal.PlanetId.Value,
+            GridDefinition =
+                new SurfaceGridDefinitionSnapshot
+                {
+                    Kind =
+                        regionalThermal.GridDefinition.Kind,
+                    IdentityVersion =
+                        regionalThermal.GridDefinition.IdentityVersion,
+                    LatitudeBandCount =
+                        regionalThermal.GridDefinition.LatitudeBandCount,
+                    LongitudeBandCount =
+                        regionalThermal.GridDefinition.LongitudeBandCount
+                },
+            Cells = regionalThermal.Cells
+                .Select(
+                    cell =>
+                        new RegionalThermalCellSnapshot
+                        {
+                            SurfaceCellId =
+                                cell.CellId.Value,
+                            SurfaceTemperatureKelvin =
+                                cell.SurfaceTemperatureKelvin,
+                            AtmosphericTemperatureKelvin =
+                                cell.AtmosphericTemperatureKelvin
+                        })
+                .ToArray()
+        };
+    }
+
+    private static PlanetRegionalThermalState FromSnapshot(
+        PlanetRegionalThermalSnapshot snapshot)
+    {
+        if (snapshot.GridDefinition is null)
+        {
+            throw new JsonException(
+                "Regional thermal surface-grid definition is required.");
+        }
+
+        if (snapshot.Cells is null)
+        {
+            throw new JsonException(
+                "Regional thermal cells collection is required.");
+        }
+
+        var gridDefinition =
+            new SurfaceGridDefinition(
+                snapshot.GridDefinition.Kind,
+                snapshot.GridDefinition.IdentityVersion,
+                snapshot.GridDefinition.LatitudeBandCount,
+                snapshot.GridDefinition.LongitudeBandCount);
+
+        return new PlanetRegionalThermalState(
+            new PlanetId(
+                snapshot.PlanetId),
+            gridDefinition,
+            snapshot.Cells.Select(
+                cell =>
+                    new RegionalThermalCellState(
+                        new SurfaceCellId(
+                            cell.SurfaceCellId),
+                        cell.SurfaceTemperatureKelvin,
+                        cell.AtmosphericTemperatureKelvin)));
     }
 
     private static PlanetHydrologySnapshot ToSnapshot(
@@ -1390,6 +1488,42 @@ public static class WorldSnapshotSerializer
         public GrazerCohortSnapshot[]? GrazerCohorts { get; set; }
         public PlanetBiogeochemistrySnapshot[]? Biogeochemistry { get; set; }
         public PlanetSeasonalSnapshot[]? SeasonalStates { get; set; }
+        public PlanetRegionalThermalSnapshot[]? RegionalThermal { get; set; }
+    }
+
+    private sealed class PlanetRegionalThermalSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required SurfaceGridDefinitionSnapshot
+            GridDefinition
+        {
+            get;
+            set;
+        }
+
+        public required RegionalThermalCellSnapshot[] Cells
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class RegionalThermalCellSnapshot
+    {
+        public required Guid SurfaceCellId { get; set; }
+
+        public required double SurfaceTemperatureKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double AtmosphericTemperatureKelvin
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class PlanetSeasonalSnapshot

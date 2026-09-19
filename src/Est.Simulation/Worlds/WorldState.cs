@@ -8,6 +8,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Thermal;
 using Est.Simulation.Time;
 using Est.Simulation.Terrain;
 using Est.Simulation.Vegetation;
@@ -62,7 +63,8 @@ public sealed record WorldState
         IEnumerable<BirdFlockState>? birdFlocks = null,
         IEnumerable<GrazerCohortState>? grazerCohorts = null,
         IEnumerable<PlanetBiogeochemistryState>? biogeochemistry = null,
-        IEnumerable<PlanetSeasonalState>? seasonalStates = null)
+        IEnumerable<PlanetSeasonalState>? seasonalStates = null,
+        IEnumerable<PlanetRegionalThermalState>? regionalThermal = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -101,6 +103,9 @@ public sealed record WorldState
 
         var seasonalStateArray =
             (seasonalStates ?? []).ToImmutableArray();
+
+        var regionalThermalArray =
+            (regionalThermal ?? []).ToImmutableArray();
 
         if (planetArray.Any(planet => planet is null))
         {
@@ -328,6 +333,38 @@ public sealed record WorldState
                 nameof(seasonalStates));
         }
 
+        if (regionalThermalArray.Any(
+                state =>
+                    state is null))
+        {
+            throw new ArgumentException(
+                "World regional thermal state cannot contain null entries.",
+                nameof(regionalThermal));
+        }
+
+        if (regionalThermalArray
+            .GroupBy(
+                state =>
+                    state.PlanetId)
+            .Any(
+                group =>
+                    group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "World cannot contain more than one regional thermal state for a planet.",
+                nameof(regionalThermal));
+        }
+
+        if (regionalThermalArray.Any(
+                state =>
+                    !planetIds.Contains(
+                        state.PlanetId)))
+        {
+            throw new ArgumentException(
+                "Every regional thermal state must belong to a planet in the world.",
+                nameof(regionalThermal));
+        }
+
         if (populationArray.Any(
                 person =>
                     !planetIds.Contains(person.PlanetId)))
@@ -382,6 +419,47 @@ public sealed record WorldState
             }
 
             terrainState.ValidateFor(
+                planet);
+        }
+
+        foreach (var regionalThermalState in
+                 regionalThermalArray)
+        {
+            var planet =
+                planetArray.SingleOrDefault(
+                    candidate =>
+                        candidate.Id ==
+                        regionalThermalState.PlanetId);
+
+            if (planet is null)
+            {
+                throw new ArgumentException(
+                    "Every regional thermal state must belong to a planet in the world.",
+                    nameof(regionalThermal));
+            }
+
+            var terrainState =
+                terrainArray.SingleOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        regionalThermalState.PlanetId);
+
+            if (terrainState is null)
+            {
+                throw new ArgumentException(
+                    "Regional thermal state requires terrain for the same planet.",
+                    nameof(regionalThermal));
+            }
+
+            if (regionalThermalState.GridDefinition !=
+                terrainState.GridDefinition)
+            {
+                throw new ArgumentException(
+                    "Regional thermal state and terrain must use the same surface-grid definition.",
+                    nameof(regionalThermal));
+            }
+
+            regionalThermalState.ValidateFor(
                 planet);
         }
 
@@ -589,6 +667,7 @@ public sealed record WorldState
         GrazerCohorts = grazerCohortArray;
         Biogeochemistry = biogeochemistryArray;
         SeasonalStates = seasonalStateArray;
+        RegionalThermal = regionalThermalArray;
     }
 
     public WorldId Id { get; private init; }
@@ -653,6 +732,12 @@ public sealed record WorldState
         private init;
     }
 
+    public ImmutableArray<PlanetRegionalThermalState> RegionalThermal
+    {
+        get;
+        private init;
+    }
+
     public WorldState AdvanceBy(long seconds)
     {
         return this with
@@ -676,7 +761,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState Fork()
@@ -694,7 +780,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplacePopulation(
@@ -715,7 +802,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceAnimals(
@@ -736,7 +824,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceTerrain(
@@ -757,7 +846,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceHydrology(
@@ -779,7 +869,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceVegetation(
@@ -801,7 +892,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceInvertebrates(
@@ -823,7 +915,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceBirdFlocks(
@@ -845,7 +938,8 @@ public sealed record WorldState
             birdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceGrazerCohorts(
@@ -867,7 +961,8 @@ public sealed record WorldState
             BirdFlocks,
             grazerCohorts,
             Biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceBiogeochemistry(
@@ -889,7 +984,8 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             biogeochemistry,
-            SeasonalStates);
+            SeasonalStates,
+            RegionalThermal);
     }
 
     public WorldState ReplaceSeasonalStates(
@@ -911,7 +1007,31 @@ public sealed record WorldState
             BirdFlocks,
             GrazerCohorts,
             Biogeochemistry,
-            seasonalStates);
+            seasonalStates,
+            RegionalThermal);
+    }
+
+    public WorldState ReplaceRegionalThermal(
+        IEnumerable<PlanetRegionalThermalState> regionalThermal)
+    {
+        ArgumentNullException.ThrowIfNull(
+            regionalThermal);
+
+        return new WorldState(
+            Id,
+            CurrentTime,
+            Planets,
+            Population,
+            Animals,
+            Terrain,
+            Hydrology,
+            Vegetation,
+            Invertebrates,
+            BirdFlocks,
+            GrazerCohorts,
+            Biogeochemistry,
+            SeasonalStates,
+            regionalThermal);
     }
 
     public WorldState AddPlanet(PlanetState planet)
