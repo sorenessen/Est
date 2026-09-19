@@ -6,6 +6,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Thermal;
 using Est.Simulation.Vegetation;
 using Est.Simulation.Worlds;
 
@@ -22,7 +23,8 @@ public sealed record SimulationDefinition
         IEnumerable<BirdModelDefinition>? birdModels = null,
         IEnumerable<GrazerModelDefinition>? grazerModels = null,
         IEnumerable<BiogeochemistryModelDefinition>? biogeochemistryModels = null,
-        IEnumerable<CircularOrbitSeasonalModelDefinition>? seasonalModels = null)
+        IEnumerable<CircularOrbitSeasonalModelDefinition>? seasonalModels = null,
+        IEnumerable<RegionalThermalModelDefinition>? regionalThermalModels = null)
     {
         var models = planetaryEnergyBalanceModels?
             .ToImmutableArray()
@@ -59,6 +61,10 @@ public sealed record SimulationDefinition
         var seasonal = seasonalModels?
             .ToImmutableArray()
             ?? ImmutableArray<CircularOrbitSeasonalModelDefinition>.Empty;
+
+        var regionalThermal = regionalThermalModels?
+            .ToImmutableArray()
+            ?? ImmutableArray<RegionalThermalModelDefinition>.Empty;
 
         if (models.Any(model => model is null))
         {
@@ -121,6 +127,13 @@ public sealed record SimulationDefinition
             throw new ArgumentException(
                 "Simulation definition cannot contain null seasonal model definitions.",
                 nameof(seasonalModels));
+        }
+
+        if (regionalThermal.Any(model => model is null))
+        {
+            throw new ArgumentException(
+                "Simulation definition cannot contain null regional thermal model definitions.",
+                nameof(regionalThermalModels));
         }
 
         if (models
@@ -204,6 +217,27 @@ public sealed record SimulationDefinition
                 nameof(seasonalModels));
         }
 
+        if (regionalThermal
+            .GroupBy(model => model.PlanetId)
+            .Any(group => group.Count() > 1))
+        {
+            throw new ArgumentException(
+                "A planet cannot have more than one regional thermal model definition.",
+                nameof(regionalThermalModels));
+        }
+
+        if (regionalThermal.Any(
+                regionalModel =>
+                    models.Any(
+                        energyModel =>
+                            energyModel.PlanetId ==
+                            regionalModel.PlanetId)))
+        {
+            throw new ArgumentException(
+                "A planet cannot configure both planetary energy-balance and regional thermal model authority.",
+                nameof(regionalThermalModels));
+        }
+
         PlanetaryEnergyBalanceModels = models;
         PopulationModels = population;
         HydrologyModels = hydrology;
@@ -213,6 +247,7 @@ public sealed record SimulationDefinition
         GrazerModels = grazers;
         BiogeochemistryModels = biogeochemistry;
         SeasonalModels = seasonal;
+        RegionalThermalModels = regionalThermal;
     }
 
     public ImmutableArray<PlanetaryEnergyBalanceModelDefinition>
@@ -241,6 +276,9 @@ public sealed record SimulationDefinition
 
     public ImmutableArray<CircularOrbitSeasonalModelDefinition>
         SeasonalModels { get; }
+
+    public ImmutableArray<RegionalThermalModelDefinition>
+        RegionalThermalModels { get; }
 
     public static SimulationDefinition Empty { get; } = new();
 
@@ -402,6 +440,26 @@ public sealed record SimulationDefinition
             {
                 throw new ArgumentException(
                     $"Seasonal model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+        }
+
+        foreach (var model in RegionalThermalModels)
+        {
+            if (!planetIds.Contains(model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Regional thermal model targets planet '{model.PlanetId.Value}', which does not exist in the world.",
+                    nameof(world));
+            }
+
+            if (!world.RegionalThermal.Any(
+                    state =>
+                        state.PlanetId ==
+                        model.PlanetId))
+            {
+                throw new ArgumentException(
+                    $"Regional thermal model for planet '{model.PlanetId.Value}' requires authoritative regional thermal state for that planet.",
                     nameof(world));
             }
         }

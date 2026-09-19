@@ -11,6 +11,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Thermal;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Vegetation;
@@ -19,7 +20,8 @@ namespace Est.Persistence.Archives;
 
 public static class TimelineArchiveSerializer
 {
-    public const int CurrentSchemaVersion = 23;
+    public const int CurrentSchemaVersion = 24;
+    private const int RegionalThermalModelSchemaVersion = 24;
     private const int SeasonalModelSchemaVersion = 23;
     private const int BirdRecruitmentSchemaVersion = 22;
     private const int InvertebrateMaterialSchemaVersion = 21;
@@ -145,6 +147,7 @@ public static class TimelineArchiveSerializer
             archive.SchemaVersion != GrazerRecruitmentSchemaVersion &&
             archive.SchemaVersion != InvertebrateMaterialSchemaVersion &&
             archive.SchemaVersion != BirdRecruitmentSchemaVersion &&
+            archive.SchemaVersion != SeasonalModelSchemaVersion &&
             archive.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -721,6 +724,50 @@ public static class TimelineArchiveSerializer
                                         CycleFractionAtTimeZero =
                                             model.Parameters
                                                 .CycleFractionAtTimeZero
+                                    }
+                            })
+                    .ToArray(),
+            RegionalThermalModels =
+                definition.RegionalThermalModels
+                    .Select(
+                        model =>
+                            new RegionalThermalModelSnapshot
+                            {
+                                PlanetId =
+                                    model.PlanetId.Value,
+                                Parameters =
+                                    new RegionalThermalModelParametersSnapshot
+                                    {
+                                        StellarFluxWattsPerSquareMeter =
+                                            model.Parameters
+                                                .StellarFluxWattsPerSquareMeter,
+                                        AtmosphericShortwaveVerticalOpticalDepth =
+                                            model.Parameters
+                                                .AtmosphericShortwaveVerticalOpticalDepth,
+                                        AtmosphericShortwaveSingleScatteringAlbedo =
+                                            model.Parameters
+                                                .AtmosphericShortwaveSingleScatteringAlbedo,
+                                        AtmosphericShortwaveDownwardScatteringFraction =
+                                            model.Parameters
+                                                .AtmosphericShortwaveDownwardScatteringFraction,
+                                        SurfaceShortwaveAlbedo =
+                                            model.Parameters
+                                                .SurfaceShortwaveAlbedo,
+                                        SurfaceLongwaveEmissivity =
+                                            model.Parameters
+                                                .SurfaceLongwaveEmissivity,
+                                        AtmosphericLongwaveEmissivity =
+                                            model.Parameters
+                                                .AtmosphericLongwaveEmissivity,
+                                        SurfaceEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin =
+                                            model.Parameters
+                                                .SurfaceEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin,
+                                        AtmosphericEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin =
+                                            model.Parameters
+                                                .AtmosphericEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin,
+                                        MaximumIntegrationStepSeconds =
+                                            model.Parameters
+                                                .MaximumIntegrationStepSeconds
                                     }
                             })
                     .ToArray()
@@ -1392,6 +1439,61 @@ public static class TimelineArchiveSerializer
                     .ToArray();
         }
 
+        RegionalThermalModelDefinition[]
+            regionalThermalModels;
+
+        if (schemaVersion <
+            RegionalThermalModelSchemaVersion)
+        {
+            regionalThermalModels = [];
+        }
+        else
+        {
+            if (snapshot.RegionalThermalModels is null)
+            {
+                throw new JsonException(
+                    "Regional thermal model collection is required.");
+            }
+
+            regionalThermalModels =
+                snapshot.RegionalThermalModels
+                    .Select(
+                        model =>
+                        {
+                            if (model.Parameters is null)
+                            {
+                                throw new JsonException(
+                                    "Regional thermal model parameters are required.");
+                            }
+
+                            return new RegionalThermalModelDefinition(
+                                new PlanetId(
+                                    model.PlanetId),
+                                new RegionalThermalModelParameters(
+                                    model.Parameters
+                                        .StellarFluxWattsPerSquareMeter,
+                                    model.Parameters
+                                        .AtmosphericShortwaveVerticalOpticalDepth,
+                                    model.Parameters
+                                        .AtmosphericShortwaveSingleScatteringAlbedo,
+                                    model.Parameters
+                                        .AtmosphericShortwaveDownwardScatteringFraction,
+                                    model.Parameters
+                                        .SurfaceShortwaveAlbedo,
+                                    model.Parameters
+                                        .SurfaceLongwaveEmissivity,
+                                    model.Parameters
+                                        .AtmosphericLongwaveEmissivity,
+                                    model.Parameters
+                                        .SurfaceEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin,
+                                    model.Parameters
+                                        .AtmosphericEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin,
+                                    model.Parameters
+                                        .MaximumIntegrationStepSeconds));
+                        })
+                    .ToArray();
+        }
+
         return new SimulationDefinition(
             energyModels,
             populationModels,
@@ -1401,7 +1503,8 @@ public static class TimelineArchiveSerializer
             birdModels,
             grazerModels,
             biogeochemistryModels,
-            seasonalModels);
+            seasonalModels,
+            regionalThermalModels);
     }
 
     private static JsonElement ToWorldElement(
@@ -1479,6 +1582,89 @@ public static class TimelineArchiveSerializer
 
         public CircularOrbitSeasonalModelSnapshot[]?
             SeasonalModels { get; set; }
+
+        public RegionalThermalModelSnapshot[]?
+            RegionalThermalModels { get; set; }
+    }
+
+    private sealed class RegionalThermalModelSnapshot
+    {
+        public required Guid PlanetId { get; set; }
+
+        public required RegionalThermalModelParametersSnapshot
+            Parameters
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class RegionalThermalModelParametersSnapshot
+    {
+        public required double StellarFluxWattsPerSquareMeter
+        {
+            get;
+            set;
+        }
+
+        public required double
+            AtmosphericShortwaveVerticalOpticalDepth
+        {
+            get;
+            set;
+        }
+
+        public required double
+            AtmosphericShortwaveSingleScatteringAlbedo
+        {
+            get;
+            set;
+        }
+
+        public required double
+            AtmosphericShortwaveDownwardScatteringFraction
+        {
+            get;
+            set;
+        }
+
+        public required double SurfaceShortwaveAlbedo
+        {
+            get;
+            set;
+        }
+
+        public required double SurfaceLongwaveEmissivity
+        {
+            get;
+            set;
+        }
+
+        public required double AtmosphericLongwaveEmissivity
+        {
+            get;
+            set;
+        }
+
+        public required double
+            SurfaceEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin
+        {
+            get;
+            set;
+        }
+
+        public required double
+            AtmosphericEffectiveArealHeatCapacityJoulesPerSquareMeterKelvin
+        {
+            get;
+            set;
+        }
+
+        public required long MaximumIntegrationStepSeconds
+        {
+            get;
+            set;
+        }
     }
 
     private sealed class CircularOrbitSeasonalModelSnapshot
