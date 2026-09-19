@@ -101,7 +101,15 @@ public sealed class SimulationSession
                         (ICausalSystem)
                             new HydrologySystem(
                                 model.PlanetId,
-                                model.Parameters));
+                                model.Parameters,
+                                definition.RegionalThermalModels.Any(
+                                    regionalModel =>
+                                        regionalModel.PlanetId ==
+                                        model.PlanetId)
+                                    ? HydrologyTemperatureSource
+                                        .RegionalSurface
+                                    : HydrologyTemperatureSource
+                                        .PlanetaryCompatibility));
 
         var biogeochemistrySystems =
             definition.BiogeochemistryModels

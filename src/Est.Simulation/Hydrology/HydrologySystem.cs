@@ -3,6 +3,7 @@ using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
+using Est.Simulation.Thermal;
 using Est.Simulation.Worlds;
 
 namespace Est.Simulation.Hydrology;
@@ -33,10 +34,13 @@ public sealed class HydrologySystem
 
     private readonly PlanetId _planetId;
     private readonly HydrologyModelParameters _parameters;
+    private readonly HydrologyTemperatureSource _temperatureSource;
 
     public HydrologySystem(
         PlanetId planetId,
-        HydrologyModelParameters parameters)
+        HydrologyModelParameters parameters,
+        HydrologyTemperatureSource temperatureSource =
+            HydrologyTemperatureSource.PlanetaryCompatibility)
     {
         if (planetId.Value == Guid.Empty)
         {
@@ -48,8 +52,16 @@ public sealed class HydrologySystem
         ArgumentNullException.ThrowIfNull(
             parameters);
 
+        if (!Enum.IsDefined(
+                temperatureSource))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(temperatureSource));
+        }
+
         _planetId = planetId;
         _parameters = parameters;
+        _temperatureSource = temperatureSource;
     }
 
     public SimulationChange Evaluate(
@@ -101,6 +113,38 @@ public sealed class HydrologySystem
 
         terrain.ValidateFor(
             planet);
+
+        IReadOnlyDictionary<
+            SurfaceCellId,
+            RegionalThermalCellState>?
+            regionalThermalByCellId = null;
+
+        if (_temperatureSource ==
+            HydrologyTemperatureSource.RegionalSurface)
+        {
+            var regionalThermal =
+                world.RegionalThermal.FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        _planetId)
+                ?? throw new InvalidOperationException(
+                    "Regional hydrology temperature consumption requires regional thermal state for the target planet.");
+
+            if (regionalThermal.GridDefinition !=
+                hydrology.GridDefinition)
+            {
+                throw new InvalidOperationException(
+                    "Regional thermal state and hydrology must use the same surface grid.");
+            }
+
+            regionalThermal.ValidateFor(
+                planet);
+
+            regionalThermalByCellId =
+                regionalThermal.Cells.ToDictionary(
+                    cell =>
+                        cell.CellId);
+        }
 
         var grid =
             PlanetSurfaceGridFactory.Create(
@@ -251,8 +295,15 @@ public sealed class HydrologySystem
                     infiltration *
                     area;
 
-                if (planet.Environment
-                        .MeanSurfaceTemperatureKelvin <=
+                var phaseTemperatureKelvin =
+                    regionalThermalByCellId is null
+                        ? planet.Environment
+                            .MeanSurfaceTemperatureKelvin
+                        : regionalThermalByCellId[
+                                cell.CellId]
+                            .SurfaceTemperatureKelvin;
+
+                if (phaseTemperatureKelvin <=
                     _parameters
                         .FreezingTemperatureKelvin)
                 {
@@ -273,8 +324,7 @@ public sealed class HydrologySystem
                         freezing *
                         area;
                 }
-                else if (planet.Environment
-                             .MeanSurfaceTemperatureKelvin >=
+                else if (phaseTemperatureKelvin >=
                          _parameters
                              .MeltingTemperatureKelvin)
                 {
