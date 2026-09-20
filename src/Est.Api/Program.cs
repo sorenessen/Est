@@ -16,6 +16,7 @@ using Est.Simulation.Vegetation;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Social;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Time;
@@ -655,6 +656,120 @@ app.MapGet(
         return Results.Ok(
             ToWorldResponse(
                 session.CurrentWorld));
+    });
+
+app.MapGet(
+    "/sessions/{id:guid}/people/{personId:guid}/social/esters/{esterId:guid}",
+    (
+        Guid id,
+        Guid personId,
+        Guid esterId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            personId == Guid.Empty ||
+            esterId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var personIdentity =
+            new PersonId(personId);
+
+        var esterIdentity =
+            new EsterId(esterId);
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                esterIdentity);
+
+        try
+        {
+            var contact =
+                session.GetPersonSocialContact(
+                    personIdentity,
+                    actor);
+
+            return Results.Ok(
+                ToPersonSocialRecognitionResponse(
+                    personIdentity,
+                    esterIdentity,
+                    contact));
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+    });
+
+app.MapPost(
+    "/sessions/{id:guid}/people/{personId:guid}/social/esters/{esterId:guid}",
+    (
+        Guid id,
+        Guid personId,
+        Guid esterId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            personId == Guid.Empty ||
+            esterId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var personIdentity =
+            new PersonId(personId);
+
+        var esterIdentity =
+            new EsterId(esterId);
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                esterIdentity);
+
+        try
+        {
+            session.RecordPersonSocialEncounter(
+                personIdentity,
+                actor);
+
+            var contact =
+                session.GetPersonSocialContact(
+                    personIdentity,
+                    actor);
+
+            return Results.Ok(
+                ToPersonSocialRecognitionResponse(
+                    personIdentity,
+                    esterIdentity,
+                    contact));
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
     });
 
 app.MapGet(
@@ -1495,6 +1610,21 @@ app.MapPost(
     });
 
 app.Run();
+
+static PersonSocialRecognitionResponse
+    ToPersonSocialRecognitionResponse(
+        PersonId personId,
+        EsterId esterId,
+        PersonSocialContactState? contact)
+{
+    return new PersonSocialRecognitionResponse(
+        personId.Value,
+        esterId.Value,
+        contact is not null,
+        contact?.FirstEncounterTimeSeconds,
+        contact?.LastEncounterTimeSeconds,
+        contact?.EncounterCount ?? 0);
+}
 
 static TimelineResponse ToTimelineResponse(
     SimulationTimeline timeline)
