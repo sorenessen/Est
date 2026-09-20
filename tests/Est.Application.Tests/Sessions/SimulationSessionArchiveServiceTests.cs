@@ -4,6 +4,8 @@ using Est.Persistence.Storage;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
+using Est.Simulation.Social;
 using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
@@ -48,6 +50,222 @@ public sealed class SimulationSessionArchiveServiceTests
                 manager.TryGet(
                     knownId,
                     out _));
+        }
+        finally
+        {
+            var directory =
+                Path.GetDirectoryName(path)!;
+
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(
+                    directory,
+                    recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void SaveAndLoad_PreservesReturningEsterRecognitionBeforeSecondEncounter()
+    {
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            "Est.Tests",
+            Guid.NewGuid().ToString("N"),
+            "timeline.json");
+
+        try
+        {
+            var manager =
+                new SimulationSessionManager();
+
+            var service =
+                new SimulationSessionArchiveService(
+                    manager,
+                    new TimelineArchiveFileStore());
+
+            var planet =
+                new PlanetState(
+                    PlanetId.New(),
+                    "Social Recognition World",
+                    5.9722e24,
+                    6_371_000,
+                    new PlanetEnvironment(
+                        288.15,
+                        0.71,
+                        0.1,
+                        AtmosphereState.Vacuum));
+
+            var person =
+                new PersonState(
+                    PersonId.New(),
+                    planet.Id,
+                    PersonSex.Female,
+                    birthTimeSeconds: 0,
+                    latitudeDegrees: 0,
+                    longitudeDegrees: 0);
+
+            var returningActor =
+                SocialActorIdentity.ForEster(
+                    EsterId.New());
+
+            var unknownActor =
+                SocialActorIdentity.ForEster(
+                    EsterId.New());
+
+            var originalId =
+                manager.Create(
+                    new WorldState(
+                        WorldId.New(),
+                        new SimulationTime(120),
+                        [planet],
+                        [person]));
+
+            var original =
+                manager.Get(
+                    originalId);
+
+            Assert.Null(
+                original.GetPersonSocialContact(
+                    person.Id,
+                    returningActor));
+
+            Assert.Null(
+                original.GetPersonSocialContact(
+                    person.Id,
+                    unknownActor));
+
+            original.RecordPersonSocialEncounter(
+                person.Id,
+                returningActor);
+
+            original.Advance(
+                240);
+
+            var beforeSave =
+                original.GetPersonSocialContact(
+                    person.Id,
+                    returningActor);
+
+            Assert.NotNull(
+                beforeSave);
+
+            Assert.Equal(
+                1,
+                beforeSave.EncounterCount);
+
+            Assert.Equal(
+                120,
+                beforeSave.FirstEncounterTimeSeconds);
+
+            Assert.Equal(
+                120,
+                beforeSave.LastEncounterTimeSeconds);
+
+            Assert.Equal(
+                360,
+                original.CurrentWorld
+                    .CurrentTime.TotalSeconds);
+
+            service.Save(
+                originalId,
+                path,
+                new TimelineArchiveProvenance(
+                    "Est",
+                    "0.1.0-alpha",
+                    "simulation"));
+
+            var loadedId =
+                service.Load(
+                    path);
+
+            var loaded =
+                manager.Get(
+                    loadedId);
+
+            Assert.NotEqual(
+                originalId,
+                loadedId);
+
+            Assert.NotSame(
+                original,
+                loaded);
+
+            Assert.Equal(
+                360,
+                loaded.CurrentWorld
+                    .CurrentTime.TotalSeconds);
+
+            var recognizedBeforeSecondEncounter =
+                loaded.GetPersonSocialContact(
+                    person.Id,
+                    returningActor);
+
+            Assert.NotNull(
+                recognizedBeforeSecondEncounter);
+
+            Assert.Equal(
+                1,
+                recognizedBeforeSecondEncounter
+                    .EncounterCount);
+
+            Assert.Equal(
+                120,
+                recognizedBeforeSecondEncounter
+                    .FirstEncounterTimeSeconds);
+
+            Assert.Equal(
+                120,
+                recognizedBeforeSecondEncounter
+                    .LastEncounterTimeSeconds);
+
+            Assert.Null(
+                loaded.GetPersonSocialContact(
+                    person.Id,
+                    unknownActor));
+
+            loaded.RecordPersonSocialEncounter(
+                person.Id,
+                returningActor);
+
+            var afterSecondEncounter =
+                loaded.GetPersonSocialContact(
+                    person.Id,
+                    returningActor);
+
+            Assert.NotNull(
+                afterSecondEncounter);
+
+            Assert.Equal(
+                2,
+                afterSecondEncounter.EncounterCount);
+
+            Assert.Equal(
+                120,
+                afterSecondEncounter
+                    .FirstEncounterTimeSeconds);
+
+            Assert.Equal(
+                360,
+                afterSecondEncounter
+                    .LastEncounterTimeSeconds);
+
+            var originalContact =
+                original.GetPersonSocialContact(
+                    person.Id,
+                    returningActor);
+
+            Assert.NotNull(
+                originalContact);
+
+            Assert.Equal(
+                1,
+                originalContact.EncounterCount);
+
+            Assert.Equal(
+                120,
+                originalContact
+                    .LastEncounterTimeSeconds);
         }
         finally
         {

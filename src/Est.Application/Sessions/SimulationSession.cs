@@ -12,6 +12,7 @@ using Est.Simulation.Operations;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Social;
 using Est.Simulation.Thermal;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
@@ -396,6 +397,76 @@ public sealed class SimulationSession
                     "Overrode planetary seasonal state.",
                     planetId,
                     0);
+
+            _timeline =
+                _timeline.RecordStep(
+                    new SimulationStepResult(
+                        world,
+                        change));
+
+            return _timeline;
+        }
+    }
+
+    public PersonSocialContactState? GetPersonSocialContact(
+        PersonId personId,
+        SocialActorIdentity actor)
+    {
+        if (personId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Person identity cannot be empty.",
+                nameof(personId));
+        }
+
+        if (actor.Value == Guid.Empty ||
+            !Enum.IsDefined(
+                typeof(SocialActorKind),
+                actor.Kind))
+        {
+            throw new ArgumentException(
+                "Social actor identity must be valid and nonempty.",
+                nameof(actor));
+        }
+
+        lock (_sync)
+        {
+            var person =
+                _timeline.CurrentWorld.Population
+                    .FirstOrDefault(
+                        candidate =>
+                            candidate.Id == personId)
+                ?? throw new InvalidOperationException(
+                    "The target person does not exist in this world.");
+
+            return person.SocialState.GetContact(
+                actor);
+        }
+    }
+
+    public SimulationTimeline RecordPersonSocialEncounter(
+        PersonId personId,
+        SocialActorIdentity actor)
+    {
+        lock (_sync)
+        {
+            var operation =
+                new RecordPersonSocialEncounterOperation(
+                    personId,
+                    actor);
+
+            var world =
+                SimulationOperationExecutor.Apply(
+                    _timeline.CurrentWorld,
+                    operation);
+
+            var change =
+                new SimulationChange(
+                    operation,
+                    "User intervention",
+                    "Recorded person social encounter.",
+                    affectedPlanetId: null,
+                    elapsedSeconds: 0);
 
             _timeline =
                 _timeline.RecordStep(

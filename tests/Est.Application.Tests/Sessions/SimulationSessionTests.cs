@@ -2,6 +2,8 @@ using Est.Application.Sessions;
 using Est.Simulation.Climate;
 using Est.Simulation.Definitions;
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
+using Est.Simulation.Social;
 using Est.Simulation.Seasons;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
@@ -140,6 +142,254 @@ public sealed class SimulationSessionTests
 
         Assert.Same(originalTimeline, session.Timeline);
         Assert.Empty(session.Timeline.Events);
+    }
+
+    [Fact]
+    public void GetPersonSocialContact_UnknownActorReturnsNull()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0);
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    new SimulationTime(120),
+                    [planet],
+                    [person]));
+
+        Assert.Null(
+            session.GetPersonSocialContact(
+                person.Id,
+                actor));
+
+        Assert.Equal(
+            120,
+            session.CurrentWorld
+                .CurrentTime.TotalSeconds);
+
+        Assert.Empty(
+            session.Timeline.Events);
+    }
+
+    [Fact]
+    public void RecordPersonSocialEncounter_RecordsAuthoritativeContactWithoutAdvancingTime()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0);
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    new SimulationTime(120),
+                    [planet],
+                    [person]));
+
+        var originalTimeline =
+            session.Timeline;
+
+        var timeline =
+            session.RecordPersonSocialEncounter(
+                person.Id,
+                actor);
+
+        var contact =
+            session.GetPersonSocialContact(
+                person.Id,
+                actor);
+
+        Assert.NotNull(contact);
+
+        Assert.Equal(
+            1,
+            contact.EncounterCount);
+
+        Assert.Equal(
+            120,
+            contact.FirstEncounterTimeSeconds);
+
+        Assert.Equal(
+            120,
+            contact.LastEncounterTimeSeconds);
+
+        Assert.Equal(
+            120,
+            timeline.CurrentWorld
+                .CurrentTime.TotalSeconds);
+
+        Assert.Equal(
+            originalTimeline.Id,
+            timeline.Id);
+
+        var intervention =
+            Assert.Single(
+                timeline.Events);
+
+        Assert.Equal(
+            "User intervention",
+            intervention.Cause);
+
+        Assert.Equal(
+            "Recorded person social encounter.",
+            intervention.Summary);
+
+        Assert.Null(
+            intervention.AffectedPlanetId);
+
+        Assert.Equal(
+            0,
+            intervention.ElapsedSeconds);
+
+        Assert.Empty(
+            originalTimeline.Events);
+
+        var originalPerson =
+            Assert.Single(
+                originalTimeline
+                    .CurrentWorld
+                    .Population);
+
+        Assert.False(
+            originalPerson.SocialState
+                .HasEncountered(actor));
+    }
+
+    [Fact]
+    public void RecordPersonSocialEncounter_PreservesRecognitionBeforeRepeatedEncounter()
+    {
+        var planet = CreatePlanet();
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 0,
+                longitudeDegrees: 0);
+
+        var returningActor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var unknownActor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var session =
+            new SimulationSession(
+                new WorldState(
+                    WorldId.New(),
+                    new SimulationTime(120),
+                    [planet],
+                    [person]));
+
+        Assert.Null(
+            session.GetPersonSocialContact(
+                person.Id,
+                returningActor));
+
+        Assert.Null(
+            session.GetPersonSocialContact(
+                person.Id,
+                unknownActor));
+
+        session.RecordPersonSocialEncounter(
+            person.Id,
+            returningActor);
+
+        session.Advance(
+            240);
+
+        var beforeSecondEncounter =
+            session.GetPersonSocialContact(
+                person.Id,
+                returningActor);
+
+        Assert.NotNull(
+            beforeSecondEncounter);
+
+        Assert.Equal(
+            1,
+            beforeSecondEncounter.EncounterCount);
+
+        Assert.Equal(
+            120,
+            beforeSecondEncounter
+                .FirstEncounterTimeSeconds);
+
+        Assert.Equal(
+            120,
+            beforeSecondEncounter
+                .LastEncounterTimeSeconds);
+
+        Assert.Null(
+            session.GetPersonSocialContact(
+                person.Id,
+                unknownActor));
+
+        Assert.Equal(
+            360,
+            session.CurrentWorld
+                .CurrentTime.TotalSeconds);
+
+        session.RecordPersonSocialEncounter(
+            person.Id,
+            returningActor);
+
+        var afterSecondEncounter =
+            session.GetPersonSocialContact(
+                person.Id,
+                returningActor);
+
+        Assert.NotNull(
+            afterSecondEncounter);
+
+        Assert.Equal(
+            2,
+            afterSecondEncounter.EncounterCount);
+
+        Assert.Equal(
+            120,
+            afterSecondEncounter
+                .FirstEncounterTimeSeconds);
+
+        Assert.Equal(
+            360,
+            afterSecondEncounter
+                .LastEncounterTimeSeconds);
+
+        Assert.Single(
+            Assert.Single(
+                    session.CurrentWorld
+                        .Population)
+                .SocialState
+                .Contacts);
     }
 
     [Fact]
