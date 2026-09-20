@@ -1,4 +1,6 @@
 using Est.Simulation.Planets;
+using Est.Simulation.Population;
+using Est.Simulation.Social;
 using Est.Simulation.Time;
 using Est.Simulation.Worlds;
 
@@ -229,6 +231,63 @@ public class WorldStateTests
             300,
             changedFork.Planets[0].Environment.MeanSurfaceTemperatureKelvin);
         Assert.Equal(100, changedFork.CurrentTime.TotalSeconds);
+    }
+
+    [Fact]
+    public void Copy_PreservesPersonSocialRecognition()
+    {
+        var planet =
+            CreateEarth();
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var socialState =
+            new PersonSocialState()
+                .RecordEncounter(
+                    actor,
+                    encounterTimeSeconds: 100);
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 10,
+                longitudeDegrees: 20,
+                socialState: socialState);
+
+        var world =
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(500),
+                [planet],
+                [person]);
+
+        var copy =
+            world.Copy();
+
+        var copiedPerson =
+            Assert.Single(
+                copy.Population);
+
+        Assert.Equal(
+            socialState,
+            copiedPerson.SocialState);
+
+        Assert.True(
+            copiedPerson.SocialState
+                .HasEncountered(actor));
+
+        Assert.Equal(
+            world.Id,
+            copy.Id);
+
+        Assert.Equal(
+            world.CurrentTime,
+            copy.CurrentTime);
     }
 
     private static PlanetState CreateEarth()

@@ -9,6 +9,7 @@ using Est.Simulation.Organisms;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Social;
 using Est.Simulation.Surface;
 using Est.Simulation.Terrain;
 using Est.Simulation.Thermal;
@@ -20,7 +21,7 @@ namespace Est.Persistence.Snapshots;
 
 public static class WorldSnapshotSerializer
 {
-    public const int CurrentSchemaVersion = 24;
+    public const int CurrentSchemaVersion = 25;
     private const int LegacySchemaVersion = 1;
     private const int PopulationSchemaVersion = 2;
     private const int SurvivalSchemaVersion = 3;
@@ -45,6 +46,7 @@ public static class WorldSnapshotSerializer
     private const int SeasonalStateSchemaVersion = 22;
     private const int SubsolarLatitudeSchemaVersion = 23;
     private const int RegionalThermalStateSchemaVersion = 24;
+    private const int SocialRecognitionSchemaVersion = 25;
 
     private static readonly JsonSerializerOptions SerializerOptions =
         new()
@@ -145,6 +147,7 @@ public static class WorldSnapshotSerializer
             snapshot.SchemaVersion != BirdRecruitmentSchemaVersion &&
             snapshot.SchemaVersion != SeasonalStateSchemaVersion &&
             snapshot.SchemaVersion != SubsolarLatitudeSchemaVersion &&
+            snapshot.SchemaVersion != RegionalThermalStateSchemaVersion &&
             snapshot.SchemaVersion != CurrentSchemaVersion)
         {
             throw new NotSupportedException(
@@ -1265,7 +1268,25 @@ public static class WorldSnapshotSerializer
                 person.Pregnancy?.FatherId.Value,
             Material =
                 ToSnapshot(
-                    person.Material)
+                    person.Material),
+            SocialContacts =
+                person.SocialState.Contacts
+                    .Select(
+                        contact =>
+                            new PersonSocialContactSnapshot
+                            {
+                                ActorKind =
+                                    contact.Actor.Kind,
+                                ActorId =
+                                    contact.Actor.Value,
+                                FirstEncounterTimeSeconds =
+                                    contact.FirstEncounterTimeSeconds,
+                                LastEncounterTimeSeconds =
+                                    contact.LastEncounterTimeSeconds,
+                                EncounterCount =
+                                    contact.EncounterCount
+                            })
+                    .ToArray()
         };
     }
 
@@ -1332,6 +1353,11 @@ public static class WorldSnapshotSerializer
             pregnancy = null;
         }
 
+        var socialState =
+            FromSocialSnapshot(
+                snapshot,
+                schemaVersion);
+
         return new PersonState(
             new PersonId(snapshot.PersonId),
             new PlanetId(snapshot.PlanetId),
@@ -1347,7 +1373,96 @@ public static class WorldSnapshotSerializer
             pregnancy,
             FromMaterialSnapshot(
                 snapshot.Material,
-                schemaVersion));
+                schemaVersion),
+            socialState);
+    }
+
+    private static PersonSocialState FromSocialSnapshot(
+        PersonSnapshot snapshot,
+        int schemaVersion)
+    {
+        if (schemaVersion <
+            SocialRecognitionSchemaVersion)
+        {
+            return PersonSocialState.Empty;
+        }
+
+        if (snapshot.SocialContacts is null)
+        {
+            throw new JsonException(
+                "Person social contacts collection is required.");
+        }
+
+        var contacts =
+            new List<PersonSocialContactState>(
+                snapshot.SocialContacts.Length);
+
+        var actorIdentities =
+            new HashSet<SocialActorIdentity>();
+
+        foreach (var contact in snapshot.SocialContacts)
+        {
+            if (contact is null)
+            {
+                throw new JsonException(
+                    "Person social contacts cannot contain null entries.");
+            }
+
+            if (contact.ActorId == Guid.Empty ||
+                !Enum.IsDefined(
+                    typeof(SocialActorKind),
+                    contact.ActorKind))
+            {
+                throw new JsonException(
+                    "Person social contact actor identity is invalid.");
+            }
+
+            if (contact.LastEncounterTimeSeconds <
+                contact.FirstEncounterTimeSeconds)
+            {
+                throw new JsonException(
+                    "Person social contact chronology is invalid.");
+            }
+
+            if (contact.EncounterCount < 1)
+            {
+                throw new JsonException(
+                    "Person social contact encounter count is invalid.");
+            }
+
+            var actor =
+                new SocialActorIdentity(
+                    contact.ActorKind,
+                    contact.ActorId);
+
+            if (!actorIdentities.Add(actor))
+            {
+                throw new JsonException(
+                    "Person social contacts cannot contain duplicate actors.");
+            }
+
+            contacts.Add(
+                new PersonSocialContactState(
+                    actor,
+                    contact.FirstEncounterTimeSeconds,
+                    contact.LastEncounterTimeSeconds,
+                    contact.EncounterCount));
+        }
+
+        var socialState =
+            new PersonSocialState(
+                contacts);
+
+        if (socialState.HasEncountered(
+                new SocialActorIdentity(
+                    SocialActorKind.Person,
+                    snapshot.PersonId)))
+        {
+            throw new JsonException(
+                "Person social contacts cannot contain the person themselves.");
+        }
+
+        return socialState;
     }
 
     private static OrganismMaterialSnapshot ToSnapshot(
@@ -1840,6 +1955,25 @@ public static class WorldSnapshotSerializer
         public Guid? PregnancyFatherId { get; set; }
 
         public OrganismMaterialSnapshot? Material { get; set; }
+
+        public PersonSocialContactSnapshot?[]? SocialContacts
+        {
+            get;
+            set;
+        }
+    }
+
+    private sealed class PersonSocialContactSnapshot
+    {
+        public required SocialActorKind ActorKind { get; set; }
+
+        public required Guid ActorId { get; set; }
+
+        public required long FirstEncounterTimeSeconds { get; set; }
+
+        public required long LastEncounterTimeSeconds { get; set; }
+
+        public required long EncounterCount { get; set; }
     }
 
     private sealed class OrganismMaterialSnapshot

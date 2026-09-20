@@ -10,6 +10,7 @@ using Est.Simulation.Invertebrates;
 using Est.Simulation.Planets;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
+using Est.Simulation.Social;
 using Est.Simulation.Causality;
 using Est.Simulation.Operations;
 using Est.Simulation.Surface;
@@ -2084,6 +2085,87 @@ public class TimelineArchiveSerializerTests
         Assert.Throws<ArgumentException>(
             () => TimelineArchiveSerializer.Deserialize(
                 node.ToJsonString()));
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesSocialRecognitionInCurrentWorldAndCheckpoints()
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Social Archive World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var socialState =
+            new PersonSocialState()
+                .RecordEncounter(
+                    actor,
+                    encounterTimeSeconds: 100);
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 10,
+                longitudeDegrees: 20,
+                socialState: socialState);
+
+        var timeline =
+            SimulationTimeline.Create(
+                    new WorldState(
+                        WorldId.New(),
+                        new SimulationTime(500),
+                        [planet],
+                        [person]))
+                .CreateCheckpoint();
+
+        var restored =
+            RoundTrip(
+                timeline);
+
+        var restoredCurrentPerson =
+            Assert.Single(
+                restored
+                    .Timeline
+                    .CurrentWorld
+                    .Population);
+
+        Assert.Equal(
+            socialState,
+            restoredCurrentPerson.SocialState);
+
+        Assert.True(
+            restoredCurrentPerson.SocialState
+                .HasEncountered(actor));
+
+        Assert.All(
+            restored.Timeline.Checkpoints,
+            checkpoint =>
+            {
+                var restoredCheckpointPerson =
+                    Assert.Single(
+                        checkpoint.World.Population);
+
+                Assert.Equal(
+                    socialState,
+                    restoredCheckpointPerson.SocialState);
+
+                Assert.True(
+                    restoredCheckpointPerson.SocialState
+                        .HasEncountered(actor));
+            });
     }
 
     private static SimulationTimeline

@@ -1,5 +1,8 @@
 using Est.Simulation.Operations;
 using Est.Simulation.Causality;
+using Est.Simulation.Planets;
+using Est.Simulation.Population;
+using Est.Simulation.Social;
 using Est.Simulation.Time;
 using Est.Simulation.Timelines;
 using Est.Simulation.Worlds;
@@ -399,6 +402,200 @@ public class SimulationTimelineTests
             advancedAgain.Checkpoints.Length);
     }
 
+
+    [Fact]
+    public void CreateCheckpoint_PreservesHistoricalSocialRecognition()
+    {
+        var (world, person) =
+            CreateSocialWorld();
+
+        var actor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var recognizedWorld =
+            new RecordPersonSocialEncounterOperation(
+                person.Id,
+                actor)
+            .Apply(
+                timeline.CurrentWorld);
+
+        var checkpointed =
+            timeline
+                .RecordStep(
+                    CreateStepResult(
+                        recognizedWorld,
+                        60))
+                .CreateCheckpoint();
+
+        var initialPerson =
+            Assert.Single(
+                checkpointed
+                    .InitialCheckpoint
+                    .World
+                    .Population);
+
+        var laterPerson =
+            Assert.Single(
+                checkpointed
+                    .Checkpoints[1]
+                    .World
+                    .Population);
+
+        Assert.False(
+            initialPerson.SocialState
+                .HasEncountered(actor));
+
+        Assert.True(
+            laterPerson.SocialState
+                .HasEncountered(actor));
+    }
+
+    [Fact]
+    public void ForkFromCheckpoint_InheritsSocialStateAndDivergesIndependently()
+    {
+        var inheritedActor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var parentOnlyActor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var childOnlyActor =
+            SocialActorIdentity.ForEster(
+                EsterId.New());
+
+        var inheritedState =
+            new PersonSocialState()
+                .RecordEncounter(
+                    inheritedActor,
+                    encounterTimeSeconds: 50);
+
+        var (world, person) =
+            CreateSocialWorld(
+                inheritedState);
+
+        var timeline =
+            SimulationTimeline.Create(
+                world);
+
+        var parentChangedWorld =
+            new RecordPersonSocialEncounterOperation(
+                person.Id,
+                parentOnlyActor)
+            .Apply(
+                timeline.CurrentWorld);
+
+        var parent =
+            timeline.RecordStep(
+                CreateStepResult(
+                    parentChangedWorld,
+                    60));
+
+        var child =
+            parent.ForkFromCheckpoint(
+                parent.InitialCheckpoint.Id);
+
+        var parentPerson =
+            Assert.Single(
+                parent.CurrentWorld.Population);
+
+        var childPerson =
+            Assert.Single(
+                child.CurrentWorld.Population);
+
+        Assert.True(
+            childPerson.SocialState
+                .HasEncountered(
+                    inheritedActor));
+
+        Assert.False(
+            childPerson.SocialState
+                .HasEncountered(
+                    parentOnlyActor));
+
+        Assert.True(
+            parentPerson.SocialState
+                .HasEncountered(
+                    inheritedActor));
+
+        Assert.True(
+            parentPerson.SocialState
+                .HasEncountered(
+                    parentOnlyActor));
+
+        var changedChildWorld =
+            new RecordPersonSocialEncounterOperation(
+                person.Id,
+                childOnlyActor)
+            .Apply(
+                child.CurrentWorld);
+
+        var changedChildPerson =
+            Assert.Single(
+                changedChildWorld.Population);
+
+        Assert.True(
+            changedChildPerson.SocialState
+                .HasEncountered(
+                    childOnlyActor));
+
+        Assert.False(
+            childPerson.SocialState
+                .HasEncountered(
+                    childOnlyActor));
+
+        Assert.False(
+            parentPerson.SocialState
+                .HasEncountered(
+                    childOnlyActor));
+
+        Assert.NotEqual(
+            parent.CurrentWorld.Id,
+            child.CurrentWorld.Id);
+    }
+
+    private static (
+        WorldState World,
+        PersonState Person)
+        CreateSocialWorld(
+            PersonSocialState? socialState = null)
+    {
+        var planet =
+            new PlanetState(
+                PlanetId.New(),
+                "Social Timeline World",
+                5.9722e24,
+                6_371_000,
+                new PlanetEnvironment(
+                    288.15,
+                    0.71,
+                    0.03,
+                    AtmosphereState.Vacuum));
+
+        var person =
+            new PersonState(
+                PersonId.New(),
+                planet.Id,
+                PersonSex.Female,
+                birthTimeSeconds: 0,
+                latitudeDegrees: 10,
+                longitudeDegrees: 20,
+                socialState: socialState);
+
+        return (
+            new WorldState(
+                WorldId.New(),
+                new SimulationTime(100),
+                [planet],
+                [person]),
+            person);
+    }
 
     [Fact]
     public void RecordStep_MultipleChangesPreserveOrderAndAdvanceTimeOnce()
