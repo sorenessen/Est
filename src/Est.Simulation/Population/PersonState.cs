@@ -203,6 +203,26 @@ public sealed record PersonState
             SocialState);
     }
 
+    public PersonState WithSocialState(
+        PersonSocialState socialState)
+    {
+        ArgumentNullException.ThrowIfNull(socialState);
+
+        return new PersonState(
+            Id,
+            PlanetId,
+            Sex,
+            BirthTimeSeconds,
+            LatitudeDegrees,
+            LongitudeDegrees,
+            ParentId,
+            Needs,
+            Activity,
+            Pregnancy,
+            Material,
+            socialState);
+    }
+
     public PersonState WithoutPregnancy()
     {
         return new PersonState(

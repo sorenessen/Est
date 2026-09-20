@@ -133,6 +133,17 @@ public sealed class PersonSocialStateTests
     }
 
     [Fact]
+    public void Contact_RejectsDefaultActorIdentity()
+    {
+        Assert.Throws<ArgumentException>(
+            () =>
+                new PersonSocialContactState(
+                    default,
+                    firstEncounterTimeSeconds: 10,
+                    lastEncounterTimeSeconds: 10));
+    }
+
+    [Fact]
     public void Contact_RejectsInvalidChronology()
     {
         var ester =

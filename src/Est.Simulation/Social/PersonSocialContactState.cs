@@ -8,6 +8,16 @@ public sealed record PersonSocialContactState
         long lastEncounterTimeSeconds,
         long encounterCount = 1)
     {
+        if (actor.Value == Guid.Empty ||
+            !Enum.IsDefined(
+                typeof(SocialActorKind),
+                actor.Kind))
+        {
+            throw new ArgumentException(
+                "Social actor identity must be valid and nonempty.",
+                nameof(actor));
+        }
+
         if (lastEncounterTimeSeconds <
             firstEncounterTimeSeconds)
         {
