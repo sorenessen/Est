@@ -27,8 +27,29 @@ import {
 } from '@babylonjs/core/Meshes/Builders/discBuilder.js'
 
 import {
+  CreateCapsule,
+} from '@babylonjs/core/Meshes/Builders/capsuleBuilder.js'
+
+import {
+  CreateGround,
+} from '@babylonjs/core/Meshes/Builders/groundBuilder.js'
+
+import {
   EstApi,
+  type ManifestedEsterResponse,
 } from './api/est-api'
+
+import {
+  resolveEsterIdentity,
+} from './player/ester-identity'
+
+import {
+  moveSurfaceCoordinate,
+} from './player/surface-movement'
+
+import {
+  geographicToLocalMeters,
+} from './player/local-play-space'
 
 import {
   createTerrainHeightField,
@@ -457,6 +478,9 @@ const showFaceDiagnostics =
 
 const sessionId =
   queryParameters.get('session')
+
+const playMode =
+  queryParameters.get('play') === '1'
 
 const terrainStatus =
   document.querySelector<HTMLSpanElement>(
@@ -1508,6 +1532,9 @@ let vegetationCoverageHeight = 1
 // The unit sphere is the fallback when no simulation session is active.
 let maximumPlanetRenderRadius = 1
 
+let activePlanetMeanRadiusMeters:
+  number | undefined
+
 const humanManSpriteUrl =
   '/assets/sprites/humans/man.png'
 
@@ -1602,6 +1629,7 @@ function createMarkerMaterial(
 }
 
 type LivingMarkerKind =
+  | 'ester'
   | 'humans'
   | 'wolves'
   | 'birds'
@@ -1681,6 +1709,12 @@ const invertebrateMarkerMaterial =
     Color3.FromHexString('#22c55e'),
   )
 
+const esterMarkerMaterial =
+  createMarkerMaterial(
+    'ester-marker-material',
+    Color3.FromHexString('#ffffff'),
+  )
+
 if (sessionId) {
   reportPlanetStartupStage(
     'loading simulation world…',
@@ -1688,6 +1722,19 @@ if (sessionId) {
 
   const api =
     new EstApi('/api')
+
+  const esterId =
+    playMode
+      ? resolveEsterIdentity(
+          window.localStorage,
+          () =>
+            crypto.randomUUID(),
+        )
+      : null
+
+  let manifestedEster:
+    ManifestedEsterResponse | null =
+      null
 
   const observedTimelineEvents =
     new Set<string>()
@@ -1726,6 +1773,67 @@ if (sessionId) {
     throw new Error(
       'The Est session contains no planet to render.',
     )
+  }
+
+  if (
+    playMode &&
+    esterId !== null
+  ) {
+    manifestedEster =
+      await api.getManifestedEster(
+        sessionId,
+        esterId,
+      )
+
+    if (
+      manifestedEster === null
+    ) {
+      const nearbyPerson =
+        world.population.find(
+          person =>
+            person.planetId ===
+            planet.planetId,
+        )
+
+      const spawnBase = {
+        latitudeDegrees:
+          nearbyPerson
+            ?.latitudeDegrees ??
+          0,
+        longitudeDegrees:
+          nearbyPerson
+            ?.longitudeDegrees ??
+          0,
+      }
+
+      const spawn =
+        nearbyPerson
+          ? moveSurfaceCoordinate(
+              spawnBase,
+              0,
+              12,
+              planet.meanRadiusMeters,
+            )
+          : spawnBase
+
+      manifestedEster =
+        await api.manifestEster(
+          sessionId,
+          esterId,
+          planet.planetId,
+          spawn.latitudeDegrees,
+          spawn.longitudeDegrees,
+        )
+    }
+
+    if (
+      manifestedEster.planetId !==
+      planet.planetId
+    ) {
+      throw new Error(
+        'The persisted Ester is manifested on a planet that is not currently rendered.',
+      )
+    }
   }
 
   if (
@@ -1844,6 +1952,9 @@ if (sessionId) {
 
   const meanRadiusMeters =
     planet.meanRadiusMeters
+
+  activePlanetMeanRadiusMeters =
+    meanRadiusMeters
 
   reportPlanetStartupStage(
     'building standing-water mesh…',
@@ -2084,6 +2195,46 @@ if (sessionId) {
       )
     }
 
+  const focusManifestedEster = () => {
+    if (
+      !playMode ||
+      manifestedEster === null
+    ) {
+      return
+    }
+
+    camera.upVector =
+      Vector3.Up()
+
+    camera.lowerRadiusLimit =
+      4
+
+    camera.upperRadiusLimit =
+      40
+
+    camera.minZ =
+      0.05
+
+    camera.maxZ =
+      500
+
+    camera.setTarget(
+      new Vector3(
+        0,
+        0.9,
+        0,
+      ),
+    )
+
+    camera.setPosition(
+      new Vector3(
+        6,
+        4,
+        7.5,
+      ),
+    )
+  }
+
   let livingPresentationMeshes: Mesh[] = []
   let faunaFocusApplied = false
 
@@ -2094,11 +2245,34 @@ if (sessionId) {
 
     livingPresentationMeshes = []
 
+    if (playMode) {
+      return
+    }
+
     const wolfJuvenileDisplayAgeSeconds =
       180 * 86_400
 
+    const metersToPlanetRadius =
+      1 /
+      planet.meanRadiusMeters
+
     const livingSymbolRadialLift =
-      0.006
+      playMode
+        ? 1.2 *
+          metersToPlanetRadius
+        : 0.006
+
+    const playableEsterDiameter =
+      1.8 *
+      metersToPlanetRadius
+
+    const playableHumanDiameter =
+      1.6 *
+      metersToPlanetRadius
+
+    const playablePregnancyHaloAddition =
+      0.45 *
+      metersToPlanetRadius
 
     const visiblePopulation =
       world.population.filter(
@@ -2108,18 +2282,24 @@ if (sessionId) {
       )
 
     const visibleWolves =
-      world.animals.filter(
-        animal =>
-          animal.planetId ===
-            planet.planetId &&
-          animal.species === 'Wolf',
-      )
+      playMode
+        ? []
+        : world.animals.filter(
+            animal =>
+              animal.planetId ===
+                planet.planetId &&
+              animal.species === 'Wolf',
+          )
 
     const visibleBirdFlocks =
-      birdFlocks?.flocks ?? []
+      playMode
+        ? []
+        : birdFlocks?.flocks ?? []
 
     const visibleGrazerCohorts =
-      grazerCohorts?.cohorts ?? []
+      playMode
+        ? []
+        : grazerCohorts?.cohorts ?? []
 
     const surfaceCellById =
       new Map(
@@ -2344,10 +2524,12 @@ if (sessionId) {
     }
 
     const visibleInvertebrateCells =
-      selectSpatiallyDistributedInvertebrateCells(
-        activeInvertebrateCells,
-        64,
-      )
+      playMode
+        ? []
+        : selectSpatiallyDistributedInvertebrateCells(
+            activeInvertebrateCells,
+            64,
+          )
 
     const createBillboardMarker = (
       name: string,
@@ -2447,6 +2629,29 @@ if (sessionId) {
       )} days`
     }
 
+    if (
+      playMode &&
+      manifestedEster !== null &&
+      manifestedEster.planetId ===
+        planet.planetId
+    ) {
+      createBillboardMarker(
+        `ester-${manifestedEster.esterId}`,
+        esterMarkerMaterial,
+        manifestedEster.latitudeDegrees,
+        manifestedEster.longitudeDegrees,
+        playableEsterDiameter,
+        {
+          kind: 'ester',
+          title: 'Ester',
+          detail:
+            `${manifestedEster.latitudeDegrees.toFixed(6)}°, ${manifestedEster.longitudeDegrees.toFixed(6)}° · WASD to walk`,
+        },
+        livingSymbolRadialLift,
+        1,
+      )
+    }
+
     for (const person of visiblePopulation) {
       const energy =
         Math.max(
@@ -2474,12 +2679,14 @@ if (sessionId) {
         humanMarkerMaterials.Idle
 
       const coreDiameter =
-        person.activity === 'Fleeing'
-          ? 0.020
-          : person.activity === 'Traveling'
-            ? 0.018
-            : 0.014 +
-              energy * 0.0035
+        playMode
+          ? playableHumanDiameter
+          : person.activity === 'Fleeing'
+            ? 0.020
+            : person.activity === 'Traveling'
+              ? 0.018
+              : 0.014 +
+                energy * 0.0035
 
       if (person.isPregnant) {
         createBillboardMarker(
@@ -2487,7 +2694,12 @@ if (sessionId) {
           pregnancyMarkerMaterial,
           person.latitudeDegrees,
           person.longitudeDegrees,
-          coreDiameter + 0.012,
+          coreDiameter +
+            (
+              playMode
+                ? playablePregnancyHaloAddition
+                : 0.012
+            ),
           {
             kind: 'humans',
             title:
@@ -2513,8 +2725,10 @@ if (sessionId) {
           detail:
             `${formatLivingAge(person.birthTimeSeconds)} · Status: ${person.activity} · Health ${Math.round(health * 100)}% · Energy ${Math.round(energy * 100)}%${person.isPregnant ? ' · Pregnant' : ''}`,
         },
-        livingSymbolRadialLift +
-          0.0004,
+        playMode
+          ? livingSymbolRadialLift
+          : livingSymbolRadialLift +
+            0.0004,
         0.72 +
           health * 0.28,
       )
@@ -2912,7 +3126,580 @@ if (sessionId) {
 
   }
 
-  renderLivingWorld()
+  const playGroundMaterial =
+    new StandardMaterial(
+      'play-ground-material',
+      scene,
+    )
+
+  playGroundMaterial.diffuseColor =
+    new Color3(
+      0.16,
+      0.29,
+      0.10,
+    )
+
+  playGroundMaterial.emissiveColor =
+    new Color3(
+      0.04,
+      0.07,
+      0.025,
+    )
+
+  playGroundMaterial.specularColor =
+    new Color3(
+      0,
+      0,
+      0,
+    )
+
+  let playGroundMesh:
+    Mesh | null =
+      null
+
+  let playEsterMesh:
+    Mesh | null =
+      null
+
+  const playHumanMeshes =
+    new Map<string, Mesh>()
+
+  let presentationEster:
+    ManifestedEsterResponse | null =
+      manifestedEster === null
+        ? null
+        : {
+            ...manifestedEster,
+          }
+
+  const updatePlaySpacePositions = () => {
+    if (
+      !playMode ||
+      presentationEster === null
+    ) {
+      return
+    }
+
+    if (playEsterMesh !== null) {
+      playEsterMesh.position.set(
+        0,
+        0.9,
+        0,
+      )
+    }
+
+    const visibleRadiusMeters =
+      120
+
+    for (
+      const person of
+      world.population
+    ) {
+      if (
+        person.planetId !==
+        planet.planetId
+      ) {
+        continue
+      }
+
+      const mesh =
+        playHumanMeshes.get(
+          person.personId,
+        )
+
+      if (!mesh) {
+        continue
+      }
+
+      const local =
+        geographicToLocalMeters(
+          person,
+          presentationEster,
+          planet.meanRadiusMeters,
+        )
+
+      const visible =
+        Math.hypot(
+          local.eastMeters,
+          local.northMeters,
+        ) <=
+        visibleRadiusMeters
+
+      mesh.setEnabled(
+        visible,
+      )
+
+      if (!visible) {
+        continue
+      }
+
+      mesh.position.set(
+        local.eastMeters,
+        0.85,
+        local.northMeters,
+      )
+    }
+  }
+
+  const renderPlaySpace = () => {
+    if (
+      !playMode ||
+      presentationEster === null
+    ) {
+      return
+    }
+
+    if (playGroundMesh === null) {
+      playGroundMesh =
+        CreateGround(
+          'play-ground',
+          {
+            width: 240,
+            height: 240,
+            subdivisions: 1,
+          },
+          scene,
+        )
+
+      playGroundMesh.material =
+        playGroundMaterial
+
+      playGroundMesh.isPickable =
+        false
+    }
+
+    if (playEsterMesh === null) {
+      playEsterMesh =
+        CreateCapsule(
+          'play-ester',
+          {
+            height: 1.8,
+            radius: 0.34,
+            tessellation: 16,
+            capSubdivisions: 6,
+          },
+          scene,
+        )
+
+      playEsterMesh.material =
+        esterMarkerMaterial
+
+      playEsterMesh.isPickable =
+        false
+    }
+
+    for (
+      const person of
+      world.population
+    ) {
+      if (
+        person.planetId !==
+          planet.planetId ||
+        playHumanMeshes.has(
+          person.personId,
+        )
+      ) {
+        continue
+      }
+
+      const human =
+        CreateCapsule(
+          `play-human-${person.personId}`,
+          {
+            height: 1.7,
+            radius: 0.31,
+            tessellation: 16,
+            capSubdivisions: 6,
+          },
+          scene,
+        )
+
+      human.material =
+        humanMarkerMaterials[
+          person.activity as
+            keyof typeof humanMarkerMaterials
+        ] ??
+        humanMarkerMaterials.Idle
+
+      human.isPickable =
+        false
+
+      playHumanMeshes.set(
+        person.personId,
+        human,
+      )
+    }
+
+    updatePlaySpacePositions()
+  }
+
+
+  if (playMode) {
+    renderPlaySpace()
+  } else {
+    renderLivingWorld()
+  }
+
+  if (
+    playMode &&
+    manifestedEster !== null
+  ) {
+    camera.detachControl()
+
+    camera.attachControl(
+      canvas,
+      true,
+    )
+
+    focusManifestedEster()
+
+    const movementKeys =
+      new Set<string>()
+
+    let movementRequestInProgress =
+      false
+
+    let movementDirty =
+      false
+
+    let lastMovementFrameMilliseconds =
+      performance.now()
+
+    let lastMovementSyncMilliseconds =
+      0
+
+    const walkingMetersPerSecond =
+      1.5
+
+    const movementSyncMilliseconds =
+      100
+
+    const isMovementKey = (
+      key: string,
+    ) =>
+      key === 'w' ||
+      key === 'a' ||
+      key === 's' ||
+      key === 'd'
+
+    window.addEventListener(
+      'keydown',
+      event => {
+        const key =
+          event.key.toLowerCase()
+
+        if (!isMovementKey(key)) {
+          return
+        }
+
+        if (
+          event.target instanceof
+            HTMLInputElement ||
+          event.target instanceof
+            HTMLTextAreaElement ||
+          (
+            event.target instanceof
+              HTMLElement &&
+            event.target.isContentEditable
+          )
+        ) {
+          return
+        }
+
+        event.preventDefault()
+
+        movementKeys.add(
+          key,
+        )
+      },
+    )
+
+    window.addEventListener(
+      'keyup',
+      event => {
+        const key =
+          event.key.toLowerCase()
+
+        if (!isMovementKey(key)) {
+          return
+        }
+
+        event.preventDefault()
+
+        movementKeys.delete(
+          key,
+        )
+      },
+    )
+
+    window.addEventListener(
+      'blur',
+      () => {
+        movementKeys.clear()
+      },
+    )
+
+    const resolveMovementDirection =
+      () => {
+        const forwardInput =
+          (
+            movementKeys.has('w')
+              ? 1
+              : 0
+          ) -
+          (
+            movementKeys.has('s')
+              ? 1
+              : 0
+          )
+
+        const rightInput =
+          (
+            movementKeys.has('d')
+              ? 1
+              : 0
+          ) -
+          (
+            movementKeys.has('a')
+              ? 1
+              : 0
+          )
+
+        if (
+          forwardInput === 0 &&
+          rightInput === 0
+        ) {
+          return null
+        }
+
+        const cameraTarget =
+          camera.getTarget()
+
+        let forwardEast =
+          cameraTarget.x -
+          camera.position.x
+
+        let forwardNorth =
+          cameraTarget.z -
+          camera.position.z
+
+        const cameraForwardMagnitude =
+          Math.hypot(
+            forwardEast,
+            forwardNorth,
+          )
+
+        if (
+          cameraForwardMagnitude <
+          0.000001
+        ) {
+          return null
+        }
+
+        forwardEast /=
+          cameraForwardMagnitude
+
+        forwardNorth /=
+          cameraForwardMagnitude
+
+        const rightEast =
+          forwardNorth
+
+        const rightNorth =
+          -forwardEast
+
+        let east =
+          forwardEast *
+            forwardInput +
+          rightEast *
+            rightInput
+
+        let north =
+          forwardNorth *
+            forwardInput +
+          rightNorth *
+            rightInput
+
+        const magnitude =
+          Math.hypot(
+            north,
+            east,
+          )
+
+        if (
+          magnitude <
+          0.000001
+        ) {
+          return null
+        }
+
+        north /=
+          magnitude
+
+        east /=
+          magnitude
+
+        return {
+          north,
+          east,
+        }
+      }
+
+    const synchronizeMovement = (
+      nowMilliseconds: number,
+    ) => {
+      if (
+        movementRequestInProgress ||
+        !movementDirty ||
+        presentationEster === null ||
+        manifestedEster === null
+      ) {
+        return
+      }
+
+      const target = {
+        ...presentationEster,
+      }
+
+      movementRequestInProgress =
+        true
+
+      movementDirty =
+        false
+
+      lastMovementSyncMilliseconds =
+        nowMilliseconds
+
+      void api
+        .moveManifestedEster(
+          sessionId,
+          manifestedEster.esterId,
+          target.latitudeDegrees,
+          target.longitudeDegrees,
+        )
+        .then(
+          moved => {
+            manifestedEster =
+              moved
+
+            if (
+              !movementDirty &&
+              movementKeys.size === 0
+            ) {
+              presentationEster = {
+                ...moved,
+              }
+
+              updatePlaySpacePositions()
+            }
+          },
+        )
+        .catch(
+          error => {
+            console.error(
+              '[Est Babylon] Ester movement failed',
+              error,
+            )
+
+            if (
+              manifestedEster !== null
+            ) {
+              presentationEster = {
+                ...manifestedEster,
+              }
+
+              movementDirty =
+                false
+
+              updatePlaySpacePositions()
+            }
+          },
+        )
+        .finally(
+          () => {
+            movementRequestInProgress =
+              false
+          },
+        )
+    }
+
+    const advancePresentationMovement = (
+      nowMilliseconds: number,
+    ) => {
+      const elapsedSeconds =
+        Math.min(
+          Math.max(
+            (
+              nowMilliseconds -
+              lastMovementFrameMilliseconds
+            ) /
+              1_000,
+            0,
+          ),
+          0.1,
+        )
+
+      lastMovementFrameMilliseconds =
+        nowMilliseconds
+
+      if (
+        presentationEster !== null &&
+        movementKeys.size > 0
+      ) {
+        const direction =
+          resolveMovementDirection()
+
+        if (direction !== null) {
+          const distanceMeters =
+            walkingMetersPerSecond *
+            elapsedSeconds
+
+          const next =
+            moveSurfaceCoordinate(
+              presentationEster,
+              direction.north *
+                distanceMeters,
+              direction.east *
+                distanceMeters,
+              planet.meanRadiusMeters,
+            )
+
+          presentationEster = {
+            ...presentationEster,
+            latitudeDegrees:
+              next.latitudeDegrees,
+            longitudeDegrees:
+              next.longitudeDegrees,
+          }
+
+          movementDirty =
+            true
+
+          updatePlaySpacePositions()
+        }
+      }
+
+      if (
+        movementDirty &&
+        nowMilliseconds -
+          lastMovementSyncMilliseconds >=
+          movementSyncMilliseconds
+      ) {
+        synchronizeMovement(
+          nowMilliseconds,
+        )
+      }
+
+      window.requestAnimationFrame(
+        advancePresentationMovement,
+      )
+    }
+
+    window.requestAnimationFrame(
+      advancePresentationMovement,
+    )
+
+  }
 
   const clearLivingMarkerHover = () => {
     livingMarkerTooltip.hidden =
@@ -3594,12 +4381,14 @@ if (sessionId) {
     }
   }
 
-  window.setInterval(
-    () => {
-      void refreshSimulation()
-    },
-    simulationTickMilliseconds,
-  )
+  if (!playMode) {
+    window.setInterval(
+      () => {
+        void refreshSimulation()
+      },
+      simulationTickMilliseconds,
+    )
+  }
 
 } else {
   if (terrainStatus) {
@@ -3807,6 +4596,20 @@ planetMesh.material =
 
 planetMesh.isPickable = false
 
+if (playMode) {
+  for (const mesh of scene.meshes) {
+    if (
+      !mesh.name.startsWith(
+        'play-',
+      )
+    ) {
+      mesh.setEnabled(
+        false,
+      )
+    }
+  }
+}
+
 const lodStatus =
   document.querySelector<HTMLSpanElement>(
     '#lodStatus',
@@ -3823,6 +4626,16 @@ void showFaceDiagnostics
 void diagnosticFaceColors
 
 function updateCameraDepthRange(): void {
+  if (playMode) {
+    camera.minZ =
+      0.05
+
+    camera.maxZ =
+      500
+
+    return
+  }
+
   const nearestPlanetDistance =
     Math.max(
       0,
@@ -3833,9 +4646,16 @@ function updateCameraDepthRange(): void {
   // Keep the near plane comfortably in front of the planet while allowing it
   // to move outward as the camera retreats. This preserves depth precision
   // for shallow terrain/water separation at planetary viewing distances.
+  const minimumNearPlane =
+    playMode &&
+    activePlanetMeanRadiusMeters
+      ? 0.5 /
+        activePlanetMeanRadiusMeters
+      : 0.05
+
   camera.minZ =
     Math.max(
-      0.05,
+      minimumNearPlane,
       nearestPlanetDistance *
         0.5,
     )

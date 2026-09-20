@@ -243,6 +243,13 @@ export interface TimelineResponse {
   events: TimelineEventResponse[]
 }
 
+export interface ManifestedEsterResponse {
+  esterId: string
+  planetId: string
+  latitudeDegrees: number
+  longitudeDegrees: number
+}
+
 export class EstApi {
   private readonly baseUrl: string
 
@@ -378,6 +385,47 @@ export class EstApi {
   ): Promise<GrazerCohortsResponse | null> {
     return this.getOptional(
       `/sessions/${encodeURIComponent(sessionId)}/planets/${encodeURIComponent(planetId)}/grazer-cohorts`,
+    )
+  }
+
+  getManifestedEster(
+    sessionId: string,
+    esterId: string,
+  ): Promise<ManifestedEsterResponse | null> {
+    return this.getOptional(
+      `/sessions/${encodeURIComponent(sessionId)}/esters/${encodeURIComponent(esterId)}/manifestation`,
+    )
+  }
+
+  manifestEster(
+    sessionId: string,
+    esterId: string,
+    planetId: string,
+    latitudeDegrees: number,
+    longitudeDegrees: number,
+  ): Promise<ManifestedEsterResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/esters/${encodeURIComponent(esterId)}/manifest`,
+      {
+        planetId,
+        latitudeDegrees,
+        longitudeDegrees,
+      },
+    )
+  }
+
+  moveManifestedEster(
+    sessionId: string,
+    esterId: string,
+    latitudeDegrees: number,
+    longitudeDegrees: number,
+  ): Promise<ManifestedEsterResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/esters/${encodeURIComponent(esterId)}/move`,
+      {
+        latitudeDegrees,
+        longitudeDegrees,
+      },
     )
   }
 

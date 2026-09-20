@@ -115,7 +115,7 @@ session_id="$(
         python3 -c 'import json,sys; print(json.load(sys.stdin)["sessionId"])'
 )"
 
-url="${WEB_URL}/?session=${session_id}&focus=fauna"
+url="${WEB_URL}/?session=${session_id}&play=1&focus=fauna"
 
 echo "Created Est Earth session: $session_id"
 echo "Opening: $url"

@@ -773,6 +773,184 @@ app.MapPost(
     });
 
 app.MapGet(
+    "/sessions/{id:guid}/esters/{esterId:guid}/manifestation",
+    (
+        Guid id,
+        Guid esterId,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            esterId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var manifested =
+            session.GetManifestedEster(
+                new EsterId(esterId));
+
+        return manifested is null
+            ? Results.NotFound()
+            : Results.Ok(
+                ToManifestedEsterResponse(
+                    manifested));
+    });
+
+app.MapPost(
+    "/sessions/{id:guid}/esters/{esterId:guid}/manifest",
+    (
+        Guid id,
+        Guid esterId,
+        ManifestEsterRequest request,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            esterId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        if (request.PlanetId == Guid.Empty)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Planet identity cannot be empty."
+                });
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var esterIdentity =
+            new EsterId(esterId);
+
+        if (session.GetManifestedEster(
+                esterIdentity) is not null)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error =
+                        "This Ester is already manifested in the world."
+                });
+        }
+
+        try
+        {
+            session.ManifestEster(
+                esterIdentity,
+                new PlanetId(
+                    request.PlanetId),
+                request.LatitudeDegrees,
+                request.LongitudeDegrees);
+
+            var manifested =
+                session.GetManifestedEster(
+                    esterIdentity)
+                ?? throw new InvalidOperationException(
+                    "Manifestation was not recorded.");
+
+            return Results.Ok(
+                ToManifestedEsterResponse(
+                    manifested));
+        }
+        catch (PlanetNotFoundException)
+        {
+            return Results.NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = exception.Message
+                });
+        }
+    });
+
+app.MapPost(
+    "/sessions/{id:guid}/esters/{esterId:guid}/move",
+    (
+        Guid id,
+        Guid esterId,
+        MoveManifestedEsterRequest request,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty ||
+            esterId == Guid.Empty)
+        {
+            return Results.NotFound();
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var esterIdentity =
+            new EsterId(esterId);
+
+        if (session.GetManifestedEster(
+                esterIdentity) is null)
+        {
+            return Results.NotFound();
+        }
+
+        try
+        {
+            session.MoveManifestedEster(
+                esterIdentity,
+                request.LatitudeDegrees,
+                request.LongitudeDegrees);
+
+            var manifested =
+                session.GetManifestedEster(
+                    esterIdentity)
+                ?? throw new InvalidOperationException(
+                    "Manifestation disappeared after movement.");
+
+            return Results.Ok(
+                ToManifestedEsterResponse(
+                    manifested));
+        }
+        catch (ArgumentException exception)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = exception.Message
+                });
+        }
+    });
+
+app.MapGet(
     "/sessions/{id:guid}/planets/{planetId:guid}/surface",
     (
         Guid id,
@@ -1610,6 +1788,17 @@ app.MapPost(
     });
 
 app.Run();
+
+static ManifestedEsterResponse
+    ToManifestedEsterResponse(
+        Est.Simulation.Players.ManifestedEsterState manifested)
+{
+    return new ManifestedEsterResponse(
+        manifested.EsterId.Value,
+        manifested.PlanetId.Value,
+        manifested.LatitudeDegrees,
+        manifested.LongitudeDegrees);
+}
 
 static PersonSocialRecognitionResponse
     ToPersonSocialRecognitionResponse(

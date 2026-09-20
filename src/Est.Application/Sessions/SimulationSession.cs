@@ -10,6 +10,7 @@ using Est.Simulation.Hydrology;
 using Est.Simulation.Invertebrates;
 using Est.Simulation.Operations;
 using Est.Simulation.Planets;
+using Est.Simulation.Players;
 using Est.Simulation.Population;
 using Est.Simulation.Seasons;
 using Est.Simulation.Social;
@@ -441,6 +442,107 @@ public sealed class SimulationSession
 
             return person.SocialState.GetContact(
                 actor);
+        }
+    }
+
+    public ManifestedEsterState? GetManifestedEster(
+        EsterId esterId)
+    {
+        if (esterId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Ester identity cannot be empty.",
+                nameof(esterId));
+        }
+
+        lock (_sync)
+        {
+            return _timeline.CurrentWorld
+                .ManifestedEsters
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.EsterId ==
+                        esterId);
+        }
+    }
+
+    public SimulationTimeline ManifestEster(
+        EsterId esterId,
+        PlanetId planetId,
+        double latitudeDegrees,
+        double longitudeDegrees)
+    {
+        lock (_sync)
+        {
+            var operation =
+                new ManifestEsterOperation(
+                    esterId,
+                    planetId,
+                    latitudeDegrees,
+                    longitudeDegrees);
+
+            var world =
+                SimulationOperationExecutor.Apply(
+                    _timeline.CurrentWorld,
+                    operation);
+
+            var change =
+                new SimulationChange(
+                    operation,
+                    "User intervention",
+                    "Manifested Ester in the world.",
+                    planetId,
+                    0);
+
+            _timeline =
+                _timeline.RecordStep(
+                    new SimulationStepResult(
+                        world,
+                        change));
+
+            return _timeline;
+        }
+    }
+
+    public SimulationTimeline MoveManifestedEster(
+        EsterId esterId,
+        double latitudeDegrees,
+        double longitudeDegrees)
+    {
+        lock (_sync)
+        {
+            var operation =
+                new MoveManifestedEsterOperation(
+                    esterId,
+                    latitudeDegrees,
+                    longitudeDegrees);
+
+            var world =
+                SimulationOperationExecutor.Apply(
+                    _timeline.CurrentWorld,
+                    operation);
+
+            var manifested =
+                world.ManifestedEsters.Single(
+                    candidate =>
+                        candidate.EsterId ==
+                        esterId);
+
+            var change =
+                new SimulationChange(
+                    operation,
+                    "User intervention",
+                    "Moved manifested Ester.",
+                    manifested.PlanetId,
+                    0);
+
+            _timeline =
+                _timeline.RecordStep(
+                    new SimulationStepResult(
+                        world,
+                        change));
+
+            return _timeline;
         }
     }
 
