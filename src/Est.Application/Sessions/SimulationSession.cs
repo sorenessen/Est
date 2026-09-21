@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Est.Simulation.Animals;
 using Est.Simulation.Biogeochemistry;
 using Est.Simulation.Birds;
@@ -509,8 +510,36 @@ public sealed class SimulationSession
         double latitudeDegrees,
         double longitudeDegrees)
     {
+        return MoveManifestedEsterWithEncounters(
+            esterId,
+            latitudeDegrees,
+            longitudeDegrees)
+            .Timeline;
+    }
+
+    public ManifestedEsterMoveResult
+        MoveManifestedEsterWithEncounters(
+            EsterId esterId,
+            double latitudeDegrees,
+            double longitudeDegrees)
+    {
+        const double personEncounterRadiusMeters =
+            2.5;
+
         lock (_sync)
         {
+            var sourceWorld =
+                _timeline.CurrentWorld;
+
+            var sourceManifestation =
+                sourceWorld.ManifestedEsters
+                    .FirstOrDefault(
+                        candidate =>
+                            candidate.EsterId ==
+                            esterId)
+                ?? throw new InvalidOperationException(
+                    "The Ester is not manifested in this world.");
+
             var operation =
                 new MoveManifestedEsterOperation(
                     esterId,
@@ -519,7 +548,7 @@ public sealed class SimulationSession
 
             var world =
                 SimulationOperationExecutor.Apply(
-                    _timeline.CurrentWorld,
+                    sourceWorld,
                     operation);
 
             var manifested =
@@ -542,8 +571,195 @@ public sealed class SimulationSession
                         world,
                         change));
 
-            return _timeline;
+            var planet =
+                world.Planets.Single(
+                    candidate =>
+                        candidate.Id ==
+                        manifested.PlanetId);
+
+            var actor =
+                SocialActorIdentity.ForEster(
+                    esterId);
+
+            var encounters =
+                ImmutableArray.CreateBuilder<
+                    PersonEncounterResult>();
+
+            foreach (
+                var person in
+                world.Population.Where(
+                    candidate =>
+                        candidate.PlanetId ==
+                        manifested.PlanetId)
+            )
+            {
+                var sourceDistanceMeters =
+                    SurfaceDistanceMeters(
+                        sourceManifestation
+                            .LatitudeDegrees,
+                        sourceManifestation
+                            .LongitudeDegrees,
+                        person.LatitudeDegrees,
+                        person.LongitudeDegrees,
+                        planet.MeanRadiusMeters);
+
+                var movedDistanceMeters =
+                    SurfaceDistanceMeters(
+                        manifested.LatitudeDegrees,
+                        manifested.LongitudeDegrees,
+                        person.LatitudeDegrees,
+                        person.LongitudeDegrees,
+                        planet.MeanRadiusMeters);
+
+                var enteredEncounterRange =
+                    sourceDistanceMeters >
+                        personEncounterRadiusMeters &&
+                    movedDistanceMeters <=
+                        personEncounterRadiusMeters;
+
+                if (!enteredEncounterRange)
+                {
+                    continue;
+                }
+
+                var currentPerson =
+                    _timeline.CurrentWorld.Population
+                        .Single(
+                            candidate =>
+                                candidate.Id ==
+                                person.Id);
+
+                var contactBefore =
+                    currentPerson.SocialState
+                        .GetContact(
+                            actor);
+
+                var recognizedBeforeEncounter =
+                    contactBefore is not null;
+
+                var encounterCountBefore =
+                    contactBefore
+                        ?.EncounterCount ??
+                    0;
+
+                var encounterOperation =
+                    new RecordPersonSocialEncounterOperation(
+                        person.Id,
+                        actor);
+
+                var encounteredWorld =
+                    SimulationOperationExecutor.Apply(
+                        _timeline.CurrentWorld,
+                        encounterOperation);
+
+                var contactAfter =
+                    encounteredWorld.Population
+                        .Single(
+                            candidate =>
+                                candidate.Id ==
+                                person.Id)
+                        .SocialState
+                        .GetContact(
+                            actor)
+                    ?? throw new InvalidOperationException(
+                        "Encounter operation did not record the social contact.");
+
+                var encounterChange =
+                    new SimulationChange(
+                        encounterOperation,
+                        "Gameplay encounter",
+                        "Manifested Ester entered person encounter range.",
+                        manifested.PlanetId,
+                        0);
+
+                _timeline =
+                    _timeline.RecordStep(
+                        new SimulationStepResult(
+                            encounteredWorld,
+                            encounterChange));
+
+                encounters.Add(
+                    new PersonEncounterResult(
+                        person.Id,
+                        recognizedBeforeEncounter,
+                        encounterCountBefore,
+                        contactAfter
+                            .EncounterCount));
+            }
+
+            return new ManifestedEsterMoveResult(
+                _timeline,
+                manifested,
+                encounters.ToImmutable());
         }
+    }
+
+    private static double SurfaceDistanceMeters(
+        double sourceLatitudeDegrees,
+        double sourceLongitudeDegrees,
+        double targetLatitudeDegrees,
+        double targetLongitudeDegrees,
+        double planetRadiusMeters)
+    {
+        if (!double.IsFinite(planetRadiusMeters) ||
+            planetRadiusMeters <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(planetRadiusMeters),
+                "Planet radius must be finite and positive.");
+        }
+
+        const double degreesToRadians =
+            Math.PI / 180d;
+
+        var sourceLatitude =
+            sourceLatitudeDegrees *
+            degreesToRadians;
+
+        var targetLatitude =
+            targetLatitudeDegrees *
+            degreesToRadians;
+
+        var latitudeDelta =
+            (
+                targetLatitudeDegrees -
+                sourceLatitudeDegrees
+            ) *
+            degreesToRadians;
+
+        var longitudeDelta =
+            (
+                targetLongitudeDegrees -
+                sourceLongitudeDegrees
+            ) *
+            degreesToRadians;
+
+        var haversine =
+            Math.Pow(
+                Math.Sin(
+                    latitudeDelta / 2),
+                2) +
+            Math.Cos(
+                sourceLatitude) *
+            Math.Cos(
+                targetLatitude) *
+            Math.Pow(
+                Math.Sin(
+                    longitudeDelta / 2),
+                2);
+
+        var angularDistance =
+            2 *
+            Math.Asin(
+                Math.Min(
+                    1,
+                    Math.Sqrt(
+                        Math.Max(
+                            0,
+                            haversine))));
+
+        return angularDistance *
+               planetRadiusMeters;
     }
 
     public SimulationTimeline RecordPersonSocialEncounter(

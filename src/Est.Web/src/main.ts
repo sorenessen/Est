@@ -73,6 +73,9 @@ import {
   createHumanPresentation,
   type HumanPresentation,
 } from './player/human-presentation'
+import {
+  formatPersonEncounterStatus,
+} from './player/person-encounter-presentation'
 
 import {
   createTerrainHeightField,
@@ -6169,6 +6172,29 @@ if (sessionId) {
           moved => {
             manifestedEster =
               moved
+
+            if (
+              moved.encounters.length >
+              0
+            ) {
+              const encounterMessages =
+                moved.encounters.map(
+                  formatPersonEncounterStatus,
+                )
+
+              const encounterStatus =
+                encounterMessages.join(
+                  ' · ',
+                )
+
+              showPanelVisibilityTip(
+                encounterStatus,
+              )
+
+              console.log(
+                `[Est Babylon] ${encounterStatus}`,
+              )
+            }
 
             if (
               !movementDirty &&

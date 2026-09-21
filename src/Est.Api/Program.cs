@@ -925,20 +925,15 @@ app.MapPost(
 
         try
         {
-            session.MoveManifestedEster(
-                esterIdentity,
-                request.LatitudeDegrees,
-                request.LongitudeDegrees);
-
-            var manifested =
-                session.GetManifestedEster(
-                    esterIdentity)
-                ?? throw new InvalidOperationException(
-                    "Manifestation disappeared after movement.");
+            var moveResult =
+                session.MoveManifestedEsterWithEncounters(
+                    esterIdentity,
+                    request.LatitudeDegrees,
+                    request.LongitudeDegrees);
 
             return Results.Ok(
-                ToManifestedEsterResponse(
-                    manifested));
+                ToMoveManifestedEsterResponse(
+                    moveResult));
         }
         catch (ArgumentException exception)
         {
@@ -1788,6 +1783,26 @@ app.MapPost(
     });
 
 app.Run();
+
+static MoveManifestedEsterResponse
+    ToMoveManifestedEsterResponse(
+        ManifestedEsterMoveResult moveResult)
+{
+    return new MoveManifestedEsterResponse(
+        moveResult.Manifestation.EsterId.Value,
+        moveResult.Manifestation.PlanetId.Value,
+        moveResult.Manifestation.LatitudeDegrees,
+        moveResult.Manifestation.LongitudeDegrees,
+        moveResult.Encounters
+            .Select(
+                encounter =>
+                    new PersonEncounterResponse(
+                        encounter.PersonId.Value,
+                        encounter.RecognizedBeforeEncounter,
+                        encounter.EncounterCountBefore,
+                        encounter.EncounterCountAfter))
+            .ToArray());
+}
 
 static ManifestedEsterResponse
     ToManifestedEsterResponse(

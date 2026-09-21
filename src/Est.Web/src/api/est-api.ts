@@ -250,6 +250,18 @@ export interface ManifestedEsterResponse {
   longitudeDegrees: number
 }
 
+export interface PersonEncounterResponse {
+  personId: string
+  recognizedBeforeEncounter: boolean
+  encounterCountBefore: number
+  encounterCountAfter: number
+}
+
+export interface MoveManifestedEsterResponse
+  extends ManifestedEsterResponse {
+  encounters: PersonEncounterResponse[]
+}
+
 export class EstApi {
   private readonly baseUrl: string
 
@@ -419,7 +431,7 @@ export class EstApi {
     esterId: string,
     latitudeDegrees: number,
     longitudeDegrees: number,
-  ): Promise<ManifestedEsterResponse> {
+  ): Promise<MoveManifestedEsterResponse> {
     return this.post(
       `/sessions/${encodeURIComponent(sessionId)}/esters/${encodeURIComponent(esterId)}/move`,
       {
