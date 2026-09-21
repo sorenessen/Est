@@ -94,9 +94,14 @@ import {
 } from './player/local-grazer-projection'
 
 import {
-  createGrazerPresentation,
-  type FaunaPresentation,
-} from './player/fauna-presentation'
+  resolveGrazerPresentationState,
+  type GrazerPresentationState,
+} from './player/grazer-presentation-state'
+
+import {
+  createAnimatedGrazerPresentation,
+  type GrazerPresentation,
+} from './player/grazer-presentation'
 
 import {
   createAnimatedWolfPresentation,
@@ -3546,10 +3551,22 @@ if (sessionId) {
   const playGrazerPresentations =
     new Map<
       string,
-      FaunaPresentation
+      GrazerPresentation
     >()
 
+  const playGrazerLoadRequests =
+    new Map<
+      string,
+      Promise<void>
+    >()
+
+  const playGrazerLoadFailures =
+    new Set<string>()
+
   const playAnimalMotionTracker =
+    new LocalActorMotionTracker()
+
+  const playGrazerMotionTracker =
     new LocalActorMotionTracker()
 
   interface PlayWolfPresentationTransition {
@@ -3561,13 +3578,31 @@ if (sessionId) {
     isComplete: boolean
   }
 
+  interface PlayGrazerPresentationTransition {
+    snapshotTimeSeconds: number
+    interpolation:
+      LocalActorPresentationTransition
+    state:
+      GrazerPresentationState
+    isComplete: boolean
+  }
+
   const playWolfPresentationTransitions =
     new Map<
       string,
       PlayWolfPresentationTransition
     >()
 
+  const playGrazerPresentationTransitions =
+    new Map<
+      string,
+      PlayGrazerPresentationTransition
+    >()
+
   const wolfPresentationTransitionMilliseconds =
+    450
+
+  const grazerPresentationTransitionMilliseconds =
     450
 
   let presentationEster:
@@ -6179,23 +6214,48 @@ if (sessionId) {
         actor.actorKey,
       )
 
-      let grazer =
+      const grazer =
         playGrazerPresentations.get(
           actor.actorKey,
         )
 
       if (!grazer) {
-        grazer =
-          createGrazerPresentation(
-            scene,
-            actor.actorKey,
-          )
-
-        playGrazerPresentations.set(
+        ensurePlayGrazerPresentation(
           actor.actorKey,
-          grazer,
+        )
+
+        continue
+      }
+
+      const motion =
+        playGrazerMotionTracker.observe({
+          actorKey:
+            actor.actorKey,
+          coordinate:
+            actor.coordinate,
+          planetRadiusMeters:
+            planet.meanRadiusMeters,
+          snapshotTimeSeconds:
+            world.currentTimeSeconds,
+        })
+
+      grazer.setSimulationTimeSeconds(
+        world.currentTimeSeconds,
+      )
+
+      if (
+        motion.headingRadians !==
+        null
+      ) {
+        grazer.setHeadingRadians(
+          motion.headingRadians,
         )
       }
+
+      const grazerState =
+        resolveGrazerPresentationState(
+          motion.isMoving,
+        )
 
       const visible =
         actor.distanceMeters <=
@@ -6215,12 +6275,166 @@ if (sessionId) {
           actor.coordinate.longitudeDegrees,
         )
 
-      grazer.root.position.set(
-        actor.local.eastMeters,
-        grazerElevationMeters -
-          esterElevationMeters,
-        actor.local.northMeters,
-      )
+      const targetPosition:
+        LocalActorPresentationPosition = {
+          eastMeters:
+            actor.local.eastMeters,
+          verticalMeters:
+            grazerElevationMeters -
+            esterElevationMeters,
+          northMeters:
+            actor.local.northMeters,
+        }
+
+      const previousTransition =
+        playGrazerPresentationTransitions.get(
+          actor.actorKey,
+        )
+
+      if (
+        previousTransition?.snapshotTimeSeconds ===
+        world.currentTimeSeconds
+      ) {
+        const targetDelta = {
+          eastMeters:
+            targetPosition.eastMeters -
+            previousTransition
+              .interpolation
+              .target
+              .eastMeters,
+          verticalMeters:
+            targetPosition.verticalMeters -
+            previousTransition
+              .interpolation
+              .target
+              .verticalMeters,
+          northMeters:
+            targetPosition.northMeters -
+            previousTransition
+              .interpolation
+              .target
+              .northMeters,
+        }
+
+        previousTransition.interpolation = {
+          ...previousTransition.interpolation,
+          start: {
+            eastMeters:
+              previousTransition
+                .interpolation
+                .start
+                .eastMeters +
+              targetDelta.eastMeters,
+            verticalMeters:
+              previousTransition
+                .interpolation
+                .start
+                .verticalMeters +
+              targetDelta.verticalMeters,
+            northMeters:
+              previousTransition
+                .interpolation
+                .start
+                .northMeters +
+              targetDelta.northMeters,
+          },
+          target: {
+            ...targetPosition,
+          },
+        }
+
+        if (
+          previousTransition.isComplete
+        ) {
+          grazer.root.position.set(
+            targetPosition.eastMeters,
+            targetPosition.verticalMeters,
+            targetPosition.northMeters,
+          )
+        } else {
+          grazer.root.position.addInPlaceFromFloats(
+            targetDelta.eastMeters,
+            targetDelta.verticalMeters,
+            targetDelta.northMeters,
+          )
+        }
+      } else if (
+        motion.isMoving &&
+        previousTransition !== undefined
+      ) {
+        grazer.setState(
+          grazerState,
+        )
+
+        grazer.setGaitPhase(
+          0,
+        )
+
+        playGrazerPresentationTransitions.set(
+          actor.actorKey,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                {
+                  eastMeters:
+                    grazer.root.position.x,
+                  verticalMeters:
+                    grazer.root.position.y,
+                  northMeters:
+                    grazer.root.position.z,
+                },
+                targetPosition,
+                performance.now(),
+                grazerPresentationTransitionMilliseconds,
+              ),
+            state:
+              grazerState,
+            isComplete:
+              false,
+          },
+        )
+      } else {
+        grazer.root.position.set(
+          targetPosition.eastMeters,
+          targetPosition.verticalMeters,
+          targetPosition.northMeters,
+        )
+
+        const stationaryState:
+          GrazerPresentationState = {
+            locomotion:
+              'stationary',
+          }
+
+        grazer.setState(
+          stationaryState,
+        )
+
+        grazer.setGaitPhase(
+          0,
+        )
+
+        playGrazerPresentationTransitions.set(
+          actor.actorKey,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                targetPosition,
+                targetPosition,
+                performance.now(),
+                grazerPresentationTransitionMilliseconds,
+              ),
+            state:
+              stationaryState,
+            isComplete:
+              true,
+          },
+        )
+      }
     }
 
     for (
@@ -6241,6 +6455,14 @@ if (sessionId) {
       grazer.dispose()
 
       playGrazerPresentations.delete(
+        actorKey,
+      )
+
+      playGrazerMotionTracker.forget(
+        actorKey,
+      )
+
+      playGrazerPresentationTransitions.delete(
         actorKey,
       )
     }
@@ -6304,6 +6526,67 @@ if (sessionId) {
         )
 
     playWolfLoadRequests.set(
+      actorKey,
+      request,
+    )
+  }
+
+  const ensurePlayGrazerPresentation = (
+    actorKey: string,
+  ) => {
+    if (
+      playGrazerPresentations.has(
+        actorKey,
+      ) ||
+      playGrazerLoadRequests.has(
+        actorKey,
+      ) ||
+      playGrazerLoadFailures.has(
+        actorKey,
+      )
+    ) {
+      return
+    }
+
+    const request =
+      createAnimatedGrazerPresentation(
+        scene,
+        actorKey,
+      )
+        .then(
+          grazer => {
+            playGrazerPresentations.set(
+              actorKey,
+              grazer,
+            )
+
+            updatePlaySpacePositions()
+          },
+        )
+        .catch(
+          error => {
+            playGrazerLoadFailures.add(
+              actorKey,
+            )
+
+            console.error(
+              '[Est Babylon] Grazer presentation failed',
+              {
+                actorKey,
+                error,
+              },
+            )
+          },
+        )
+        .finally(
+          () => {
+            playGrazerLoadRequests.delete(
+              actorKey,
+            )
+          },
+        )
+
+    playGrazerLoadRequests.set(
       actorKey,
       request,
     )
@@ -6944,12 +7227,85 @@ if (sessionId) {
       }
     }
 
+    const advanceGrazerPresentationTransitions = (
+      nowMilliseconds: number,
+    ) => {
+      for (
+        const [
+          actorKey,
+          transition,
+        ] of
+        playGrazerPresentationTransitions
+      ) {
+        if (transition.isComplete) {
+          continue
+        }
+
+        const grazer =
+          playGrazerPresentations.get(
+            actorKey,
+          )
+
+        if (!grazer) {
+          playGrazerPresentationTransitions.delete(
+            actorKey,
+          )
+
+          continue
+        }
+
+        const sample =
+          sampleLocalActorPresentationTransition(
+            transition.interpolation,
+            nowMilliseconds,
+          )
+
+        grazer.root.position.set(
+          sample.position.eastMeters,
+          sample.position.verticalMeters,
+          sample.position.northMeters,
+        )
+
+        grazer.setGaitPhase(
+          sample.progress *
+          Math.PI *
+          2,
+        )
+
+        if (!sample.isComplete) {
+          continue
+        }
+
+        transition.isComplete =
+          true
+
+        const stationaryState:
+          GrazerPresentationState = {
+            locomotion:
+              'stationary',
+          }
+
+        grazer.setState(
+          stationaryState,
+        )
+
+        grazer.setGaitPhase(
+          0,
+        )
+      }
+    }
+
     const advancePresentationMovement = (
       nowMilliseconds: number,
     ) => {
       advanceWolfPresentationTransitions(
         nowMilliseconds,
       )
+
+      advanceGrazerPresentationTransitions(
+        nowMilliseconds,
+      )
+
       const elapsedSeconds =
         Math.min(
           Math.max(
