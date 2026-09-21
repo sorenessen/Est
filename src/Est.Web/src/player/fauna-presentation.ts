@@ -17,30 +17,27 @@ import {
   CreateSphere,
 } from '@babylonjs/core/Meshes/Builders/sphereBuilder.js'
 
+import {
+  resolveFaunaPresentationRotationY,
+  type FaunaPresentation,
+} from './fauna-presentation-contract'
+
+import type {
+  WolfPresentation,
+} from './wolf-presentation'
+
 import type {
   WolfPresentationState,
 } from './wolf-presentation-state'
 
+export type {
+  FaunaPresentation,
+} from './fauna-presentation-contract'
 
-export interface FaunaPresentation {
-  actorKey: string
-  root: TransformNode
-  setEnabled(enabled: boolean): void
-  setHeadingRadians(
-    headingRadians: number,
-  ): void
-  dispose(): void
-}
+export type {
+  WolfPresentation,
+} from './wolf-presentation'
 
-export interface WolfPresentation
-  extends FaunaPresentation {
-  setState(
-    state: WolfPresentationState,
-  ): void
-  setGaitPhase(
-    phaseRadians: number,
-  ): void
-}
 
 interface FaunaMaterials {
   wolf: StandardMaterial
@@ -51,22 +48,10 @@ function setPresentationHeading(
   root: TransformNode,
   headingRadians: number,
 ): void {
-  if (
-    !Number.isFinite(
+  root.rotation.y =
+    resolveFaunaPresentationRotationY(
       headingRadians,
     )
-  ) {
-    throw new RangeError(
-      'Fauna presentation heading must be finite.',
-    )
-  }
-
-  // Local motion heading is measured from +east toward +north.
-  // The current temporary fauna silhouette faces local +X/east,
-  // while Babylon Y rotation uses the opposite sign for this axis
-  // convention.
-  root.rotation.y =
-    -headingRadians
 }
 
 const materialsByScene =

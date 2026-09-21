@@ -1,7 +1,21 @@
 import type {
+  FaunaPresentation,
+} from './fauna-presentation-contract'
+
+import type {
   WolfPresentationState,
 } from './wolf-presentation-state'
 
+
+export interface WolfPresentation
+  extends FaunaPresentation {
+  setState(
+    state: WolfPresentationState,
+  ): void
+  setGaitPhase(
+    phaseRadians: number,
+  ): void
+}
 
 export const wolfPresentationAssetPath =
   '/assets/animals/quaternius/ultimate-animated-animals/Wolf.gltf'
