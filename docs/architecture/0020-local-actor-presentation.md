@@ -343,6 +343,22 @@ It must preserve these properties:
 - visual smoothing and animation may interpolate between authoritative
   observations, but may not manufacture simulation movement.
 
+Repeated projection of the same authoritative world snapshot must preserve the
+same movement observation. Presentation refresh caused by Ester movement,
+camera movement, terrain refresh, or another renderer concern must not turn one
+authoritative displacement into a later false stationary observation.
+
+Authoritative animal activity and observed locomotion are separate presentation
+inputs. For example, a wolf may remain authoritatively `Hunting` whether or not
+the latest authoritative snapshot contains geographic displacement. Renderer
+animation must not infer or replace simulation activity.
+
+The current local wolf presentation uses bounded interpolation between the
+previous rendered position and a newly observed authoritative target. The
+presentation may animate gait only while traversing those two known endpoints.
+It must land exactly on the authoritative target and cease locomotion
+presentation when that interpolation completes.
+
 The current wolf simulation does not store authoritative heading or velocity.
 Local wolf facing is therefore derived from observed displacement rather than
 adding renderer-owned direction to simulation state.
@@ -374,7 +390,8 @@ As of September 21, 2026:
   animals;
 - the default grazer model deliberately compresses planet-scale abundance into a
   bounded number of cohort entities;
-- Play mode currently renders nearby humans but not wolves or grazers;
+- Play mode renders nearby authoritative humans and wolves directly, while
+  nearby grazers use deterministic cohort-backed presentation representatives;
 - authoritative surface, vegetation, animal, population, and grazer-cohort data
   are already available to the web client;
 - grazer cohort API responses expose the authoritative current `SurfaceCellId`;
@@ -395,6 +412,12 @@ Implementation checkpoints:
   identity;
 - local authoritative animal motion observation derives presentation heading
   from successive geographic snapshots while preserving stable `AnimalId`;
+- repeated projection of one authoritative timestamp preserves the same motion
+  observation instead of allowing renderer refresh frequency to redefine
+  locomotion;
+- wolf presentation resolves authoritative activity separately from observed
+  locomotion and uses bounded renderer interpolation plus temporary gait only
+  between known authoritative endpoints;
 - the focused fauna development view provides an explicit `+1s` authoritative
   simulation step for runtime motion proof without enabling automatic embodied
   simulation time.

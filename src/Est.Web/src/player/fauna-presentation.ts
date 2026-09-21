@@ -17,6 +17,10 @@ import {
   CreateSphere,
 } from '@babylonjs/core/Meshes/Builders/sphereBuilder.js'
 
+import type {
+  WolfPresentationState,
+} from './wolf-presentation-state'
+
 
 export interface FaunaPresentation {
   actorKey: string
@@ -26,6 +30,16 @@ export interface FaunaPresentation {
     headingRadians: number,
   ): void
   dispose(): void
+}
+
+export interface WolfPresentation
+  extends FaunaPresentation {
+  setState(
+    state: WolfPresentationState,
+  ): void
+  setGaitPhase(
+    phaseRadians: number,
+  ): void
 }
 
 interface FaunaMaterials {
@@ -134,7 +148,9 @@ function createLeg(
   x: number,
   z: number,
   height: number,
-): void {
+): ReturnType<
+  typeof CreateCylinder
+> {
   const leg =
     CreateCylinder(
       name,
@@ -162,6 +178,8 @@ function createLeg(
 
   leg.isPickable =
     false
+
+  return leg
 }
 
 /**
@@ -174,7 +192,7 @@ function createLeg(
 export function createWolfPresentation(
   scene: Scene,
   actorKey: string,
-): FaunaPresentation {
+): WolfPresentation {
   const root =
     new TransformNode(
       `play-${actorKey}`,
@@ -245,9 +263,10 @@ export function createWolfPresentation(
   head.isPickable =
     false
 
-  createLeg(
-    scene,
-    `play-${actorKey}-leg-a`,
+  const legA =
+    createLeg(
+      scene,
+      `play-${actorKey}-leg-a`,
     root,
     material,
     -0.32,
@@ -255,9 +274,10 @@ export function createWolfPresentation(
     0.43,
   )
 
-  createLeg(
-    scene,
-    `play-${actorKey}-leg-b`,
+  const legB =
+    createLeg(
+      scene,
+      `play-${actorKey}-leg-b`,
     root,
     material,
     -0.32,
@@ -265,9 +285,10 @@ export function createWolfPresentation(
     0.43,
   )
 
-  createLeg(
-    scene,
-    `play-${actorKey}-leg-c`,
+  const legC =
+    createLeg(
+      scene,
+      `play-${actorKey}-leg-c`,
     root,
     material,
     0.32,
@@ -275,15 +296,131 @@ export function createWolfPresentation(
     0.43,
   )
 
-  createLeg(
-    scene,
-    `play-${actorKey}-leg-d`,
+  const legD =
+    createLeg(
+      scene,
+      `play-${actorKey}-leg-d`,
     root,
     material,
     0.32,
     0.13,
     0.43,
   )
+
+  let currentState:
+    WolfPresentationState = {
+      activity:
+        'idle',
+      locomotion:
+        'stationary',
+    }
+
+  const applyState = (
+    state: WolfPresentationState,
+    gaitPhaseRadians = 0,
+  ) => {
+    body.position.y =
+      0.46
+
+    head.position.set(
+      0.56,
+      0.54,
+      0,
+    )
+
+    legA.rotation.z =
+      0
+
+    legB.rotation.z =
+      0
+
+    legC.rotation.z =
+      0
+
+    legD.rotation.z =
+      0
+
+    if (
+      state.locomotion ===
+      'moving'
+    ) {
+      const strideAmplitude =
+        state.activity ===
+          'attacking'
+          ? 0.75
+          : 0.55
+
+      const strideRadians =
+        Math.sin(
+          gaitPhaseRadians,
+        ) *
+        strideAmplitude
+
+      legA.rotation.z =
+        strideRadians
+
+      legD.rotation.z =
+        strideRadians
+
+      legB.rotation.z =
+        -strideRadians
+
+      legC.rotation.z =
+        -strideRadians
+
+      body.position.y +=
+        Math.abs(
+          Math.sin(
+            gaitPhaseRadians *
+            2,
+          ),
+        ) *
+        0.025
+    }
+
+    switch (state.activity) {
+      case 'idle':
+        break
+
+      case 'hunting':
+        body.position.y =
+          0.42
+
+        head.position.set(
+          0.61,
+          0.47,
+          0,
+        )
+        break
+
+      case 'traveling':
+        body.position.y =
+          0.45
+        break
+
+      case 'attacking':
+        body.position.y =
+          0.40
+
+        head.position.set(
+          0.70,
+          0.44,
+          0,
+        )
+        break
+
+      case 'eating':
+        body.position.y =
+          0.43
+
+        head.position.set(
+          0.62,
+          0.27,
+          0,
+        )
+        break
+    }
+  }
 
   root.setEnabled(
     false,
@@ -307,6 +444,36 @@ export function createWolfPresentation(
       setPresentationHeading(
         root,
         headingRadians,
+      )
+    },
+
+    setState(
+      state: WolfPresentationState,
+    ) {
+      currentState =
+        state
+
+      applyState(
+        currentState,
+      )
+    },
+
+    setGaitPhase(
+      phaseRadians: number,
+    ) {
+      if (
+        !Number.isFinite(
+          phaseRadians,
+        )
+      ) {
+        throw new RangeError(
+          'Wolf gait phase must be finite.',
+        )
+      }
+
+      applyState(
+        currentState,
+        phaseRadians,
       )
     },
 

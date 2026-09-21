@@ -15,19 +15,26 @@ export interface ObserveLocalActorMotionInput {
   actorKey: string
   coordinate: GeographicCoordinate
   planetRadiusMeters: number
+  snapshotTimeSeconds: number
   minimumMovementMeters?: number
 }
 
 interface TrackedLocalActorMotion {
   coordinate: GeographicCoordinate
-  headingRadians: number | null
+  snapshotTimeSeconds: number
+  observation: LocalActorMotionObservation
 }
 
 const defaultMinimumMovementMeters =
   0.01
 
 /**
- * Observes successive authoritative geographic positions for stable actors.
+ * Observes successive authoritative geographic snapshots for stable actors.
+ *
+ * Re-projecting the same authoritative snapshot returns the same motion
+ * observation. Renderer updates caused by Ester movement, camera movement,
+ * terrain refresh, or another presentation concern therefore cannot turn
+ * one authoritative displacement into a later false stationary observation.
  *
  * Heading is presentation state derived from authoritative displacement.
  * It is not simulation authority and does not create velocity, movement,
@@ -43,9 +50,7 @@ export class LocalActorMotionTracker {
   observe(
     input: ObserveLocalActorMotionInput,
   ): LocalActorMotionObservation {
-    if (
-      !input.actorKey
-    ) {
+    if (!input.actorKey) {
       throw new Error(
         'Local actor motion requires a stable actor key.',
       )
@@ -59,6 +64,16 @@ export class LocalActorMotionTracker {
     ) {
       throw new RangeError(
         'Local actor motion requires a positive finite planet radius.',
+      )
+    }
+
+    if (
+      !Number.isFinite(
+        input.snapshotTimeSeconds,
+      )
+    ) {
+      throw new RangeError(
+        'Local actor motion snapshot time must be finite.',
       )
     }
 
@@ -82,19 +97,26 @@ export class LocalActorMotionTracker {
         input.actorKey,
       )
 
-    if (!previous) {
-      this.tracked.set(
-        input.actorKey,
-        {
-          coordinate: {
-            ...input.coordinate,
-          },
-          headingRadians:
-            null,
-        },
+    if (
+      previous &&
+      input.snapshotTimeSeconds <
+        previous.snapshotTimeSeconds
+    ) {
+      throw new RangeError(
+        'Local actor motion snapshots must be observed in non-decreasing time order.',
       )
+    }
 
-      return {
+    if (
+      previous &&
+      input.snapshotTimeSeconds ===
+        previous.snapshotTimeSeconds
+    ) {
+      return previous.observation
+    }
+
+    if (!previous) {
+      const observation = {
         actorKey:
           input.actorKey,
         movedDistanceMeters:
@@ -104,6 +126,20 @@ export class LocalActorMotionTracker {
         isMoving:
           false,
       }
+
+      this.tracked.set(
+        input.actorKey,
+        {
+          coordinate: {
+            ...input.coordinate,
+          },
+          snapshotTimeSeconds:
+            input.snapshotTimeSeconds,
+          observation,
+        },
+      )
+
+      return observation
     }
 
     const displacement =
@@ -129,7 +165,16 @@ export class LocalActorMotionTracker {
             displacement.northMeters,
             displacement.eastMeters,
           )
-        : previous.headingRadians
+        : previous.observation
+            .headingRadians
+
+    const observation = {
+      actorKey:
+        input.actorKey,
+      movedDistanceMeters,
+      headingRadians,
+      isMoving,
+    }
 
     this.tracked.set(
       input.actorKey,
@@ -137,17 +182,13 @@ export class LocalActorMotionTracker {
         coordinate: {
           ...input.coordinate,
         },
-        headingRadians,
+        snapshotTimeSeconds:
+          input.snapshotTimeSeconds,
+        observation,
       },
     )
 
-    return {
-      actorKey:
-        input.actorKey,
-      movedDistanceMeters,
-      headingRadians,
-      isMoving,
-    }
+    return observation
   }
 
   forget(

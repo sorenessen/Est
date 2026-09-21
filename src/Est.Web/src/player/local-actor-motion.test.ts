@@ -33,7 +33,7 @@ describe(
         const tracker =
           new LocalActorMotionTracker()
 
-        const observation =
+        expect(
           tracker.observe({
             actorKey:
               'animal:wolf-a',
@@ -41,10 +41,9 @@ describe(
               origin,
             planetRadiusMeters:
               earthRadiusMeters,
-          })
-
-        expect(
-          observation,
+            snapshotTimeSeconds:
+              0,
+          }),
         ).toEqual({
           actorKey:
             'animal:wolf-a',
@@ -71,6 +70,8 @@ describe(
             origin,
           planetRadiusMeters:
             earthRadiusMeters,
+          snapshotTimeSeconds:
+            0,
         })
 
         const east =
@@ -89,6 +90,8 @@ describe(
               east,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
           })
 
         expect(
@@ -126,6 +129,8 @@ describe(
             origin,
           planetRadiusMeters:
             earthRadiusMeters,
+          snapshotTimeSeconds:
+            0,
         })
 
         const north =
@@ -144,6 +149,8 @@ describe(
               north,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
           })
 
         expect(
@@ -156,7 +163,7 @@ describe(
     )
 
     it(
-      'preserves the last valid heading while the authoritative actor is stationary',
+      'preserves one movement observation while the same authoritative snapshot is reprojected',
       () => {
         const tracker =
           new LocalActorMotionTracker()
@@ -168,6 +175,71 @@ describe(
             origin,
           planetRadiusMeters:
             earthRadiusMeters,
+          snapshotTimeSeconds:
+            0,
+        })
+
+        const east =
+          moveSurfaceCoordinate(
+            origin,
+            0,
+            4,
+            earthRadiusMeters,
+          )
+
+        const moved =
+          tracker.observe({
+            actorKey:
+              'animal:wolf-a',
+            coordinate:
+              east,
+            planetRadiusMeters:
+              earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
+          })
+
+        const reprojected =
+          tracker.observe({
+            actorKey:
+              'animal:wolf-a',
+            coordinate:
+              east,
+            planetRadiusMeters:
+              earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
+          })
+
+        expect(
+          reprojected,
+        ).toEqual(
+          moved,
+        )
+
+        expect(
+          reprojected.isMoving,
+        ).toBe(
+          true,
+        )
+      },
+    )
+
+    it(
+      'preserves the last valid heading on a later stationary authoritative snapshot',
+      () => {
+        const tracker =
+          new LocalActorMotionTracker()
+
+        tracker.observe({
+          actorKey:
+            'animal:wolf-a',
+          coordinate:
+            origin,
+          planetRadiusMeters:
+            earthRadiusMeters,
+          snapshotTimeSeconds:
+            0,
         })
 
         const north =
@@ -185,6 +257,8 @@ describe(
             north,
           planetRadiusMeters:
             earthRadiusMeters,
+          snapshotTimeSeconds:
+            1,
         })
 
         const stationary =
@@ -195,19 +269,14 @@ describe(
               north,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              2,
           })
 
         expect(
           stationary.isMoving,
         ).toBe(
           false,
-        )
-
-        expect(
-          stationary.movedDistanceMeters,
-        ).toBeCloseTo(
-          0,
-          6,
         )
 
         expect(
@@ -225,23 +294,22 @@ describe(
         const tracker =
           new LocalActorMotionTracker()
 
-        tracker.observe({
-          actorKey:
+        for (
+          const actorKey of [
             'animal:wolf-a',
-          coordinate:
-            origin,
-          planetRadiusMeters:
-            earthRadiusMeters,
-        })
-
-        tracker.observe({
-          actorKey:
             'animal:wolf-b',
-          coordinate:
-            origin,
-          planetRadiusMeters:
-            earthRadiusMeters,
-        })
+          ]
+        ) {
+          tracker.observe({
+            actorKey,
+            coordinate:
+              origin,
+            planetRadiusMeters:
+              earthRadiusMeters,
+            snapshotTimeSeconds:
+              0,
+          })
+        }
 
         const east =
           moveSurfaceCoordinate(
@@ -267,6 +335,8 @@ describe(
               east,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
           })
 
         const wolfB =
@@ -277,6 +347,8 @@ describe(
               north,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
           })
 
         expect(
@@ -308,23 +380,8 @@ describe(
             origin,
           planetRadiusMeters:
             earthRadiusMeters,
-        })
-
-        const east =
-          moveSurfaceCoordinate(
-            origin,
+          snapshotTimeSeconds:
             0,
-            4,
-            earthRadiusMeters,
-          )
-
-        tracker.observe({
-          actorKey:
-            'animal:wolf-a',
-          coordinate:
-            east,
-          planetRadiusMeters:
-            earthRadiusMeters,
         })
 
         tracker.forget(
@@ -336,9 +393,11 @@ describe(
             actorKey:
               'animal:wolf-a',
             coordinate:
-              east,
+              origin,
             planetRadiusMeters:
               earthRadiusMeters,
+            snapshotTimeSeconds:
+              1,
           })
 
         expect(
@@ -349,6 +408,41 @@ describe(
           observation.isMoving,
         ).toBe(
           false,
+        )
+      },
+    )
+
+    it(
+      'rejects an authoritative snapshot that moves backward in simulation time',
+      () => {
+        const tracker =
+          new LocalActorMotionTracker()
+
+        tracker.observe({
+          actorKey:
+            'animal:wolf-a',
+          coordinate:
+            origin,
+          planetRadiusMeters:
+            earthRadiusMeters,
+          snapshotTimeSeconds:
+            5,
+        })
+
+        expect(
+          () =>
+            tracker.observe({
+              actorKey:
+                'animal:wolf-a',
+              coordinate:
+                origin,
+              planetRadiusMeters:
+                earthRadiusMeters,
+              snapshotTimeSeconds:
+                4,
+            }),
+        ).toThrow(
+          'Local actor motion snapshots must be observed in non-decreasing time order.',
         )
       },
     )

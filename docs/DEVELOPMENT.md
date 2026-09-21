@@ -94,8 +94,8 @@ Checkpoint commits:
 
 Latest verified web gate on September 21, 2026:
 
-- 21 test files passed;
-- 137 / 137 tests passed;
+- 26 test files passed;
+- 172 / 172 tests passed;
 - `npx tsc --noEmit` passed;
 - `git diff --check` passed.
 
@@ -119,7 +119,7 @@ From the repository root:
 dotnet test Est.slnx
 ```
 
-Latest verified full .NET solution result: September 17, 2026: 745 passed, 0 failed, 0 skipped. Latest verified web result: September 20, 2026: 129 / 129 tests passed with TypeScript and diff checks clean.
+Latest verified full .NET solution result: September 17, 2026: 745 passed, 0 failed, 0 skipped. Latest verified web result: September 21, 2026: 172 / 172 tests passed with TypeScript and diff checks clean.
 
 ## Repository Inspection
 
@@ -198,6 +198,17 @@ The step control does not establish the final embodied simulation-time policy
 and does not enable an automatic Play-mode heartbeat. Wolf facing is derived
 from successive authoritative geographic positions for the same `AnimalId`;
 camera movement and Ester movement do not count as wolf motion.
+
+Repeated presentation of the same authoritative timestamp preserves the same
+wolf motion observation. A newly observed authoritative wolf displacement is
+presented through a short bounded interpolation from the current rendered
+position to the new authoritative target. Temporary gait presentation runs only
+during that interpolation and stops at the target; it does not create continued
+movement while simulation time is paused.
+
+Wolf activity remains authoritative simulation state. Presentation combines that
+activity with observed displacement to select pose and gait without inferring a
+different simulation activity from renderer animation.
 
 Both launchers start or reuse Est.Api and Est.Web, wait for their health
 checks, create a fresh Earth session through `POST /sessions`, and open the

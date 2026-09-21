@@ -78,6 +78,18 @@ import {
 } from './player/local-actor-motion'
 
 import {
+  createLocalActorPresentationTransition,
+  sampleLocalActorPresentationTransition,
+  type LocalActorPresentationPosition,
+  type LocalActorPresentationTransition,
+} from './player/local-actor-interpolation'
+
+import {
+  resolveWolfPresentationState,
+  type WolfPresentationState,
+} from './player/wolf-presentation-state'
+
+import {
   projectLocalGrazers,
 } from './player/local-grazer-projection'
 
@@ -85,6 +97,7 @@ import {
   createGrazerPresentation,
   createWolfPresentation,
   type FaunaPresentation,
+  type WolfPresentation,
 } from './player/fauna-presentation'
 
 import {
@@ -3515,7 +3528,7 @@ if (sessionId) {
   const playWolfPresentations =
     new Map<
       string,
-      FaunaPresentation
+      WolfPresentation
     >()
 
   const playGrazerPresentations =
@@ -3526,6 +3539,24 @@ if (sessionId) {
 
   const playAnimalMotionTracker =
     new LocalActorMotionTracker()
+
+  interface PlayWolfPresentationTransition {
+    snapshotTimeSeconds: number
+    interpolation:
+      LocalActorPresentationTransition
+    state:
+      WolfPresentationState
+    isComplete: boolean
+  }
+
+  const playWolfPresentationTransitions =
+    new Map<
+      string,
+      PlayWolfPresentationTransition
+    >()
+
+  const wolfPresentationTransitionMilliseconds =
+    450
 
   let presentationEster:
     ManifestedEsterResponse | null =
@@ -5860,6 +5891,8 @@ if (sessionId) {
             actor.source,
           planetRadiusMeters:
             planet.meanRadiusMeters,
+          snapshotTimeSeconds:
+            world.currentTimeSeconds,
         })
 
       let wolf =
@@ -5889,6 +5922,12 @@ if (sessionId) {
         )
       }
 
+      const wolfState =
+        resolveWolfPresentationState(
+          actor.source.activity,
+          motion.isMoving,
+        )
+
       const visible =
         actor.distanceMeters <=
         visibleRadiusMeters
@@ -5907,12 +5946,167 @@ if (sessionId) {
           actor.source.longitudeDegrees,
         )
 
-      wolf.root.position.set(
-        actor.local.eastMeters,
-        wolfElevationMeters -
-          esterElevationMeters,
-        actor.local.northMeters,
-      )
+      const targetPosition:
+        LocalActorPresentationPosition = {
+          eastMeters:
+            actor.local.eastMeters,
+          verticalMeters:
+            wolfElevationMeters -
+            esterElevationMeters,
+          northMeters:
+            actor.local.northMeters,
+        }
+
+      const previousTransition =
+        playWolfPresentationTransitions.get(
+          actor.actorKey,
+        )
+
+      if (
+        previousTransition?.snapshotTimeSeconds ===
+        world.currentTimeSeconds
+      ) {
+        const targetDelta = {
+          eastMeters:
+            targetPosition.eastMeters -
+            previousTransition
+              .interpolation
+              .target
+              .eastMeters,
+          verticalMeters:
+            targetPosition.verticalMeters -
+            previousTransition
+              .interpolation
+              .target
+              .verticalMeters,
+          northMeters:
+            targetPosition.northMeters -
+            previousTransition
+              .interpolation
+              .target
+              .northMeters,
+        }
+
+        previousTransition.interpolation = {
+          ...previousTransition.interpolation,
+          start: {
+            eastMeters:
+              previousTransition
+                .interpolation
+                .start
+                .eastMeters +
+              targetDelta.eastMeters,
+            verticalMeters:
+              previousTransition
+                .interpolation
+                .start
+                .verticalMeters +
+              targetDelta.verticalMeters,
+            northMeters:
+              previousTransition
+                .interpolation
+                .start
+                .northMeters +
+              targetDelta.northMeters,
+          },
+          target: {
+            ...targetPosition,
+          },
+        }
+
+        if (
+          previousTransition.isComplete
+        ) {
+          wolf.root.position.set(
+            targetPosition.eastMeters,
+            targetPosition.verticalMeters,
+            targetPosition.northMeters,
+          )
+        } else {
+          wolf.root.position.addInPlaceFromFloats(
+            targetDelta.eastMeters,
+            targetDelta.verticalMeters,
+            targetDelta.northMeters,
+          )
+        }
+      } else if (
+        motion.isMoving &&
+        previousTransition !== undefined
+      ) {
+        wolf.setState(
+          wolfState,
+        )
+
+        wolf.setGaitPhase(
+          0,
+        )
+
+        playWolfPresentationTransitions.set(
+          actor.actorKey,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                {
+                  eastMeters:
+                    wolf.root.position.x,
+                  verticalMeters:
+                    wolf.root.position.y,
+                  northMeters:
+                    wolf.root.position.z,
+                },
+                targetPosition,
+                performance.now(),
+                wolfPresentationTransitionMilliseconds,
+              ),
+            state:
+              wolfState,
+            isComplete:
+              false,
+          },
+        )
+      } else {
+        wolf.root.position.set(
+          targetPosition.eastMeters,
+          targetPosition.verticalMeters,
+          targetPosition.northMeters,
+        )
+
+        const stationaryState:
+          WolfPresentationState = {
+            ...wolfState,
+            locomotion:
+              'stationary',
+          }
+
+        wolf.setState(
+          stationaryState,
+        )
+
+        wolf.setGaitPhase(
+          0,
+        )
+
+        playWolfPresentationTransitions.set(
+          actor.actorKey,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                targetPosition,
+                targetPosition,
+                performance.now(),
+                wolfPresentationTransitionMilliseconds,
+              ),
+            state:
+              stationaryState,
+            isComplete:
+              true,
+          },
+        )
+      }
     }
 
     for (
@@ -5937,6 +6131,10 @@ if (sessionId) {
       )
 
       playAnimalMotionTracker.forget(
+        actorKey,
+      )
+
+      playWolfPresentationTransitions.delete(
         actorKey,
       )
     }
@@ -6605,9 +6803,81 @@ if (sessionId) {
         )
     }
 
+    const advanceWolfPresentationTransitions = (
+      nowMilliseconds: number,
+    ) => {
+      for (
+        const [
+          actorKey,
+          transition,
+        ] of
+        playWolfPresentationTransitions
+      ) {
+        if (transition.isComplete) {
+          continue
+        }
+
+        const wolf =
+          playWolfPresentations.get(
+            actorKey,
+          )
+
+        if (!wolf) {
+          playWolfPresentationTransitions.delete(
+            actorKey,
+          )
+
+          continue
+        }
+
+        const sample =
+          sampleLocalActorPresentationTransition(
+            transition.interpolation,
+            nowMilliseconds,
+          )
+
+        wolf.root.position.set(
+          sample.position.eastMeters,
+          sample.position.verticalMeters,
+          sample.position.northMeters,
+        )
+
+        wolf.setGaitPhase(
+          sample.progress *
+          Math.PI *
+          2,
+        )
+
+        if (!sample.isComplete) {
+          continue
+        }
+
+        transition.isComplete =
+          true
+
+        const stationaryState:
+          WolfPresentationState = {
+            ...transition.state,
+            locomotion:
+              'stationary',
+          }
+
+        wolf.setState(
+          stationaryState,
+        )
+
+        wolf.setGaitPhase(
+          0,
+        )
+      }
+    }
+
     const advancePresentationMovement = (
       nowMilliseconds: number,
     ) => {
+      advanceWolfPresentationTransitions(
+        nowMilliseconds,
+      )
       const elapsedSeconds =
         Math.min(
           Math.max(
