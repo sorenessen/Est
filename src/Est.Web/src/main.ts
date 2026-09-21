@@ -70,6 +70,11 @@ import {
 } from './player/local-play-space'
 
 import {
+  createHumanPresentation,
+  type HumanPresentation,
+} from './player/human-presentation'
+
+import {
   createTerrainHeightField,
 } from './surface/terrain-height-field'
 
@@ -3342,8 +3347,20 @@ if (sessionId) {
     Mesh | null =
       null
 
-  const playHumanMeshes =
-    new Map<string, Mesh>()
+  const playHumanPresentations =
+    new Map<
+      string,
+      HumanPresentation
+    >()
+
+  const playHumanLoadRequests =
+    new Map<
+      string,
+      Promise<void>
+    >()
+
+  const playHumanLoadFailures =
+    new Set<string>()
 
   let presentationEster:
     ManifestedEsterResponse | null =
@@ -5577,6 +5594,9 @@ if (sessionId) {
     const visibleRadiusMeters =
       120
 
+    const preloadRadiusMeters =
+      150
+
     for (
       const person of
       world.population
@@ -5588,15 +5608,6 @@ if (sessionId) {
         continue
       }
 
-      const mesh =
-        playHumanMeshes.get(
-          person.personId,
-        )
-
-      if (!mesh) {
-        continue
-      }
-
       const local =
         geographicToLocalMeters(
           person,
@@ -5604,14 +5615,36 @@ if (sessionId) {
           planet.meanRadiusMeters,
         )
 
-      const visible =
+      const distanceMeters =
         Math.hypot(
           local.eastMeters,
           local.northMeters,
-        ) <=
+        )
+
+      const human =
+        playHumanPresentations.get(
+          person.personId,
+        )
+
+      if (!human) {
+        if (
+          distanceMeters <=
+          preloadRadiusMeters
+        ) {
+          ensurePlayHumanPresentation(
+            person.personId,
+            person.sex,
+          )
+        }
+
+        continue
+      }
+
+      const visible =
+        distanceMeters <=
         visibleRadiusMeters
 
-      mesh.setEnabled(
+      human.setEnabled(
         visible,
       )
 
@@ -5625,15 +5658,78 @@ if (sessionId) {
           person.longitudeDegrees,
         )
 
-      mesh.position.set(
+      human.root.position.set(
         local.eastMeters,
         personElevationMeters -
-          esterElevationMeters +
-          0.85,
+          esterElevationMeters,
         local.northMeters,
       )
     }
     updatePlaySurfaceScatterPositions()
+  }
+
+  const ensurePlayHumanPresentation = (
+    personId: string,
+    sex: string,
+  ) => {
+    if (
+      playHumanPresentations.has(
+        personId,
+      ) ||
+      playHumanLoadRequests.has(
+        personId,
+      ) ||
+      playHumanLoadFailures.has(
+        personId,
+      )
+    ) {
+      return
+    }
+
+    const request =
+      createHumanPresentation(
+        scene,
+        personId,
+        sex,
+      )
+        .then(
+          human => {
+            playHumanPresentations.set(
+              personId,
+              human,
+            )
+
+            updatePlaySpacePositions()
+          },
+        )
+        .catch(
+          error => {
+            playHumanLoadFailures.add(
+              personId,
+            )
+
+            console.error(
+              '[Est Babylon] Human presentation failed',
+              {
+                personId,
+                sex,
+                error,
+              },
+            )
+          },
+        )
+        .finally(
+          () => {
+            playHumanLoadRequests.delete(
+              personId,
+            )
+          },
+        )
+
+    playHumanLoadRequests.set(
+      personId,
+      request,
+    )
   }
 
   const renderPlaySpace = () => {
@@ -5820,48 +5916,6 @@ if (sessionId) {
         hatPompom.isPickable =
           false
       }
-    }
-
-    for (
-      const person of
-      world.population
-    ) {
-      if (
-        person.planetId !==
-          planet.planetId ||
-        playHumanMeshes.has(
-          person.personId,
-        )
-      ) {
-        continue
-      }
-
-      const human =
-        CreateCapsule(
-          `play-human-${person.personId}`,
-          {
-            height: 1.7,
-            radius: 0.31,
-            tessellation: 16,
-            capSubdivisions: 6,
-          },
-          scene,
-        )
-
-      human.material =
-        humanMarkerMaterials[
-          person.activity as
-            keyof typeof humanMarkerMaterials
-        ] ??
-        humanMarkerMaterials.Idle
-
-      human.isPickable =
-        false
-
-      playHumanMeshes.set(
-        person.personId,
-        human,
-      )
     }
 
     updatePlaySpacePositions()
