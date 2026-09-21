@@ -1,0 +1,367 @@
+# ADR 0020: Local Actor Presentation Across Simulation Resolutions
+
+## Status
+
+Accepted for the current Living Worlds local-actor presentation foundation.
+
+## Date
+
+2026-09-21
+
+## Context
+
+Est presents one authoritative simulated world at multiple spatial resolutions.
+
+ADR 0003 establishes that presentation may use different representations of the
+same authoritative world state at different scales.
+
+ADR 0006 separates simulation authority from rendering.
+
+ADR 0019 establishes playable Ester manifestation, local metre-space rendering,
+and nearby human presentation tied to stable simulated person identity.
+
+The next Living Worlds requirement is broader.
+
+A manifested Ester must eventually share the local world with:
+
+- simulated people across sex and life stage;
+- individually simulated animals such as wolves;
+- very large ecological populations such as grazers that are intentionally
+  represented by coarse authoritative cohorts rather than millions of
+  independently simulated individuals.
+
+Those categories do not have the same authoritative resolution.
+
+A simulated person has stable `PersonId`.
+
+A simulated wolf has stable `AnimalId`.
+
+A grazer cohort has stable `GrazerCohortId`, member count, material inventory,
+and a coarse geographic location. The cohort model intentionally compresses
+planet-wide grazer abundance into a bounded number of aggregate entities.
+
+Treating all three categories identically would create false simulation detail.
+
+In particular, treating a grazer cohort coordinate as the literal walking-scale
+location of every member would misrepresent coarse ecological state as precise
+individual geography.
+
+Conversely, refusing to render grazers because they are cohort-backed would make
+the local world contradict authoritative ecological abundance and would prevent
+future direct gameplay such as hunting.
+
+Est therefore needs an explicit boundary between authoritative simulation
+resolution and local physical presentation.
+
+## Decision
+
+### Local actor projection is an Est-owned boundary
+
+Living Worlds will use an Est-owned local actor projection layer between
+authoritative world state and renderer-specific presentation.
+
+The projection layer determines which authoritative entities or aggregate
+populations have local physical representatives near a manifested Ester.
+
+It does not become a second simulation.
+
+Babylon meshes, animation rigs, LOD state, presentation instances, and visual
+spawn slots do not independently define simulation truth.
+
+The causal direction remains:
+
+    authoritative world state
+      -> local actor projection
+      -> renderer presentation
+
+Gameplay interactions that change the world must return through an explicit
+authoritative operation.
+
+### Authoritative individual actors
+
+When the simulation already owns individual identity, local presentation must
+preserve it.
+
+Current examples are:
+
+- human `PersonId`;
+- wolf `AnimalId`;
+- manifested `EsterId`.
+
+Changing mesh, rig, animation, LOD, body presentation, or other visual
+representation does not create a new authoritative individual.
+
+The same simulated individual must remain the same actor across presentation
+changes.
+
+### Human life-stage presentation
+
+Human age is authoritative through birth time and current simulation time.
+
+Visual life stage is presentation policy derived from authoritative lifecycle
+state. It does not require inventing a second simulated age field merely for
+rendering.
+
+A person's presentation may therefore change as the person grows while the
+underlying `PersonId` remains unchanged.
+
+Sex, age, material state, health, clothing, animation, and other future visual
+inputs may affect presentation without redefining person identity.
+
+Exact visual stage boundaries and asset choices remain presentation policy
+unless the simulation later requires explicit lifecycle categories for causal
+behavior.
+
+### Individually simulated animals
+
+Animals represented by authoritative `AnimalState`, currently wolves, may map
+directly to local presentation keyed by `AnimalId`.
+
+Their authoritative geographic position, lifecycle state, health, activity,
+sex, and other simulation state remain independent from the renderer.
+
+Animation and visual movement smoothing may interpret that state but may not
+replace it.
+
+### Aggregate grazer authority
+
+Grazer cohorts remain authoritative aggregate ecological state.
+
+A cohort owns facts such as:
+
+- `GrazerCohortId`;
+- member count;
+- material inventory;
+- current coarse geographic position;
+- the authoritative surface cell containing that position.
+
+The cohort coordinate and surface cell are macro simulation state.
+
+They must not be interpreted as proof that every member of the cohort occupies
+one exact walking-scale point or one exact local herd.
+
+The surface-cell identity exposed by the grazer API is an authoritative
+geographic anchor, not a declaration of precise individual occupancy.
+
+### Local grazer realization
+
+Living Worlds may deterministically refine authoritative grazer abundance into a
+bounded number of local physical representatives.
+
+Those representatives are presentation entities backed by real authoritative
+cohort abundance.
+
+They are not decorative wildlife unrelated to simulation state.
+
+A valid local realization must preserve these properties:
+
+- it is derived from one or more authoritative grazer cohorts;
+- it cannot imply more authoritative animals than the backing state supports;
+- it respects authoritative habitat information where that information is
+  available;
+- repeated projection from unchanged authoritative inputs is deterministic
+  enough to avoid arbitrary visual regeneration;
+- it remains bounded for runtime and rendering performance;
+- it does not manufacture `AnimalId` values for cohort members that are not
+  individually simulated.
+
+The exact weighting, distribution, streaming radius, density conversion,
+representative count, and placement algorithm are implementation policy rather
+than simulation constants.
+
+They may evolve as local-play requirements become better understood.
+
+### Habitat-aware refinement
+
+The current grazer model derives carrying support from authoritative vegetation
+and evolves cohorts against coarse ecological surface state.
+
+Local grazer realization should therefore use available authoritative habitat
+state rather than treating a cohort center as a conventional game spawn point.
+
+A likely implementation may distribute cohort-backed local abundance across
+eligible surface regions using vegetation support and deterministic spatial
+policy.
+
+This ADR does not freeze one nearest-cohort, influence-region, or density
+algorithm.
+
+Any adopted algorithm must preserve the distinction between:
+
+- authoritative aggregate abundance;
+- authoritative macro geography;
+- deterministic local presentation refinement.
+
+### Presentation identity is not simulation identity
+
+A locally realized grazer may need a stable presentation key so that rendering
+does not visibly reshuffle every frame or camera movement.
+
+Such a key may be derived from stable authoritative inputs such as cohort
+identity, surface region, and deterministic slot information.
+
+A presentation key is not an `AnimalId`.
+
+The exact key encoding is an implementation detail.
+
+### Gameplay interaction with aggregate representatives
+
+Future gameplay may allow a manifested player or simulated actor to interact
+with a locally realized grazer.
+
+A gameplay interaction cannot become authoritative merely by mutating or
+deleting the representative mesh.
+
+For example, a successful hunt must eventually cause an authoritative operation
+against the backing grazer state, including appropriate population and material
+consequences.
+
+The local representative identifies what the player interacted with.
+
+The simulation determines the resulting authoritative change.
+
+### Optional promotion to individual authority
+
+Some future gameplay may require one previously aggregate animal to retain
+individual history.
+
+Examples may include:
+
+- tracking a wounded animal over time;
+- taming;
+- tagging;
+- capture;
+- persistent injury;
+- another interaction requiring durable individual identity.
+
+If such requirements arise, Est may introduce an explicit promotion or
+materialization operation that creates individually authoritative state from an
+aggregate population.
+
+That mechanism is not required merely to render or hunt ordinary grazers.
+
+Est should not create millions of individual grazer entities solely to support
+local presentation.
+
+### Population and material conservation
+
+Local realization does not itself change authoritative population count or
+material inventory.
+
+Creation, removal, hiding, streaming, LOD replacement, or destruction of a
+presentation entity has no simulation consequence unless an explicit
+authoritative operation is performed.
+
+Any future operation that converts aggregate animals into individually
+authoritative state must preserve population and material accounting across the
+boundary.
+
+### Renderer independence
+
+Local actor projection is not Babylon-specific.
+
+Babylon consumes projected local actors and provides visual representation.
+
+It must remain possible to test projection policy without creating meshes or
+loading renderer assets.
+
+This keeps ecological refinement, actor identity, and simulation authority out
+of renderer orchestration code.
+
+### Asset independence
+
+Third-party meshes, rigs, animations, and other visual assets may be used as
+production foundations.
+
+They do not own Est actor identity or simulation semantics.
+
+Est must remain capable of replacing an external asset family without changing:
+
+- `PersonId`;
+- `AnimalId`;
+- `EsterId`;
+- `GrazerCohortId`;
+- authoritative locations;
+- lifecycle state;
+- social state;
+- ecological population;
+- material accounting;
+- gameplay history.
+
+External art may provide leverage, but no external asset pack should become an
+irreplaceable definition of an Est simulation entity.
+
+### Simulation time during embodied play
+
+Current Play mode does not install the Observatory automatic simulation
+heartbeat.
+
+That is an intentional unresolved product and simulation-control question, not
+permission for the presentation layer to advance time implicitly.
+
+How simulation time advances while an Ester is embodied will be decided
+separately.
+
+Local actor projection must work from the authoritative world snapshot it is
+given regardless of the eventual time-control policy.
+
+## Current implementation checkpoint
+
+As of September 21, 2026:
+
+- local human presentation is tied to stable `PersonId`;
+- male and female human presentation assets are supported;
+- human age can be derived from authoritative birth time and current world time;
+- wolves already exist as individually authoritative `AnimalState` entities
+  with stable `AnimalId`;
+- grazers exist as authoritative cohorts rather than individually identified
+  animals;
+- the default grazer model deliberately compresses planet-scale abundance into a
+  bounded number of cohort entities;
+- Play mode currently renders nearby humans but not wolves or grazers;
+- authoritative surface, vegetation, animal, population, and grazer-cohort data
+  are already available to the web client;
+- grazer cohort API responses now expose the authoritative current
+  `SurfaceCellId`.
+
+Implementation checkpoint:
+
+- `00075f6` - expose grazer cohort surface cells.
+
+## Consequences
+
+The next implementation should introduce renderer-independent local actor
+projection policy before adding additional mesh-specific loops to `main.ts`.
+
+Humans and wolves can use direct authoritative individual identity.
+
+Grazers require deterministic aggregate-to-local refinement.
+
+The projection layer should be unit-testable without Babylon.
+
+Rendering assets can then be attached downstream to projected actors without
+changing simulation authority.
+
+Future hunting and other direct ecological interactions will have a defined
+causal path back to authoritative world state rather than operating only on
+visual objects.
+
+## Non-decisions
+
+This ADR does not yet decide:
+
+- the final grazer local-density formula;
+- the exact number of visible representative grazers;
+- the exact deterministic hash or placement algorithm;
+- the final wolf or grazer asset library;
+- final human age-stage thresholds or visual assets;
+- combat or hunting mechanics;
+- carcass simulation;
+- persistent wounded-animal representation;
+- the promotion schema for aggregate animals;
+- Play-mode simulation-time cadence;
+- final LOD distances;
+- local actor networking or multiplayer behavior.
+
+Those decisions should be added only when focused implementation work provides
+evidence for them.
