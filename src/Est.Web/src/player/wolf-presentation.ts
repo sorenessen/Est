@@ -53,11 +53,11 @@ export const wolfPresentationAssetYawCorrectionRadians =
 
 /**
  * The source mesh is approximately 5.55 units long and 2.68 units tall.
- * At 0.25 presentation scale it is approximately 1.39 m long and
- * 0.67 m tall in Est's local metre-space.
+ * At 0.30 presentation scale it is approximately 1.67 m long and
+ * 0.80 m tall in Est's local metre-space.
  */
 export const wolfPresentationAssetScale =
-  0.25
+  0.30
 
 export const wolfPresentationAnimationNames = {
   attack: 'Attack',

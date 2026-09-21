@@ -41,7 +41,7 @@ describe(
         expect(
           wolfPresentationAssetScale,
         ).toBe(
-          0.25,
+          0.30,
         )
       },
     )
