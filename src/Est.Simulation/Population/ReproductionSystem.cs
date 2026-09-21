@@ -210,6 +210,23 @@ public sealed class ReproductionSystem : ICausalSystem
                 continue;
             }
 
+            var conceived =
+                TryConceive(
+                    person,
+                    partner,
+                    currentTime,
+                    elapsedSeconds,
+                    out var conceptionTimeSeconds,
+                    out var hadMatingOpportunity);
+
+            if (!hadMatingOpportunity)
+            {
+                nextPopulation.Add(
+                    ClearReproductiveActivity(person));
+
+                continue;
+            }
+
             var mating =
                 person.WithSurvivalState(
                     person.Needs,
@@ -217,12 +234,7 @@ public sealed class ReproductionSystem : ICausalSystem
 
             matingEvents++;
 
-            if (TryConceive(
-                    person,
-                    partner,
-                    currentTime,
-                    elapsedSeconds,
-                    out var conceptionTimeSeconds))
+            if (conceived)
             {
                 mating =
                     mating.WithPregnancy(
@@ -268,13 +280,13 @@ public sealed class ReproductionSystem : ICausalSystem
         PersonState father,
         long currentTimeSeconds,
         long elapsedSeconds,
-        out long conceptionTimeSeconds)
+        out long conceptionTimeSeconds,
+        out bool hadMatingOpportunity)
     {
         conceptionTimeSeconds = 0;
+        hadMatingOpportunity = false;
 
-        if (elapsedSeconds <= 0 ||
-            _parameters
-                .ConceptionProbabilityPerMatingOpportunity <= 0)
+        if (elapsedSeconds <= 0)
         {
             return false;
         }
@@ -313,6 +325,8 @@ public sealed class ReproductionSystem : ICausalSystem
         while (opportunityTimeSeconds <=
                endTimeSeconds)
         {
+            hadMatingOpportunity = true;
+
             if (ConceptionSucceeds(
                     opportunityTimeSeconds,
                     mother.Id,

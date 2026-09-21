@@ -77,6 +77,108 @@ public sealed class ReproductionSystemTests
     }
 
     [Fact]
+    public void Step_NearbyEligiblePartnersWithoutConceptionOpportunityDoNotReportMating()
+    {
+        var planet = CreateEarth();
+
+        var female =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0);
+
+        var male =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    female,
+                    male),
+                elapsedSeconds: 1,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 1));
+
+        var restoredFemale =
+            result.World.Population.Single(
+                person =>
+                    person.Id == female.Id);
+
+        Assert.Equal(
+            PersonActivity.Idle,
+            restoredFemale.Activity);
+
+        Assert.Null(
+            restoredFemale.Pregnancy);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["matingEvents"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
+    }
+
+    [Fact]
+    public void Step_MatingOpportunityCanOccurWithoutConception()
+    {
+        var planet = CreateEarth();
+
+        var female =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0);
+
+        var male =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                0.05);
+
+        var result =
+            SimulationStepRunner.Step(
+                CreateWorld(
+                    planet,
+                    female,
+                    male),
+                28 * OneDaySeconds,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 0));
+
+        var restoredFemale =
+            result.World.Population.Single(
+                person =>
+                    person.Id == female.Id);
+
+        Assert.Equal(
+            PersonActivity.Mating,
+            restoredFemale.Activity);
+
+        Assert.Null(
+            restoredFemale.Pregnancy);
+
+        Assert.Equal(
+            1,
+            result.Change.Metrics["matingEvents"]);
+
+        Assert.Equal(
+            0,
+            result.Change.Metrics["conceptions"]);
+    }
+
+    [Fact]
     public void Step_NearbyEligiblePartnersCanConceiveWithinOneCycle()
     {
         var planet = CreateEarth();
