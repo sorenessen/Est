@@ -22,12 +22,37 @@ export interface FaunaPresentation {
   actorKey: string
   root: TransformNode
   setEnabled(enabled: boolean): void
+  setHeadingRadians(
+    headingRadians: number,
+  ): void
   dispose(): void
 }
 
 interface FaunaMaterials {
   wolf: StandardMaterial
   grazer: StandardMaterial
+}
+
+function setPresentationHeading(
+  root: TransformNode,
+  headingRadians: number,
+): void {
+  if (
+    !Number.isFinite(
+      headingRadians,
+    )
+  ) {
+    throw new RangeError(
+      'Fauna presentation heading must be finite.',
+    )
+  }
+
+  // Local motion heading is measured from +east toward +north.
+  // The current temporary fauna silhouette faces local +X/east,
+  // while Babylon Y rotation uses the opposite sign for this axis
+  // convention.
+  root.rotation.y =
+    -headingRadians
 }
 
 const materialsByScene =
@@ -276,6 +301,15 @@ export function createWolfPresentation(
       )
     },
 
+    setHeadingRadians(
+      headingRadians: number,
+    ) {
+      setPresentationHeading(
+        root,
+        headingRadians,
+      )
+    },
+
     dispose() {
       root.dispose(
         false,
@@ -419,6 +453,15 @@ export function createGrazerPresentation(
     ) {
       root.setEnabled(
         enabled,
+      )
+    },
+
+    setHeadingRadians(
+      headingRadians: number,
+    ) {
+      setPresentationHeading(
+        root,
+        headingRadians,
       )
     },
 

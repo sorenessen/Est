@@ -324,6 +324,29 @@ Est must remain capable of replacing an external asset family without changing:
 External art may provide leverage, but no external asset pack should become an
 irreplaceable definition of an Est simulation entity.
 
+### Authoritative movement observation
+
+Individual local actors may derive presentation-facing direction from successive
+authoritative geographic positions.
+
+This derived heading is presentation state only.
+
+It must preserve these properties:
+
+- actor identity remains the authoritative `PersonId` or `AnimalId`;
+- geographic positions come from successive authoritative world snapshots;
+- moving Ester, moving the camera, or changing local presentation origin must
+  not be interpreted as actor motion;
+- no heading is invented before authoritative displacement is observed;
+- when an authoritative actor becomes stationary, presentation may preserve the
+  last valid facing direction;
+- visual smoothing and animation may interpolate between authoritative
+  observations, but may not manufacture simulation movement.
+
+The current wolf simulation does not store authoritative heading or velocity.
+Local wolf facing is therefore derived from observed displacement rather than
+adding renderer-owned direction to simulation state.
+
 ### Simulation time during embodied play
 
 Current Play mode does not install the Observatory automatic simulation
@@ -369,7 +392,12 @@ Implementation checkpoints:
 - `c5a2a3e` - expose manifested Ester surface locality;
 - local grazer projection now supports deterministic, bounded,
   cohort-backed presentation representatives without inventing `AnimalId`
-  identity.
+  identity;
+- local authoritative animal motion observation derives presentation heading
+  from successive geographic snapshots while preserving stable `AnimalId`;
+- the focused fauna development view provides an explicit `+1s` authoritative
+  simulation step for runtime motion proof without enabling automatic embodied
+  simulation time.
 
 The current local grazer projection deliberately treats representative spread as
 presentation policy rather than authoritative herd extent.

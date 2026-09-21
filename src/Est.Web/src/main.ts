@@ -74,6 +74,10 @@ import {
 } from './player/local-actor-projection'
 
 import {
+  LocalActorMotionTracker,
+} from './player/local-actor-motion'
+
+import {
   projectLocalGrazers,
 } from './player/local-grazer-projection'
 
@@ -282,6 +286,14 @@ app.innerHTML = `
         aria-label="Enter embodied world view"
         title="Enter embodied world view"
       >Enter World</button>
+
+      <button
+        id="faunaProofStepButton"
+        type="button"
+        aria-label="Advance authoritative simulation by one second"
+        title="Development proof: advance authoritative simulation by one second"
+        hidden
+      >Step Fauna +1s</button>
     </div>
 
     <div id="observerPanelBody" class="babylon-observer-body">
@@ -636,6 +648,11 @@ const viewModeButton =
     '#viewModeButton',
   )
 
+const faunaProofStepButton =
+  document.querySelector<HTMLButtonElement>(
+    '#faunaProofStepButton',
+  )
+
 const observerPanelDragHandle =
   document.querySelector<HTMLElement>(
     '#observerPanelDragHandle',
@@ -659,6 +676,7 @@ const panelVisibilityTip =
 if (
   !observerPanel ||
   !viewModeButton ||
+  !faunaProofStepButton ||
   !observerPanelDragHandle ||
   !observerPanelMinimizeButton ||
   !observerPanelRestoreButton ||
@@ -688,6 +706,13 @@ viewModeButton.title =
 
 viewModeButton.disabled =
   sessionId === null
+
+faunaProofStepButton.hidden =
+  !(
+    playMode &&
+    faunaFocusRequested &&
+    sessionId !== null
+  )
 
 viewModeButton.addEventListener(
   'click',
@@ -3499,6 +3524,9 @@ if (sessionId) {
       FaunaPresentation
     >()
 
+  const playAnimalMotionTracker =
+    new LocalActorMotionTracker()
+
   let presentationEster:
     ManifestedEsterResponse | null =
       manifestedEster === null
@@ -5824,6 +5852,16 @@ if (sessionId) {
         actor.actorKey,
       )
 
+      const motion =
+        playAnimalMotionTracker.observe({
+          actorKey:
+            actor.actorKey,
+          coordinate:
+            actor.source,
+          planetRadiusMeters:
+            planet.meanRadiusMeters,
+        })
+
       let wolf =
         playWolfPresentations.get(
           actor.actorKey,
@@ -5839,6 +5877,15 @@ if (sessionId) {
         playWolfPresentations.set(
           actor.actorKey,
           wolf,
+        )
+      }
+
+      if (
+        motion.headingRadians !==
+        null
+      ) {
+        wolf.setHeadingRadians(
+          motion.headingRadians,
         )
       }
 
@@ -5886,6 +5933,10 @@ if (sessionId) {
       wolf.dispose()
 
       playWolfPresentations.delete(
+        actorKey,
+      )
+
+      playAnimalMotionTracker.forget(
         actorKey,
       )
     }
@@ -7223,7 +7274,10 @@ if (sessionId) {
     )
   }
 
-  const refreshSimulation = async () => {
+  const refreshSimulation = async (
+    stepSeconds =
+      simulationStepSeconds,
+  ) => {
     if (simulationTickInProgress) {
       return
     }
@@ -7234,7 +7288,7 @@ if (sessionId) {
     try {
       await api.advanceSession(
         sessionId,
-        simulationStepSeconds,
+        stepSeconds,
       )
 
       const [
@@ -7294,7 +7348,13 @@ if (sessionId) {
 
       updateVegetationCoverageState()
       updatePlanetVegetationCoverage()
-      renderLivingWorld()
+
+      if (playMode) {
+        updatePlaySpacePositions()
+      } else {
+        renderLivingWorld()
+      }
+
       renderSimulationTelemetry()
     } catch (error) {
       console.error(
@@ -7310,6 +7370,41 @@ if (sessionId) {
       simulationTickInProgress =
         false
     }
+  }
+
+  if (
+    playMode &&
+    faunaFocusRequested
+  ) {
+    faunaProofStepButton.addEventListener(
+      'click',
+      () => {
+        if (simulationTickInProgress) {
+          return
+        }
+
+        faunaProofStepButton.disabled =
+          true
+
+        const originalText =
+          faunaProofStepButton.textContent
+
+        faunaProofStepButton.textContent =
+          'Stepping…'
+
+        void refreshSimulation(
+          1,
+        ).finally(
+          () => {
+            faunaProofStepButton.disabled =
+              false
+
+            faunaProofStepButton.textContent =
+              originalText
+          },
+        )
+      },
+    )
   }
 
   if (!playMode) {

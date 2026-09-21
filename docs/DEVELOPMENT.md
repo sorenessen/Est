@@ -190,6 +190,15 @@ places a newly manifested Ester near authoritative fauna when available so
 walking-scale fauna presentation can be exercised without changing fauna
 authority or normal movement semantics.
 
+In this focused embodied view, **Step Fauna +1s** explicitly advances the
+authoritative simulation by one second and refreshes the local world snapshot.
+It exists to prove local actor motion and facing against authoritative state.
+
+The step control does not establish the final embodied simulation-time policy
+and does not enable an automatic Play-mode heartbeat. Wolf facing is derived
+from successive authoritative geographic positions for the same `AnimalId`;
+camera movement and Ester movement do not count as wolf motion.
+
 Both launchers start or reuse Est.Api and Est.Web, wait for their health
 checks, create a fresh Earth session through `POST /sessions`, and open the
 Babylon root route with an explicit `view` parameter. No manual

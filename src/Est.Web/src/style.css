@@ -872,6 +872,14 @@ body {
   white-space: nowrap;
 }
 
+.babylon-observer-view-switch button + button {
+  margin-top: 6px;
+}
+
+.babylon-observer-view-switch button[hidden] {
+  display: none;
+}
+
 .babylon-observer-view-switch button:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.13);
