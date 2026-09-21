@@ -27,6 +27,9 @@ coverage/
 # Local source datasets and generated geospatial assets
 data/
 
+# Local API runtime archives
+src/Est.Api/archives/
+
 # Local Python environments
 .venv/
 

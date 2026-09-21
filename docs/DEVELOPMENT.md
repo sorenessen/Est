@@ -76,25 +76,32 @@ Grass/scatter streaming is independently re-anchored around the manifested
 Ester with hidden preload and progressive geographic fade, preventing the prior
 whole-field regeneration pop during ordinary walking.
 
-Current Ester and nearby-human capsules are temporary presentation scaffolding.
-They are not domain models and are expected to be replaced by proper character
-presentation without changing identity or simulation ownership.
+The Ester capsule remains temporary presentation scaffolding. Nearby simulated
+people now use an animated human presentation keyed by authoritative `PersonId`.
+Neither visual representation owns identity or simulation state.
 
 Checkpoint commits:
 
 - `4001097` — playable Ester embodiment proof;
-- `10e0639` — playable environment presentation.
+- `10e0639` — playable environment presentation;
+- `13ab399` — playable Ester manifestation documentation;
+- `e1e4540` — animated human presentation;
+- `d89048b` — authoritative Ester encounter recognition.
 
-Latest verified web gate on September 20, 2026:
+Latest verified web gate on September 21, 2026:
 
-- 19 test files passed;
-- 129 / 129 tests passed;
+- 21 test files passed;
+- 137 / 137 tests passed;
 - `npx tsc --noEmit` passed;
 - `git diff --check` passed.
 
-The next playable proof is a physical, world-generated encounter between the
-manifested Ester and a stable simulated person, followed by authoritative
-recognition when that same Ester returns.
+The physical recognition proof is now complete. A manifested Ester can approach
+a stable simulated person, cross an encounter boundary derived from
+authoritative geographic positions, create the social encounter through the
+simulation authority path, leave that boundary, and return. The movement API
+reports whether the person recognized the Ester before the new encounter was
+recorded, allowing presentation to distinguish a first encounter from
+recognition on return without owning social truth.
 
 ## Local Environment
 

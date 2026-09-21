@@ -168,9 +168,10 @@ The presentation entity must therefore remain tied to stable `PersonId`.
 Changing a person's visual asset, LOD, animation, rig, or temporary placeholder
 must not create a new simulated person.
 
-The current capsule humans are temporary presentation scaffolding.
+The current local human presentation uses an animated avatar keyed by stable
+`PersonId`.
 
-A future proper human avatar may replace them without changing person identity,
+Changing or replacing that avatar still must not change person identity,
 location authority, history, needs, relationships, or social recognition.
 
 ### Ester presentation
@@ -187,11 +188,14 @@ ownership decision.
 
 Physical proximity alone does not permit the renderer to mutate social state.
 
-A future world-generated encounter may use authoritative Ester and person
-positions as inputs to determine whether an encounter qualifies.
+The current gameplay encounter policy uses authoritative Ester and person
+geographic positions on the same planet. Entering a 2.5 metre encounter radius
+from outside that radius qualifies an encounter. Remaining inside does not
+repeatedly record encounters; leaving and entering again qualifies a later
+encounter.
 
-The resulting social change must pass through the application/simulation
-authority path established by ADR 0018.
+The resulting social change passes through the application/simulation authority
+path established by ADR 0018.
 
 The intended causal flow is:
 
@@ -217,7 +221,7 @@ established by ADR 0003.
 
 ## Current implementation checkpoint
 
-As of September 20, 2026, Est has demonstrated:
+As of September 21, 2026, Est has demonstrated:
 
 - stable Ester identity in the browser/application path;
 - authoritative manifested-Ester state;
@@ -225,36 +229,41 @@ As of September 20, 2026, Est has demonstrated:
 - geographic movement on the authoritative planet;
 - responsive local prediction with server reconciliation;
 - a Babylon local metre-space centered on the Ester;
-- nearby human presentation tied to stable `PersonId`;
+- animated nearby human presentation tied to stable `PersonId`;
 - authoritative terrain sampled into a local walking surface;
 - deterministic presentation-only terrain enhancement;
 - geographically stable grass and surface scatter;
 - independently streamed grass with progressive edge fading;
-- temporary Ester and human capsule representations.
+- a world-generated encounter boundary based on authoritative positions;
+- encounter mutation routed through the existing simulation social operation;
+- API reporting of recognition state from before each qualifying encounter;
+- runtime proof that the same person recognizes the same Ester after the Ester
+  leaves encounter range and returns;
+- temporary Ester capsule presentation.
 
 Relevant implementation checkpoints include:
 
 - `4001097` — playable Ester embodiment proof;
-- `10e0639` — playable environment presentation.
+- `10e0639` — playable environment presentation;
+- `13ab399` — playable Ester manifestation documentation;
+- `e1e4540` — animated human presentation;
+- `d89048b` — authoritative Ester encounter recognition.
 
-The first proper human avatar and world-generated physical social encounter are
-not yet complete.
+## Completed causal proof
 
-## Next causal proof
-
-The next proof should establish:
+The runtime proof established:
 
     Ester approaches Person A
-      -> Person A is the same stable simulated individual already represented
-         by PersonId
-      -> physical world circumstances qualify an encounter
+      -> Person A is the same stable simulated individual represented by PersonId
+      -> authoritative world positions qualify encounter one
       -> simulation records Person A / Ester encounter
-      -> Ester leaves
-      -> Ester returns later
-      -> Person A recognizes that Ester before encounter two is recorded
+      -> Ester leaves the encounter radius
+      -> Ester returns
+      -> Person A is recognized before encounter two is recorded
+      -> existing encounter history increments from one to two
 
-The first human-avatar work should support this proof without turning visual
-asset selection into simulation architecture.
+The presentation reports this result but does not determine it. Visual asset
+selection remains independent of simulation identity and social authority.
 
 ## Non-goals
 
@@ -290,7 +299,7 @@ Those capabilities may be added when their causal requirements are known.
   simulation-grid resolution.
 - Character presentation can evolve independently of stable person and Ester
   identity.
-- Physical encounters have a clear future path into authoritative social state.
+- Physical encounters route through authoritative simulation social state.
 - Procedural local detail can improve visual quality without inventing
   simulation truth.
 
@@ -300,10 +309,10 @@ Those capabilities may be added when their causal requirements are known.
 - Local render re-anchoring requires careful continuity handling.
 - Presentation-only detail must remain clearly separated from future
   walking-scale simulation requirements.
-- Physical encounter qualification will require an explicit policy rather than
-  relying on visual overlap.
-- Proper human presentation will need to preserve identity while supporting
-  future locomotion and activity animation.
+- The current 2.5 metre entry policy is intentionally simple and may require
+  refinement when richer interaction requirements are known.
+- Human locomotion and activity presentation must continue to preserve stable
+  person identity and simulation authority.
 
 ## Relationships
 

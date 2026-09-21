@@ -330,7 +330,7 @@ civilization simulation.
 - [x] Evaluate a minimal prey/hunting loop.
 - [x] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.
-- [ ] Select and integrate a durable animated person presentation now that close-range manifested interaction is establishing its requirements.
+- [x] Select and integrate a durable animated person presentation now that close-range manifested interaction is establishing its requirements.
 
 ### Playable Ester embodiment and encounter slice
 
@@ -367,22 +367,22 @@ Completed foundation:
 - [x] Preserve the existing person-owned social-recognition model needed for a
       returning Ester to be recognized later.
 
-Current causal slice:
+Completed causal slice:
 
-- [ ] Replace the temporary nearby-human capsule with the first proper human
+- [x] Replace the temporary nearby-human capsule with the first proper human
       avatar presentation while preserving `PersonId` as identity and keeping
       the visual asset non-authoritative.
-- [ ] Define the physical encounter boundary from authoritative Ester/person
+- [x] Define the physical encounter boundary from authoritative Ester/person
       world positions rather than renderer mesh overlap.
-- [ ] Route a qualifying world-generated Ester/person encounter through the
+- [x] Route a qualifying world-generated Ester/person encounter through the
       existing authoritative simulation operation.
-- [ ] Expose whether that person recognized the Ester before a repeated
+- [x] Expose whether that person recognized the Ester before a repeated
       encounter is recorded.
-- [ ] Runtime-prove the sequence:
+- [x] Runtime-prove the sequence:
       `approach person -> first encounter -> leave -> return -> same person
       recognizes same Ester`.
-- [ ] Keep dialogue, relationships, reputation, generated language, and richer
-      cognition outside this slice until the physical recognition loop is
+- [x] Keep dialogue, relationships, reputation, generated language, and richer
+      cognition outside this slice while making the physical recognition loop
       authoritative and observable.
 
 Presentation follow-up after the causal loop is green:
