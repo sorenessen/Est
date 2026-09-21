@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 PORT=5173
-PAGE_URL="http://localhost:${PORT}/"
+PAGE_URL="http://127.0.0.1:${PORT}/"
 
 web_is_healthy() {
     local response
@@ -62,7 +62,7 @@ if [[ -n "$pid" ]]; then
     exit 1
 fi
 
-launch_command="cd ${(q)EST_ROOT}/src/Est.Web && npm run dev"
+launch_command="cd ${(q)EST_ROOT}/src/Est.Web && npm run dev -- --host 127.0.0.1"
 
 echo "Starting Est.Web in its own iTerm window..."
 open_iterm_window "$launch_command"

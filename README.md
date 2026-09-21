@@ -144,7 +144,7 @@ Est's current planetary renderer is Babylon.js.
 
 The production browser route is:
 
-`http://localhost:5173/?session=<session-id>`
+`http://127.0.0.1:5173/?session=<session-id>&view=observatory`
 
 Cesium is retired from the current planetary-rendering path. Any Cesium code,
 pages, screenshots, experiments, or documentation retained in this repository
@@ -163,9 +163,14 @@ regional surfaces, local geometry, presentation scale, and browser-hosted globe
 interaction. That evidence is preserved, but Cesium is not a current renderer
 candidate and is not an alternate current runtime path.
 
-For local development, use Sparrow's **Play Est** task or run
-`./scripts/dev/play.sh` from the repository root. Play starts or reuses the API
-and web hosts, creates a fresh Earth session, and opens the Babylon root route.
+For local development, `./scripts/dev/play.sh` opens a fresh Earth session in
+the embodied Living World, while `./scripts/dev/observatory.sh` opens a fresh
+Earth session in the planetary Observatory. Both use the same Babylon
+application and authoritative simulation model; the presentation view can also
+be switched in-app without creating a new session.
+
+Focused presentation proofs can use development hints such as
+`./scripts/dev/play.sh --focus fauna`.
 
 See `docs/DEVELOPMENT.md` for development commands and
 `docs/SURFACE_EVALUATION.md` for the data pipeline and next steps.

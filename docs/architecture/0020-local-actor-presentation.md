@@ -375,8 +375,11 @@ The current local grazer projection deliberately treats representative spread as
 presentation policy rather than authoritative herd extent.
 
 It also carries vegetation biomass from the cohort's authoritative current
-surface cell as macro habitat context. That cell-level value is not interpreted
-as sub-cell ecological distribution at each generated representative position.
+surface cell as macro habitat context when that cell is represented in the
+sparse vegetation state. A valid surface cell that is absent from vegetation
+state yields null habitat context; absence does not invalidate the cohort.
+That cell-level value is not interpreted as sub-cell ecological distribution
+at each generated representative position.
 
 The final abundance-to-representative density policy and habitat-aware local
 placement algorithm remain undecided.

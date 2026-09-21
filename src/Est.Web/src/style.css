@@ -845,6 +845,48 @@ body {
   letter-spacing: 0.04em;
 }
 
+.babylon-observer-view-switch {
+  flex: 0 0 auto;
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.babylon-observer-view-switch button {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.075);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.babylon-observer-view-switch button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.babylon-observer-view-switch button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.babylon-observer-panel.is-collapsed
+.babylon-observer-view-switch {
+  display: none;
+}
+
 .babylon-observer-body {
   max-height: calc(100vh - 100px);
   overflow: auto;

@@ -366,7 +366,7 @@ describe(
     )
 
     it(
-      'rejects vegetation that omits the cohort authoritative surface cell',
+      'uses null habitat context when the sparse vegetation state omits the cohort surface cell',
       () => {
         const vegetation = {
           ...createVegetation(),
@@ -380,23 +380,30 @@ describe(
               ),
         }
 
+        const projected =
+          project(
+            createGrazerResponse([
+              createCohort(
+                'cohort-a',
+                2,
+                'cell-b',
+              ),
+            ]),
+            {
+              vegetation,
+            },
+          )
+
         expect(
-          () =>
-            project(
-              createGrazerResponse([
-                createCohort(
-                  'cohort-a',
-                  2,
-                  'cell-b',
-                ),
-              ]),
-              {
-                vegetation,
-              },
-            ),
-        ).toThrow(
-          'Vegetation does not contain the grazer cohort surface cell.',
-        )
+          projected.map(
+            representative =>
+              representative
+                .cohortCellLiveBiomassKilogramsPerSquareMeter,
+          ),
+        ).toEqual([
+          null,
+          null,
+        ])
       },
     )
 

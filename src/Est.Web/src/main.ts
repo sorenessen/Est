@@ -70,6 +70,20 @@ import {
 } from './player/local-play-space'
 
 import {
+  projectLocalIndividualActors,
+} from './player/local-actor-projection'
+
+import {
+  projectLocalGrazers,
+} from './player/local-grazer-projection'
+
+import {
+  createGrazerPresentation,
+  createWolfPresentation,
+  type FaunaPresentation,
+} from './player/fauna-presentation'
+
+import {
   createHumanPresentation,
   type HumanPresentation,
 } from './player/human-presentation'
@@ -259,6 +273,15 @@ app.innerHTML = `
           title="Minimize observatory"
         >Minimize</button>
       </div>
+    </div>
+
+    <div class="babylon-observer-view-switch">
+      <button
+        id="viewModeButton"
+        type="button"
+        aria-label="Enter embodied world view"
+        title="Enter embodied world view"
+      >Enter World</button>
     </div>
 
     <div id="observerPanelBody" class="babylon-observer-body">
@@ -552,9 +575,36 @@ const showFaceDiagnostics =
 const sessionId =
   queryParameters.get('session')
 
-const playMode =
-  queryParameters.get('play') === '1'
+const requestedView =
+  queryParameters.get('view')
 
+if (
+  requestedView !== null &&
+  requestedView !== 'observatory' &&
+  requestedView !== 'embodied'
+) {
+  throw new Error(
+    `Unsupported Est view '${requestedView}'.`,
+  )
+}
+
+// `play=1` remains a compatibility alias while development links migrate
+// to the explicit presentation-view contract.
+const playMode =
+  requestedView === 'embodied' ||
+  (
+    requestedView === null &&
+    queryParameters.get('play') === '1'
+  )
+
+const viewMode:
+  'observatory' | 'embodied' =
+    playMode
+      ? 'embodied'
+      : 'observatory'
+
+const faunaFocusRequested =
+  queryParameters.get('focus') === 'fauna'
 
 playSkyLight.intensity =
   playMode
@@ -581,6 +631,11 @@ const observerPanel =
     '#observerPanel',
   )
 
+const viewModeButton =
+  document.querySelector<HTMLButtonElement>(
+    '#viewModeButton',
+  )
+
 const observerPanelDragHandle =
   document.querySelector<HTMLElement>(
     '#observerPanelDragHandle',
@@ -603,6 +658,7 @@ const panelVisibilityTip =
 
 if (
   !observerPanel ||
+  !viewModeButton ||
   !observerPanelDragHandle ||
   !observerPanelMinimizeButton ||
   !observerPanelRestoreButton ||
@@ -612,6 +668,62 @@ if (
     'Observatory panel controls were not created.',
   )
 }
+
+viewModeButton.textContent =
+  viewMode === 'embodied'
+    ? 'Return to Observatory'
+    : 'Enter World'
+
+viewModeButton.setAttribute(
+  'aria-label',
+  viewMode === 'embodied'
+    ? 'Return to observatory view'
+    : 'Enter embodied world view',
+)
+
+viewModeButton.title =
+  viewMode === 'embodied'
+    ? 'Return to observatory view'
+    : 'Enter embodied world view'
+
+viewModeButton.disabled =
+  sessionId === null
+
+viewModeButton.addEventListener(
+  'click',
+  () => {
+    if (sessionId === null) {
+      return
+    }
+
+    const nextUrl =
+      new URL(
+        window.location.href,
+      )
+
+    nextUrl.searchParams.set(
+      'session',
+      sessionId,
+    )
+
+    nextUrl.searchParams.set(
+      'view',
+      viewMode === 'embodied'
+        ? 'observatory'
+        : 'embodied',
+    )
+
+    // Canonical links now use `view`; do not propagate the compatibility
+    // alias when switching presentation modes.
+    nextUrl.searchParams.delete(
+      'play',
+    )
+
+    window.location.assign(
+      nextUrl.toString(),
+    )
+  },
+)
 
 const observerPanelViewportMargin =
   8
@@ -1881,19 +1993,34 @@ if (sessionId) {
             planet.planetId,
         )
 
+      const nearbyWolf =
+        faunaFocusRequested
+          ? world.animals.find(
+              animal =>
+                animal.planetId ===
+                  planet.planetId &&
+                animal.species ===
+                  'Wolf',
+            )
+          : undefined
+
+      const spawnAnchor =
+        nearbyWolf ??
+        nearbyPerson
+
       const spawnBase = {
         latitudeDegrees:
-          nearbyPerson
+          spawnAnchor
             ?.latitudeDegrees ??
           0,
         longitudeDegrees:
-          nearbyPerson
+          spawnAnchor
             ?.longitudeDegrees ??
           0,
       }
 
       const spawn =
-        nearbyPerson
+        spawnAnchor
           ? moveSurfaceCoordinate(
               spawnBase,
               0,
@@ -3153,11 +3280,6 @@ if (sessionId) {
         1
     }
 
-    const faunaFocusRequested =
-      new URLSearchParams(
-        window.location.search,
-      ).get('focus') === 'fauna'
-
     if (
       faunaFocusRequested &&
       !faunaFocusApplied
@@ -3364,6 +3486,18 @@ if (sessionId) {
 
   const playHumanLoadFailures =
     new Set<string>()
+
+  const playWolfPresentations =
+    new Map<
+      string,
+      FaunaPresentation
+    >()
+
+  const playGrazerPresentations =
+    new Map<
+      string,
+      FaunaPresentation
+    >()
 
   let presentationEster:
     ManifestedEsterResponse | null =
@@ -5600,29 +5734,37 @@ if (sessionId) {
     const preloadRadiusMeters =
       150
 
-    for (
-      const person of
-      world.population
-    ) {
-      if (
-        person.planetId !==
-        planet.planetId
-      ) {
-        continue
-      }
-
-      const local =
-        geographicToLocalMeters(
-          person,
+    const localIndividuals =
+      projectLocalIndividualActors({
+        planetId:
+          planet.planetId,
+        origin:
           presentationEster,
+        planetRadiusMeters:
           planet.meanRadiusMeters,
-        )
+        maximumDistanceMeters:
+          preloadRadiusMeters,
+        population:
+          world.population,
+        animals:
+          world.animals,
+      })
 
-      const distanceMeters =
-        Math.hypot(
-          local.eastMeters,
-          local.northMeters,
-        )
+    for (
+      const human of
+      playHumanPresentations.values()
+    ) {
+      human.setEnabled(
+        false,
+      )
+    }
+
+    for (
+      const actor of
+      localIndividuals.people
+    ) {
+      const person =
+        actor.source
 
       const human =
         playHumanPresentations.get(
@@ -5630,21 +5772,16 @@ if (sessionId) {
         )
 
       if (!human) {
-        if (
-          distanceMeters <=
-          preloadRadiusMeters
-        ) {
-          ensurePlayHumanPresentation(
-            person.personId,
-            person.sex,
-          )
-        }
+        ensurePlayHumanPresentation(
+          person.personId,
+          person.sex,
+        )
 
         continue
       }
 
       const visible =
-        distanceMeters <=
+        actor.distanceMeters <=
         visibleRadiusMeters
 
       human.setEnabled(
@@ -5662,12 +5799,192 @@ if (sessionId) {
         )
 
       human.root.position.set(
-        local.eastMeters,
+        actor.local.eastMeters,
         personElevationMeters -
           esterElevationMeters,
-        local.northMeters,
+        actor.local.northMeters,
       )
     }
+
+    const projectedWolfKeys =
+      new Set<string>()
+
+    for (
+      const actor of
+      localIndividuals.animals
+    ) {
+      if (
+        actor.source.species !==
+        'Wolf'
+      ) {
+        continue
+      }
+
+      projectedWolfKeys.add(
+        actor.actorKey,
+      )
+
+      let wolf =
+        playWolfPresentations.get(
+          actor.actorKey,
+        )
+
+      if (!wolf) {
+        wolf =
+          createWolfPresentation(
+            scene,
+            actor.actorKey,
+          )
+
+        playWolfPresentations.set(
+          actor.actorKey,
+          wolf,
+        )
+      }
+
+      const visible =
+        actor.distanceMeters <=
+        visibleRadiusMeters
+
+      wolf.setEnabled(
+        visible,
+      )
+
+      if (!visible) {
+        continue
+      }
+
+      const wolfElevationMeters =
+        samplePlayTerrainElevationMeters(
+          actor.source.latitudeDegrees,
+          actor.source.longitudeDegrees,
+        )
+
+      wolf.root.position.set(
+        actor.local.eastMeters,
+        wolfElevationMeters -
+          esterElevationMeters,
+        actor.local.northMeters,
+      )
+    }
+
+    for (
+      const [
+        actorKey,
+        wolf,
+      ] of
+      playWolfPresentations
+    ) {
+      if (
+        projectedWolfKeys.has(
+          actorKey,
+        )
+      ) {
+        continue
+      }
+
+      wolf.dispose()
+
+      playWolfPresentations.delete(
+        actorKey,
+      )
+    }
+
+    const localGrazers =
+      projectLocalGrazers({
+        planetId:
+          planet.planetId,
+        origin:
+          presentationEster,
+        planetRadiusMeters:
+          planet.meanRadiusMeters,
+        maximumDistanceMeters:
+          preloadRadiusMeters,
+        presentationSpreadRadiusMeters:
+          40,
+        maximumRepresentativesPerCohort:
+          8,
+        grazerCohorts,
+        vegetation,
+      })
+
+    const projectedGrazerKeys =
+      new Set<string>()
+
+    for (
+      const actor of
+      localGrazers
+    ) {
+      projectedGrazerKeys.add(
+        actor.actorKey,
+      )
+
+      let grazer =
+        playGrazerPresentations.get(
+          actor.actorKey,
+        )
+
+      if (!grazer) {
+        grazer =
+          createGrazerPresentation(
+            scene,
+            actor.actorKey,
+          )
+
+        playGrazerPresentations.set(
+          actor.actorKey,
+          grazer,
+        )
+      }
+
+      const visible =
+        actor.distanceMeters <=
+        visibleRadiusMeters
+
+      grazer.setEnabled(
+        visible,
+      )
+
+      if (!visible) {
+        continue
+      }
+
+      const grazerElevationMeters =
+        samplePlayTerrainElevationMeters(
+          actor.coordinate.latitudeDegrees,
+          actor.coordinate.longitudeDegrees,
+        )
+
+      grazer.root.position.set(
+        actor.local.eastMeters,
+        grazerElevationMeters -
+          esterElevationMeters,
+        actor.local.northMeters,
+      )
+    }
+
+    for (
+      const [
+        actorKey,
+        grazer,
+      ] of
+      playGrazerPresentations
+    ) {
+      if (
+        projectedGrazerKeys.has(
+          actorKey,
+        )
+      ) {
+        continue
+      }
+
+      grazer.dispose()
+
+      playGrazerPresentations.delete(
+        actorKey,
+      )
+    }
+
     updatePlaySurfaceScatterPositions()
   }
 

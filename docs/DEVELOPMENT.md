@@ -23,9 +23,13 @@ path, smoke-test target, or runtime-validation path.
 **Do not use `/cesium.html` for current development, launch, smoke testing,
 runtime validation, or simulation visualization.**
 
-Use the Babylon root route:
+Use the Babylon root route with an explicit presentation view:
 
-`http://localhost:5173/?session=<session-id>`
+- Observatory: `http://127.0.0.1:5173/?session=<session-id>&view=observatory`
+- Embodied Living World: `http://127.0.0.1:5173/?session=<session-id>&view=embodied`
+
+Both views present the same authoritative simulation session. Switching views
+must preserve the session ID rather than creating or copying world state.
 
 ### Living-surface runtime checkpoint — 2026-09-17
 
@@ -155,24 +159,54 @@ and can be configured through `Est:ArchiveDirectory`.
 The macOS launcher was validated on September 8, 2026, including a true
 cold start from Sparrow and subsequent reuse of both running services.
 
-From Sparrow, open the Est workspace and select **Play Est**. Alternatively,
-run the same launcher from a regular development terminal:
+Est has two current presentation views over one authoritative simulation:
+
+- **Observatory** presents the planetary/global simulation for inspection.
+- **Embodied** presents the local Living World around manifested Ester.
+
+For normal embodied development:
 
 ```bash
 cd ~/Projects/Est
 ./scripts/dev/play.sh
 ```
 
-Play starts or reuses Est.Api and Est.Web, waits for their health checks,
-creates a fresh Earth session through `POST /sessions`, and opens the Babylon
-root route with the returned session ID. No manual API -> Web -> Play sequence
-is required.
+For the global Observatory:
 
-The Sparrow workspace configuration is `sparrow.toml`:
+```bash
+cd ~/Projects/Est
+./scripts/dev/observatory.sh
+```
 
-- **Play Est**: normal startup and fresh Earth session.
+For a focused local fauna presentation proof:
+
+```bash
+cd ~/Projects/Est
+./scripts/dev/play.sh --focus fauna
+```
+
+`--focus fauna` is a development hint, not a separate Est application mode. It
+places a newly manifested Ester near authoritative fauna when available so
+walking-scale fauna presentation can be exercised without changing fauna
+authority or normal movement semantics.
+
+Both launchers start or reuse Est.Api and Est.Web, wait for their health
+checks, create a fresh Earth session through `POST /sessions`, and open the
+Babylon root route with an explicit `view` parameter. No manual
+API -> Web -> Play sequence is required.
+
+Once a session is open, the **Enter World** / **Observatory** control switches
+between presentation views while preserving that same session ID.
+
+Useful Sparrow tasks may therefore map directly to:
+
+- **Play Est**: `./scripts/dev/play.sh`
+- **Play Est - Fauna**: `./scripts/dev/play.sh --focus fauna`
+- **Est Observatory**: `./scripts/dev/observatory.sh`
 - **Start API**: start or reuse the API independently.
 - **Start Web**: start or reuse the web renderer independently.
+
+The Sparrow workspace configuration is `sparrow.toml`.
 
 The launcher is currently macOS-specific and uses iTerm to open independent
 service windows. It requires the .NET SDK, Node.js/npm, Python 3, curl,
@@ -180,7 +214,7 @@ lsof, zsh, and iTerm. The launcher preserves the invoking shell's PATH
 when starting service windows. Current Babylon development does not require
 Cesium configuration or a Cesium ion token.
 
-The API listens on port 5026 and Vite on port 5173. The API health contract
+The API listens on port 5026 and Vite on IPv4 loopback port 5173. The API health contract
 is `GET /health`, returning HTTP 200 with service `Est.Api` and status
 `healthy`. Web startup validation must target the current Est.Web application,
 not `/cesium.html`.
@@ -216,14 +250,15 @@ npm run dev
 ```
 
 The verified API endpoint is `http://localhost:5026`. The verified browser
-endpoint is `http://localhost:5173`. Vite proxies browser requests under
+endpoint is `http://127.0.0.1:5173`. Vite proxies browser requests under
 `/api` to Est.Api on port 5026.
 
 Create a simulation session through `POST /sessions`, retain the returned
-`sessionId`, and open:
+`sessionId`, and open either presentation view:
 
 ```text
-http://localhost:5173/?session=<session-id>
+http://127.0.0.1:5173/?session=<session-id>&view=observatory
+http://127.0.0.1:5173/?session=<session-id>&view=embodied
 ```
 
 A successful smoke test renders the Babylon planet and shows authoritative

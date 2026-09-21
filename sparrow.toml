@@ -6,7 +6,15 @@ root = "."
 
 [tasks."Play Est"]
 cmd = "./scripts/dev/play.sh"
-desc = "Start the services if needed and open a fresh Earth session."
+desc = "Start the services if needed and open a fresh Earth session in embodied Living World view."
+
+[tasks."Play Est - Fauna"]
+cmd = "./scripts/dev/play.sh --focus fauna"
+desc = "Open embodied Living World view with a new Ester manifested near authoritative fauna for presentation proof work."
+
+[tasks."Est Observatory"]
+cmd = "./scripts/dev/observatory.sh"
+desc = "Start the services if needed and open a fresh Earth session in planetary Observatory view."
 
 [tasks."Start API"]
 cmd = "./scripts/dev/api.sh"

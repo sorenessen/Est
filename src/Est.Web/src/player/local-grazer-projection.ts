@@ -258,15 +258,6 @@ export function projectLocalGrazers(
         cohort.surfaceCellId,
       )
 
-    if (
-      input.vegetation !== null &&
-      cohortCellLiveBiomass === undefined
-    ) {
-      throw new Error(
-        'Vegetation does not contain the grazer cohort surface cell.',
-      )
-    }
-
     for (
       let representativeIndex = 0;
       representativeIndex <
