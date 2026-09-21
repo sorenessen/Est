@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using Est.Api.Contracts;
+using Est.Simulation.Planets;
+using Est.Simulation.Surface;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Est.Api.Tests.Sessions;
@@ -178,10 +180,20 @@ public sealed class GrazerCohortEndpointTests
         Assert.NotNull(
             world);
 
-        var planetId =
+        var planet =
             Assert.Single(
-                    world.Planets)
-                .PlanetId;
+                world.Planets);
+
+        var planetId =
+            planet.PlanetId;
+
+        var surfaceGrid =
+            new LatLonPlanetSurfaceGrid(
+                new PlanetId(
+                    planetId),
+                planet.MeanRadiusMeters,
+                latitudeBandCount: 4,
+                longitudeBandCount: 8);
 
         var before =
             await client.GetFromJsonAsync<GrazerCohortsResponse>(
@@ -204,6 +216,15 @@ public sealed class GrazerCohortEndpointTests
             {
                 Assert.True(
                     cohort.MemberCount > 0);
+
+                var expectedSurfaceCell =
+                    surfaceGrid.LocateCell(
+                        cohort.LatitudeDegrees,
+                        cohort.LongitudeDegrees);
+
+                Assert.Equal(
+                    expectedSurfaceCell.Id.Value,
+                    cohort.SurfaceCellId);
 
                 Assert.Equal(
                     cohort.MemberCount * 320,
@@ -275,6 +296,10 @@ public sealed class GrazerCohortEndpointTests
             Assert.Equal(
                 original.LongitudeDegrees,
                 cohort.LongitudeDegrees);
+
+            Assert.Equal(
+                original.SurfaceCellId,
+                cohort.SurfaceCellId);
 
             Assert.Equal(
                 original.Material,

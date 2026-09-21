@@ -7,6 +7,7 @@ public sealed record GrazerCohortsResponse(
 public sealed record GrazerCohortResponse(
     Guid CohortId,
     int MemberCount,
+    Guid SurfaceCellId,
     double LatitudeDegrees,
     double LongitudeDegrees,
     OrganismMaterialResponse Material);

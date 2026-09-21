@@ -142,6 +142,7 @@ export interface BirdFlocksResponse {
 export interface GrazerCohortResponse {
   cohortId: string
   memberCount: number
+  surfaceCellId: string
   latitudeDegrees: number
   longitudeDegrees: number
   material: OrganismMaterialResponse

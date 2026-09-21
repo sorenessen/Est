@@ -1411,7 +1411,7 @@ app.MapGet(
             return Results.NotFound();
         }
 
-        var cohorts =
+        var cohortStates =
             session.CurrentWorld.GrazerCohorts
                 .Where(
                     cohort =>
@@ -1420,16 +1420,54 @@ app.MapGet(
                 .OrderBy(
                     cohort =>
                         cohort.Id.Value)
+                .ToArray();
+
+        if (cohortStates.Length == 0)
+        {
+            return Results.Ok(
+                new GrazerCohortsResponse(
+                    planetIdentity.Value,
+                    []));
+        }
+
+        var vegetation =
+            session.CurrentWorld.Vegetation
+                .FirstOrDefault(
+                    candidate =>
+                        candidate.PlanetId ==
+                        planetIdentity);
+
+        if (vegetation is null)
+        {
+            return Results.Problem(
+                "Grazer cohorts require authoritative vegetation-grid state.");
+        }
+
+        var surfaceGrid =
+            PlanetSurfaceGridFactory.Create(
+                planet,
+                vegetation.GridDefinition);
+
+        var cohorts =
+            cohortStates
                 .Select(
                     cohort =>
-                        new GrazerCohortResponse(
+                    {
+                        var surfaceCell =
+                            surfaceGrid.LocateCell(
+                                cohort.LatitudeDegrees,
+                                cohort.LongitudeDegrees);
+
+                        return new GrazerCohortResponse(
                             cohort.Id.Value,
                             cohort.MemberCount,
+                            surfaceCell.Id.Value,
                             cohort.LatitudeDegrees,
                             cohort.LongitudeDegrees,
                             new OrganismMaterialResponse(
                                 cohort.Material.LiveBiomassKilograms,
-                                cohort.Material.LiveNitrogenKilograms)))
+                                cohort.Material.LiveNitrogenKilograms));
+                    })
                 .ToArray();
 
         return Results.Ok(
