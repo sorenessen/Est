@@ -920,6 +920,42 @@ Future implementation must preserve these rules:
 15. Richer cognition must grow from explicit authoritative state rather than
     replacing recognition with ungrounded generated behavior.
 
+## Playable manifestation follow-up — 2026-09-20
+
+The recognition foundation is now paired with a working manifested-Ester
+foundation.
+
+Est currently has:
+
+- stable Ester identity;
+- authoritative manifested Ester geographic state;
+- player locomotion through the application/API authority path;
+- a local Babylon play representation;
+- stable authoritative `PersonId` values for nearby simulated humans;
+- person-owned actor-specific recognition state.
+
+This does not yet mean a physical gameplay encounter is authoritative.
+
+The next proof must connect world circumstances to this existing social model:
+
+    manifested Ester and Person A occupy qualifying world proximity
+      -> application requests an encounter state transition
+      -> simulation validates and records the encounter
+      -> Person A recognizes that Ester thereafter
+      -> Ester leaves
+      -> same Ester later returns
+      -> recognition is observed before another encounter is recorded
+
+The renderer must not create recognition because two meshes overlap or because
+an animation plays.
+
+Presentation may detect or display useful proximity evidence, but the
+authoritative encounter boundary and resulting social-state change remain
+simulation/application concerns.
+
+This follow-up is specified in ADR 0019 and
+`docs/design/returning-ester-recognition-proof.md`.
+
 ## Consequences
 
 ### Positive

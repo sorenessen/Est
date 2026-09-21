@@ -43,6 +43,59 @@ founder placement against authoritative standing water:
 This validates the generated-world dry-habitat placement path when terrain and
 hydrology are available.
 
+### Playable Ester runtime checkpoint — 2026-09-20
+
+The production Babylon client now supports a manifested Ester entering the
+authoritative world in a ground-level play mode.
+
+Current authority boundary:
+
+- the Ester has a stable `EsterId` independent of one session;
+- authoritative manifested state owns planet identity and geographic
+  latitude/longitude;
+- movement is submitted through the Est application/API path and does not grant
+  authoritative position ownership to the browser;
+- the browser may predict and smooth movement for presentation quality, then
+  converges to authoritative state;
+- the local Babylon scene is a metre-space render frame centered around the
+  manifested Ester, not a second simulation coordinate system;
+- nearby authoritative people are transformed into that local frame using their
+  stable `PersonId` and geographic position.
+
+The local surface presentation now proves a second important separation:
+
+`authoritative surface state != required close-range render density`
+
+The play-space terrain samples Est's authoritative continuous terrain field and
+may add deterministic geographically anchored presentation detail. That added
+relief, color variation, micro-detail, grass, stones, wind animation, and
+streaming behavior are visual representation only. They do not modify
+authoritative terrain, vegetation, ecology, or person state.
+
+Grass/scatter streaming is independently re-anchored around the manifested
+Ester with hidden preload and progressive geographic fade, preventing the prior
+whole-field regeneration pop during ordinary walking.
+
+Current Ester and nearby-human capsules are temporary presentation scaffolding.
+They are not domain models and are expected to be replaced by proper character
+presentation without changing identity or simulation ownership.
+
+Checkpoint commits:
+
+- `4001097` — playable Ester embodiment proof;
+- `10e0639` — playable environment presentation.
+
+Latest verified web gate on September 20, 2026:
+
+- 19 test files passed;
+- 129 / 129 tests passed;
+- `npx tsc --noEmit` passed;
+- `git diff --check` passed.
+
+The next playable proof is a physical, world-generated encounter between the
+manifested Ester and a stable simulated person, followed by authoritative
+recognition when that same Ester returns.
+
 ## Local Environment
 
 Primary environment: macOS Apple Silicon. Repository: `~/Projects/Est`. Solution: `Est.slnx`. Target framework: `net10.0`. Recorded SDK: `10.0.301`.
@@ -55,7 +108,7 @@ From the repository root:
 dotnet test Est.slnx
 ```
 
-Latest verified .NET result: September 17, 2026: 745 passed, 0 failed, 0 skipped. The latest verified web production build passed, and the web suite is 85 / 85 green.
+Latest verified full .NET solution result: September 17, 2026: 745 passed, 0 failed, 0 skipped. Latest verified web result: September 20, 2026: 129 / 129 tests passed with TypeScript and diff checks clean.
 
 ## Repository Inspection
 

@@ -360,6 +360,37 @@ sample layout, scale threshold, or production policy is established by this
 experiment. The renderer-neutral view context remains unchanged until those
 choices have stronger evidence.
 
+## Playable local-representation checkpoint — 2026-09-20
+
+The manifested-Ester proof adds current Babylon evidence for the multi-scale
+decision.
+
+Ground-level play does not reuse the immutable planet mesh as though one
+representation must satisfy every viewing scale. Instead, Est derives a local
+metre-space presentation around the manifested Ester from authoritative
+geographic state.
+
+That local representation may use:
+
+- denser terrain geometry than the simulation surface grid;
+- deterministic presentation-only terrain relief and material variation;
+- discrete grass, stones, and other close-range visual detail;
+- local representations of authoritative people and future world entities.
+
+This does not create a new authoritative world.
+
+The world continues to own geographic position, terrain, hydrology, vegetation,
+people, identity, and causal state. The local scene is a scale-appropriate
+representation of those facts.
+
+The current implementation also demonstrates practical rolling local detail.
+Terrain and surface scatter may re-anchor or stream independently when that
+improves visual continuity, provided those presentation transitions do not
+change authoritative identity or state.
+
+ADR 0019 records the specific manifestation and local play-space authority
+boundary.
+
 ## Consequences
 
 Positive:

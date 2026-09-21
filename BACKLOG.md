@@ -330,7 +330,73 @@ civilization simulation.
 - [x] Evaluate a minimal prey/hunting loop.
 - [x] Replace purely demographic reproduction with condition/interaction-driven reproduction when agent interaction is ready.
 - [ ] Add presentation LOD for population clusters versus individual people.
-- [ ] Select a durable animated person presentation only after simulation behavior establishes its requirements.
+- [ ] Select and integrate a durable animated person presentation now that close-range manifested interaction is establishing its requirements.
+
+### Playable Ester embodiment and encounter slice
+
+The current Living Worlds path now has enough simulation, identity, and
+presentation foundation to move from observing inhabitants toward physically
+participating in the same authoritative world.
+
+Architecture:
+
+- `docs/architecture/0018-person-social-recognition-foundation.md`
+- `docs/architecture/0019-playable-ester-manifestation.md`
+- `docs/design/returning-ester-recognition-proof.md`
+
+Completed foundation:
+
+- [x] Give an Ester stable identity independent of one runtime simulation
+      session.
+- [x] Add authoritative manifested-Ester state with planet and geographic
+      location.
+- [x] Route manifestation and movement through application/API authority rather
+      than allowing the renderer to own player location.
+- [x] Support responsive WASD movement with client-side presentation prediction
+      while retaining server-authoritative geographic state.
+- [x] Establish a Babylon local metre-space around the manifested Ester without
+      creating a second simulation coordinate authority.
+- [x] Keep Ester visually centered while translating authoritative nearby world
+      state into the local presentation frame.
+- [x] Present local terrain by continuously sampling authoritative macro terrain
+      and layering explicitly non-authoritative deterministic visual detail.
+- [x] Add geographically stable local surface scatter and animated grass.
+- [x] Stream grass independently of terrain re-anchoring and eliminate visible
+      whole-field regeneration popping during normal movement.
+- [x] Key nearby human presentation by stable authoritative `PersonId`.
+- [x] Preserve the existing person-owned social-recognition model needed for a
+      returning Ester to be recognized later.
+
+Current causal slice:
+
+- [ ] Replace the temporary nearby-human capsule with the first proper human
+      avatar presentation while preserving `PersonId` as identity and keeping
+      the visual asset non-authoritative.
+- [ ] Define the physical encounter boundary from authoritative Ester/person
+      world positions rather than renderer mesh overlap.
+- [ ] Route a qualifying world-generated Ester/person encounter through the
+      existing authoritative simulation operation.
+- [ ] Expose whether that person recognized the Ester before a repeated
+      encounter is recorded.
+- [ ] Runtime-prove the sequence:
+      `approach person -> first encounter -> leave -> return -> same person
+      recognizes same Ester`.
+- [ ] Keep dialogue, relationships, reputation, generated language, and richer
+      cognition outside this slice until the physical recognition loop is
+      authoritative and observable.
+
+Presentation follow-up after the causal loop is green:
+
+- [ ] Add human locomotion/orientation presentation driven by authoritative
+      movement rather than renderer-authored behavior.
+- [ ] Refine human terrain contact and close-range camera framing.
+- [ ] Add local vegetation/detail LOD only when runtime evidence shows the
+      current presentation requires it.
+- [ ] Replace temporary Ester capsule presentation when a durable player-avatar
+      requirement is selected.
+
+The priority is the causal gameplay loop, not additional cosmetic polishing of
+the already-proven terrain and grass presentation.
 
 ### Biosphere support foundation
 

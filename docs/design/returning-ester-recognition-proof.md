@@ -370,6 +370,26 @@ That is the prerequisite for the next proof.
 
 ## Next Proof
 
+### Implementation status — 2026-09-20
+
+The physical-presence prerequisites for this next proof are now substantially
+in place.
+
+Est now has a stable manifested Ester, authoritative geographic player
+location, responsive movement, a local Babylon metre-space, nearby people keyed
+by stable `PersonId`, and enough close-range terrain/surface presentation to
+support walking up to another person.
+
+The remaining proof is not "can the renderer place two capsules near each
+other."
+
+It is:
+
+> Can world circumstances involving the authoritative manifested Ester and the
+> same authoritative simulated person create the social encounter through the
+> simulation authority path, and can that person later recognize the returning
+> Ester before encounter two is recorded?
+
 The next proof should replace the explicit encounter trigger with world
 circumstances.
 

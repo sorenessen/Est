@@ -1218,6 +1218,30 @@ These questions should be answered according to the central experience:
 **The player exists beyond the world, but when they enter it, what they do
 there is real.**
 
+### Implementation checkpoint — 2026-09-20
+
+The first playable manifestation foundation now exists.
+
+A stable Ester can be manifested at an authoritative geographic position and
+walk through a Babylon local scene while the simulation remains authoritative.
+Nearby simulated humans retain stable `PersonId` identity, and local terrain
+presentation is derived from the same world rather than being a disconnected
+game map.
+
+The current capsules are placeholders, not a commitment to final avatar form.
+
+The immediate embodied-social slice is now intentionally narrow:
+
+    proper human presentation tied to PersonId
+      -> physical proximity with the manifested Ester
+      -> authoritative encounter
+      -> separation
+      -> later return
+      -> recognition of the same Ester
+
+This is the first concrete implementation of the playable-causal-slice
+principle described later in this document.
+
 ### 8.28 Power Is Capability, Not a Character Class
 
 The player's extraordinary abilities should not require the player to choose a

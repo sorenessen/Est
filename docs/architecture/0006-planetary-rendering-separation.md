@@ -392,6 +392,45 @@ At minimum the rebuilt planetary foundation must demonstrate:
 
 A failed runtime visual gate overrides a green build.
 
+## Playable local-space presentation — 2026-09-20
+
+The playable-Ester implementation extends this ADR without changing the
+immutable production planet decision.
+
+The immutable Babylon icosphere remains the production planetary
+representation. Ground-level play may additionally instantiate a bounded local
+presentation surface around a manifested Ester.
+
+The local surface is not a replacement planetary topology and is not
+authoritative simulation geography.
+
+Its role is:
+
+    authoritative geographic world state
+      -> Est-owned continuous sampling / geographic transforms
+      -> local metre-space presentation
+      -> Babylon meshes, materials, animation, and effects
+
+The manifested Ester remains authoritatively located by planet and geographic
+coordinates. Nearby people and other world entities remain authoritative in
+their own geographic state. The renderer transforms those facts into a local
+metre-space frame for stable close-range rendering.
+
+Re-anchoring the terrain patch, regenerating presentation textures, streaming
+grass, fading detail, or shifting local meshes must not alter the underlying
+world coordinates.
+
+Client-side motion prediction is likewise presentation behavior. Server state
+remains authoritative and the client must converge to it.
+
+Presentation may add deterministic sub-grid terrain and surface detail where
+the authoritative simulation does not require walking-scale spatial density.
+Such detail must remain explicitly non-authoritative and must not be fed back
+into simulation as though it were measured terrain, vegetation, collision, or
+habitat state.
+
+ADR 0019 is authoritative for the manifested-Ester/local-play-space boundary.
+
 ## Consequences
 
 ### Positive
