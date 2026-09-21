@@ -365,7 +365,21 @@ As of September 21, 2026:
 Implementation checkpoints:
 
 - `00075f6` - expose grazer cohort surface cells;
-- `4bd5fa5` - add local individual actor projection.
+- `4bd5fa5` - add local individual actor projection;
+- `c5a2a3e` - expose manifested Ester surface locality;
+- local grazer projection now supports deterministic, bounded,
+  cohort-backed presentation representatives without inventing `AnimalId`
+  identity.
+
+The current local grazer projection deliberately treats representative spread as
+presentation policy rather than authoritative herd extent.
+
+It also carries vegetation biomass from the cohort's authoritative current
+surface cell as macro habitat context. That cell-level value is not interpreted
+as sub-cell ecological distribution at each generated representative position.
+
+The final abundance-to-representative density policy and habitat-aware local
+placement algorithm remain undecided.
 
 ## Consequences
 
