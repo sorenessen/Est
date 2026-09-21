@@ -5,13 +5,19 @@ import {
   Color3,
   Color4,
   DirectionalLight,
+  DynamicTexture,
   Engine,
+  HemisphericLight,
   Mesh,
   Scene,
   StandardMaterial,
+  Texture,
   Vector3,
+  VertexBuffer,
   VertexData,
 } from '@babylonjs/core'
+
+import '@babylonjs/core/Meshes/thinInstanceMesh.js'
 
 import {
   sphereDirectionToGeographicDegrees,
@@ -31,6 +37,14 @@ import {
 } from '@babylonjs/core/Meshes/Builders/capsuleBuilder.js'
 
 import {
+  CreateCylinder,
+} from '@babylonjs/core/Meshes/Builders/cylinderBuilder.js'
+
+import {
+  CreateSphere,
+} from '@babylonjs/core/Meshes/Builders/sphereBuilder.js'
+
+import {
   CreateGround,
 } from '@babylonjs/core/Meshes/Builders/groundBuilder.js'
 
@@ -42,6 +56,10 @@ import {
 import {
   resolveEsterIdentity,
 } from './player/ester-identity'
+import {
+  createEsterCapsuleMaterial,
+  resolveEsterCapsuleSkin,
+} from './player/ester-capsule-skin'
 
 import {
   moveSurfaceCoordinate,
@@ -54,6 +72,21 @@ import {
 import {
   createTerrainHeightField,
 } from './surface/terrain-height-field'
+
+import {
+  sampleTerrainPresentationDetailMeters,
+  sampleTerrainSurfaceAppearance,
+} from './surface/terrain-presentation-detail'
+import {
+  createTerrainDetailMapPixels,
+} from './surface/terrain-detail-map'
+import {
+  createTerrainSurfaceScatter,
+} from './surface/terrain-surface-scatter'
+import {
+  createAnimatedGrassMaterial,
+  setAnimatedGrassAnchor,
+} from './surface/animated-grass-material'
 
 import {
   createTerrainShaderMaterial,
@@ -411,6 +444,38 @@ const sunlight =
 // useful for diagnostic StandardMaterials.
 sunlight.intensity = 1.0
 
+// Local embodied play uses a tangent-plane coordinate system:
+// X = east, Y = up, Z = north. The planetary sunlight vector is
+// expressed in the planet's global Cartesian frame, so it must be
+// transformed before it can correctly light the local play surface.
+const playSkyLight =
+  new HemisphericLight(
+    'play-sky-light',
+    new Vector3(
+      0,
+      1,
+      0,
+    ),
+    scene,
+  )
+
+playSkyLight.intensity =
+  0
+
+playSkyLight.diffuse =
+  new Color3(
+    0.82,
+    0.90,
+    1.0,
+  )
+
+playSkyLight.groundColor =
+  new Color3(
+    0.28,
+    0.24,
+    0.19,
+  )
+
 const sharedSurface =
   new StandardMaterial(
     'cube-sphere-surface',
@@ -481,6 +546,12 @@ const sessionId =
 
 const playMode =
   queryParameters.get('play') === '1'
+
+
+playSkyLight.intensity =
+  playMode
+    ? 0.72
+    : 0
 
 const terrainStatus =
   document.querySelector<HTMLSpanElement>(
@@ -1731,6 +1802,13 @@ if (sessionId) {
             crypto.randomUUID(),
         )
       : null
+
+  // Temporary embodiment presentation only. Both capsule skins will be
+  // retired when playable Ester receives its proper human avatar.
+  const esterCapsuleSkin =
+    resolveEsterCapsuleSkin(
+      window.location.search,
+    )
 
   let manifestedEster:
     ManifestedEsterResponse | null =
@@ -3132,19 +3210,22 @@ if (sessionId) {
       scene,
     )
 
+  // Vertex colors provide the local terrain's presentation albedo.
+  // Keep the material itself neutral so those colors remain visible
+  // under directional lighting rather than being multiplied by another
+  // strong green tint.
   playGroundMaterial.diffuseColor =
     new Color3(
-      0.16,
-      0.29,
-      0.10,
+      1,
+      1,
+      1,
     )
 
+  // A very small ambient lift keeps shadowed terrain readable without
+  // flattening the normals into the self-lit appearance of the earlier
+  // temporary green material.
   playGroundMaterial.emissiveColor =
-    new Color3(
-      0.04,
-      0.07,
-      0.025,
-    )
+    Color3.Black()
 
   playGroundMaterial.specularColor =
     new Color3(
@@ -3154,6 +3235,106 @@ if (sessionId) {
     )
 
   let playGroundMesh:
+    Mesh | null =
+      null
+
+  let playTerrainAnchor:
+    ManifestedEsterResponse | null =
+      null
+
+  let playTerrainAnchorElevationMeters =
+    0
+
+  const playTerrainSizeMeters =
+    320
+
+  const playTerrainSubdivisions =
+    40
+
+  const playTerrainReanchorDistanceMeters =
+    32
+
+  const playTerrainPresentationDetailAmplitudeMeters =
+    22.85
+
+  const playTerrainAppearanceIdentity =
+    `${planet.planetId}:surface-appearance`
+
+  const playTerrainTextureSize =
+    256
+
+  const playTerrainDetailTextureSize =
+    256
+
+  const playTerrainDetailTileMeters =
+    8
+
+  let playGroundAlbedoTexture:
+    DynamicTexture | null =
+      null
+
+  let playGroundNormalTexture:
+    DynamicTexture | null =
+      null
+
+  let playGroundDetailTexture:
+    DynamicTexture | null =
+      null
+
+  let playGroundDetailAnchor:
+    ManifestedEsterResponse | null =
+      null
+
+  let playGroundDetailUOffset =
+    0
+
+  let playGroundDetailVOffset =
+    0
+
+  // Grass streaming is intentionally independent from the larger
+  // terrain reanchor. The buffer is wider than its visible fade radius,
+  // and it rolls forward frequently enough that its hard edge remains
+  // hidden outside the visible meadow.
+  const playSurfaceScatterRadiusMeters =
+    68
+
+  const playSurfaceScatterReanchorDistanceMeters =
+    8
+
+  const playSurfaceScatterFadeStartMeters =
+    28
+
+  const playSurfaceScatterFadeEndMeters =
+    55
+
+  let playSurfaceScatterAnchor:
+    ManifestedEsterResponse | null =
+      null
+
+  let playSurfaceScatterAnchorElevationMeters =
+    0
+
+  type PlaySurfaceScatterTransform = {
+    eastMeters: number
+    elevationMeters: number
+    northMeters: number
+    scaleX: number
+    scaleY: number
+    scaleZ: number
+    yawRadians: number
+  }
+
+  let playGrassScatterMesh:
+    Mesh | null =
+      null
+
+  let playGrassMaterial:
+    ReturnType<
+      typeof createAnimatedGrassMaterial
+    > | null =
+      null
+
+  let playStoneScatterMesh:
     Mesh | null =
       null
 
@@ -3172,12 +3353,2217 @@ if (sessionId) {
             ...manifestedEster,
           }
 
+  const samplePlayTerrainElevationMeters = (
+    latitudeDegrees: number,
+    longitudeDegrees: number,
+  ) =>
+    heightField.sampleHeightMeters(
+      latitudeDegrees,
+      longitudeDegrees,
+    ) +
+    sampleTerrainPresentationDetailMeters(
+      latitudeDegrees,
+      longitudeDegrees,
+      planet.meanRadiusMeters,
+      planet.planetId,
+    )
+
+  const createScatterMatrixBuffer = (
+    transforms:
+      PlaySurfaceScatterTransform[],
+  ) => {
+    const buffer =
+      new Float32Array(
+        transforms.length *
+        16,
+      )
+
+    for (
+      let index = 0;
+      index <
+        transforms.length;
+      index += 1
+    ) {
+      const transform =
+        transforms[
+          index
+        ]
+
+      const cosine =
+        Math.cos(
+          transform.yawRadians,
+        )
+
+      const sine =
+        Math.sin(
+          transform.yawRadians,
+        )
+
+      const offset =
+        index *
+        16
+
+      buffer[
+        offset
+      ] =
+        cosine *
+        transform.scaleX
+
+      buffer[
+        offset + 1
+      ] =
+        0
+
+      buffer[
+        offset + 2
+      ] =
+        -sine *
+        transform.scaleX
+
+      buffer[
+        offset + 3
+      ] =
+        0
+
+      buffer[
+        offset + 4
+      ] =
+        0
+
+      buffer[
+        offset + 5
+      ] =
+        transform.scaleY
+
+      buffer[
+        offset + 6
+      ] =
+        0
+
+      buffer[
+        offset + 7
+      ] =
+        0
+
+      buffer[
+        offset + 8
+      ] =
+        sine *
+        transform.scaleZ
+
+      buffer[
+        offset + 9
+      ] =
+        0
+
+      buffer[
+        offset + 10
+      ] =
+        cosine *
+        transform.scaleZ
+
+      buffer[
+        offset + 11
+      ] =
+        0
+
+      buffer[
+        offset + 12
+      ] =
+        transform.eastMeters
+
+      buffer[
+        offset + 13
+      ] =
+        transform.elevationMeters
+
+      buffer[
+        offset + 14
+      ] =
+        transform.northMeters
+
+      buffer[
+        offset + 15
+      ] =
+        1
+    }
+
+    return buffer
+  }
+
+  const ensurePlaySurfaceScatterMeshes = () => {
+    if (
+      playGrassScatterMesh === null
+    ) {
+      playGrassScatterMesh =
+        new Mesh(
+          'play-grass-scatter',
+          scene,
+        )
+
+      const grassPositions:
+        number[] =
+          []
+
+      const grassIndices:
+        number[] =
+          []
+
+      const grassNormals:
+        number[] =
+          []
+
+      const grassBladeData:
+        number[] =
+          []
+
+      const bladeCount =
+        24
+
+      const segmentCount =
+        4
+
+      const goldenAngle =
+        2.399963229728653
+
+      for (
+        let bladeIndex = 0;
+        bladeIndex <
+          bladeCount;
+        bladeIndex += 1
+      ) {
+        const normalizedIndex =
+          (
+            bladeIndex +
+            0.5
+          ) /
+          bladeCount
+
+        const angle =
+          bladeIndex *
+          goldenAngle +
+          (
+            (
+              bladeIndex *
+              17
+            ) %
+            7
+          ) *
+          0.041
+
+        const radialDistance =
+          Math.sqrt(
+            normalizedIndex,
+          ) *
+          0.40
+
+        const directionX =
+          Math.cos(
+            angle,
+          )
+
+        const directionZ =
+          Math.sin(
+            angle,
+          )
+
+        const rightX =
+          -directionZ
+
+        const rightZ =
+          directionX
+
+        const baseCenterX =
+          directionX *
+          radialDistance
+
+        const baseCenterZ =
+          directionZ *
+          radialDistance
+
+        const randomA =
+          (
+            (
+              bladeIndex *
+              37 +
+              11
+            ) %
+            101
+          ) /
+          100
+
+        const randomB =
+          (
+            (
+              bladeIndex *
+              61 +
+              23
+            ) %
+            97
+          ) /
+          96
+
+        const randomC =
+          (
+            (
+              bladeIndex *
+              43 +
+              47
+            ) %
+            89
+          ) /
+          88
+
+        const randomD =
+          (
+            (
+              bladeIndex *
+              73 +
+              31
+            ) %
+            83
+          ) /
+          82
+
+        // Three overlapping meadow strata:
+        //
+        // - short basal grass closes visible ground gaps
+        // - medium blades form the main canopy
+        // - sparse tall stems break the skyline
+        const bladeHeight =
+          randomD <
+          0.52
+            ? 0.24 +
+              randomB *
+                0.22
+            : randomD <
+              0.87
+              ? 0.46 +
+                randomB *
+                  0.30
+              : 0.80 +
+                randomB *
+                  0.38
+
+        // Short basal blades are a little broader so they form
+        // continuous meadow body. Tall stems are narrower.
+        const baseHalfWidth =
+          randomD <
+          0.52
+            ? 0.015 +
+              randomA *
+                0.015
+            : randomD <
+              0.87
+              ? 0.011 +
+                randomA *
+                  0.013
+              : 0.007 +
+                randomA *
+                  0.010
+
+        // Even without wind, wild grass leans and arcs in many
+        // directions instead of forming upright comb teeth.
+        const staticLean =
+          randomD <
+          0.52
+            ? 0.035 +
+              randomC *
+                0.105
+            : randomD <
+              0.87
+              ? 0.060 +
+                randomC *
+                  0.165
+              : 0.085 +
+                randomC *
+                  0.205
+
+        const bladeBaseIndex =
+          grassPositions.length /
+          3
+
+        for (
+          let segment = 0;
+          segment <=
+            segmentCount;
+          segment += 1
+        ) {
+          const fraction =
+            segment /
+            segmentCount
+
+          const height =
+            fraction *
+            bladeHeight
+
+          const taper =
+            Math.pow(
+              1 -
+              fraction,
+              0.68,
+            )
+
+          const halfWidth =
+            Math.max(
+              0.0015,
+              baseHalfWidth *
+              taper,
+            )
+
+          const curve =
+            staticLean *
+            fraction *
+            fraction
+
+          const centerX =
+            baseCenterX +
+            directionX *
+            curve
+
+          const centerZ =
+            baseCenterZ +
+            directionZ *
+            curve
+
+          grassPositions.push(
+            centerX -
+              rightX *
+              halfWidth,
+            height,
+            centerZ -
+              rightZ *
+              halfWidth,
+
+            centerX +
+              rightX *
+              halfWidth,
+            height,
+            centerZ +
+              rightZ *
+              halfWidth,
+          )
+
+          for (
+            let side = 0;
+            side < 2;
+            side += 1
+          ) {
+            grassBladeData.push(
+              randomA,
+              randomB,
+              randomC,
+              randomD,
+            )
+          }
+        }
+
+        for (
+          let segment = 0;
+          segment <
+            segmentCount;
+          segment += 1
+        ) {
+          const row =
+            bladeBaseIndex +
+            segment *
+              2
+
+          const next =
+            row +
+            2
+
+          grassIndices.push(
+            row,
+            row + 1,
+            next,
+
+            row + 1,
+            next + 1,
+            next,
+          )
+        }
+      }
+
+      grassNormals.length =
+        grassPositions.length
+
+      grassNormals.fill(
+        0,
+      )
+
+      VertexData.ComputeNormals(
+        grassPositions,
+        grassIndices,
+        grassNormals,
+      )
+
+      const grassVertexData =
+        new VertexData()
+
+      grassVertexData.positions =
+        grassPositions
+
+      grassVertexData.indices =
+        grassIndices
+
+      grassVertexData.normals =
+        grassNormals
+
+      grassVertexData.applyToMesh(
+        playGrassScatterMesh,
+      )
+
+      playGrassScatterMesh
+        .setVerticesData(
+          'bladeData',
+          grassBladeData,
+          false,
+          4,
+        )
+
+      playGrassMaterial =
+        createAnimatedGrassMaterial(
+          scene,
+        )
+
+      playGrassMaterial.setFloat(
+        'uFadeStartMeters',
+        playSurfaceScatterFadeStartMeters,
+      )
+
+      playGrassMaterial.setFloat(
+        'uFadeEndMeters',
+        playSurfaceScatterFadeEndMeters,
+      )
+
+      playGrassScatterMesh.material =
+        playGrassMaterial
+
+      playGrassScatterMesh.isPickable =
+        false
+
+      playGrassScatterMesh
+        .alwaysSelectAsActiveMesh =
+          true
+
+      const grassAnimationStart =
+        performance.now()
+
+      scene.onBeforeRenderObservable.add(
+        () => {
+          if (
+            playGrassMaterial === null
+          ) {
+            return
+          }
+
+          playGrassMaterial.setFloat(
+            'uTimeSeconds',
+            (
+              performance.now() -
+              grassAnimationStart
+            ) /
+            1000,
+          )
+        },
+      )
+    }
+
+    if (
+      playStoneScatterMesh === null
+    ) {
+      playStoneScatterMesh =
+        new Mesh(
+          'play-stone-scatter',
+          scene,
+        )
+
+      const stonePositions:
+        number[] =
+          []
+
+      const stoneIndices:
+        number[] =
+          []
+
+      const ringCount =
+        10
+
+      const lowerRadii = [
+        1.00,
+        0.88,
+        1.05,
+        0.82,
+        0.96,
+        0.85,
+        1.02,
+        0.89,
+        0.94,
+        0.84,
+      ]
+
+      const upperRadii = [
+        0.68,
+        0.59,
+        0.72,
+        0.61,
+        0.66,
+        0.57,
+        0.70,
+        0.62,
+        0.65,
+        0.58,
+      ]
+
+      for (
+        let vertex = 0;
+        vertex <
+          ringCount;
+        vertex += 1
+      ) {
+        const angle =
+          vertex *
+          (Math.PI * 2) /
+          ringCount
+
+        stonePositions.push(
+          Math.cos(
+            angle,
+          ) *
+          lowerRadii[
+            vertex
+          ],
+          0,
+          Math.sin(
+            angle,
+          ) *
+          lowerRadii[
+            vertex
+          ],
+        )
+      }
+
+      for (
+        let vertex = 0;
+        vertex <
+          ringCount;
+        vertex += 1
+      ) {
+        const angle =
+          vertex *
+          (Math.PI * 2) /
+          ringCount +
+          0.08
+
+        stonePositions.push(
+          0.05 +
+          Math.cos(
+            angle,
+          ) *
+          upperRadii[
+            vertex
+          ],
+          0.34 +
+          (
+            vertex %
+            3
+          ) *
+          0.025,
+          -0.035 +
+          Math.sin(
+            angle,
+          ) *
+          upperRadii[
+            vertex
+          ],
+        )
+      }
+
+      const stoneTopIndex =
+        stonePositions.length /
+        3
+
+      stonePositions.push(
+        0.02,
+        0.53,
+        -0.015,
+      )
+
+      for (
+        let side = 0;
+        side <
+          ringCount;
+        side += 1
+      ) {
+        const next =
+          (
+            side +
+            1
+          ) %
+          ringCount
+
+        const lower =
+          side
+
+        const lowerNext =
+          next
+
+        const upper =
+          side +
+          ringCount
+
+        const upperNext =
+          next +
+          ringCount
+
+        stoneIndices.push(
+          lower,
+          lowerNext,
+          upperNext,
+
+          lower,
+          upperNext,
+          upper,
+
+          upper,
+          upperNext,
+          stoneTopIndex,
+        )
+      }
+
+      const stoneNormals =
+        new Array<number>(
+          stonePositions.length,
+        ).fill(
+          0,
+        )
+
+      VertexData.ComputeNormals(
+        stonePositions,
+        stoneIndices,
+        stoneNormals,
+      )
+
+      const stoneVertexData =
+        new VertexData()
+
+      stoneVertexData.positions =
+        stonePositions
+
+      stoneVertexData.indices =
+        stoneIndices
+
+      stoneVertexData.normals =
+        stoneNormals
+
+      stoneVertexData.applyToMesh(
+        playStoneScatterMesh,
+      )
+
+      const stoneMaterial =
+        new StandardMaterial(
+          'play-stone-scatter-material',
+          scene,
+        )
+
+      stoneMaterial.diffuseColor =
+        new Color3(
+          0.47,
+          0.43,
+          0.35,
+        )
+
+      stoneMaterial.emissiveColor =
+        new Color3(
+          0.010,
+          0.009,
+          0.007,
+        )
+
+      stoneMaterial.specularColor =
+        Color3.Black()
+
+      playStoneScatterMesh.material =
+        stoneMaterial
+
+      playStoneScatterMesh.isPickable =
+        false
+
+      playStoneScatterMesh
+        .alwaysSelectAsActiveMesh =
+          true
+    }
+  }
+
+  const rebuildPlaySurfaceScatter = (
+    scatterAnchor:
+      ManifestedEsterResponse,
+  ) => {
+    ensurePlaySurfaceScatterMeshes()
+
+    if (
+      playGrassScatterMesh === null ||
+      playStoneScatterMesh === null
+    ) {
+      return
+    }
+
+    playSurfaceScatterAnchor = {
+      ...scatterAnchor,
+    }
+
+    playSurfaceScatterAnchorElevationMeters =
+      samplePlayTerrainElevationMeters(
+        scatterAnchor.latitudeDegrees,
+        scatterAnchor.longitudeDegrees,
+      )
+
+    if (
+      playGrassMaterial !== null
+    ) {
+      setAnimatedGrassAnchor(
+        playGrassMaterial,
+        scatterAnchor.latitudeDegrees,
+        scatterAnchor.longitudeDegrees,
+        planet.meanRadiusMeters,
+      )
+    }
+
+    const samples =
+      createTerrainSurfaceScatter(
+        scatterAnchor.latitudeDegrees,
+        scatterAnchor.longitudeDegrees,
+        planet.meanRadiusMeters,
+        planet.planetId,
+        playSurfaceScatterRadiusMeters,
+      )
+
+    const grassTransforms:
+      PlaySurfaceScatterTransform[] =
+        []
+
+    const grassInstanceData:
+      number[] =
+        []
+
+    const stoneTransforms:
+      PlaySurfaceScatterTransform[] =
+        []
+
+    for (
+      const sample of samples
+    ) {
+      let grassScaleMultiplier =
+        1
+
+      let grassVariation =
+        0
+
+      let grassDryness =
+        0
+
+      let grassStiffness =
+        0.5
+
+      let grassSeedHead =
+        0
+
+      if (
+        sample.kind ===
+        'grass'
+      ) {
+        const appearance =
+          sampleTerrainSurfaceAppearance(
+            sample.latitudeDegrees,
+            sample.longitudeDegrees,
+            planet.meanRadiusMeters,
+            planet.planetId,
+          )
+
+        if (
+          appearance.earthiness >
+          0.78
+        ) {
+          continue
+        }
+
+        const suitability =
+          Math.max(
+            0,
+            Math.min(
+              1,
+              1 -
+              appearance.earthiness,
+            ),
+          )
+
+        grassScaleMultiplier =
+          0.80 +
+          suitability *
+          0.32
+
+        grassVariation =
+          Math.max(
+            0,
+            Math.min(
+              1,
+              sample.variation +
+              appearance
+                .albedoVariation *
+                0.10,
+            ),
+          )
+
+        grassDryness =
+          Math.max(
+            0,
+            Math.min(
+              1,
+              sample.dryness +
+              appearance.earthiness *
+                0.22,
+            ),
+          )
+
+        grassStiffness =
+          sample.stiffness
+
+        grassSeedHead =
+          sample.seedHead
+      }
+
+      const local =
+        geographicToLocalMeters(
+          sample,
+          scatterAnchor,
+          planet.meanRadiusMeters,
+        )
+
+      const elevationMeters =
+        samplePlayTerrainElevationMeters(
+          sample.latitudeDegrees,
+          sample.longitudeDegrees,
+        ) -
+        playSurfaceScatterAnchorElevationMeters
+
+            const transform:
+
+        PlaySurfaceScatterTransform = {
+          eastMeters:
+            local.eastMeters,
+          elevationMeters:
+            elevationMeters -
+            (
+              sample.kind ===
+              'stone'
+                ? 0.008
+                : 0
+            ),
+          northMeters:
+            local.northMeters,
+          scaleX:
+            sample.scaleX,
+          scaleY:
+            sample.scaleY *
+            grassScaleMultiplier,
+          scaleZ:
+            sample.scaleZ,
+          yawRadians:
+            sample.yawRadians,
+        }
+
+      if (
+        sample.kind ===
+        'grass'
+      ) {
+        grassTransforms.push(
+          transform,
+        )
+
+        grassInstanceData.push(
+          grassVariation,
+          grassDryness,
+          grassStiffness,
+          grassSeedHead,
+        )
+      } else {
+        stoneTransforms.push(
+          transform,
+        )
+      }
+    }
+
+    playGrassScatterMesh
+      .thinInstanceSetBuffer(
+        'matrix',
+        createScatterMatrixBuffer(
+          grassTransforms,
+        ),
+        16,
+        true,
+      )
+
+    playGrassScatterMesh
+      .thinInstanceSetBuffer(
+        'grassData',
+        new Float32Array(
+          grassInstanceData,
+        ),
+        4,
+        true,
+      )
+
+    playStoneScatterMesh
+      .thinInstanceSetBuffer(
+        'matrix',
+        createScatterMatrixBuffer(
+          stoneTransforms,
+        ),
+        16,
+        true,
+      )
+
+    playGrassScatterMesh.position.set(
+      0,
+      0,
+      0,
+    )
+
+    playStoneScatterMesh.position.set(
+      0,
+      0,
+      0,
+    )
+  }
+
+  const ensurePlaySurfaceScatter = () => {
+    if (
+      !playMode ||
+      presentationEster === null
+    ) {
+      return
+    }
+
+    let shouldReanchor =
+      playSurfaceScatterAnchor === null
+
+    if (
+      !shouldReanchor &&
+      playSurfaceScatterAnchor !== null
+    ) {
+      const currentOffset =
+        geographicToLocalMeters(
+          presentationEster,
+          playSurfaceScatterAnchor,
+          planet.meanRadiusMeters,
+        )
+
+      shouldReanchor =
+        Math.hypot(
+          currentOffset.eastMeters,
+          currentOffset.northMeters,
+        ) >=
+        playSurfaceScatterReanchorDistanceMeters
+    }
+
+    if (!shouldReanchor) {
+      return
+    }
+
+    rebuildPlaySurfaceScatter(
+      presentationEster,
+    )
+  }
+
+
+  const updatePlaySurfaceScatterPositions = () => {
+    ensurePlaySurfaceScatter()
+
+    if (
+      presentationEster === null ||
+      playSurfaceScatterAnchor === null
+    ) {
+      return
+    }
+
+    const esterElevationMeters =
+      samplePlayTerrainElevationMeters(
+        presentationEster
+          .latitudeDegrees,
+        presentationEster
+          .longitudeDegrees,
+      )
+
+    const anchorOffset =
+      geographicToLocalMeters(
+        playSurfaceScatterAnchor,
+        presentationEster,
+        planet.meanRadiusMeters,
+      )
+
+    const elevationOffsetMeters =
+      playSurfaceScatterAnchorElevationMeters -
+      esterElevationMeters
+
+    if (
+      playGrassScatterMesh !== null
+    ) {
+      playGrassScatterMesh.position.set(
+        anchorOffset.eastMeters,
+        elevationOffsetMeters,
+        anchorOffset.northMeters,
+      )
+    }
+
+    if (
+      playStoneScatterMesh !== null
+    ) {
+      playStoneScatterMesh.position.set(
+        anchorOffset.eastMeters,
+        elevationOffsetMeters,
+        anchorOffset.northMeters,
+      )
+    }
+  }
+
+
+  const ensurePlayTerrainTextures = () => {
+    if (
+      playGroundAlbedoTexture !== null &&
+      playGroundNormalTexture !== null &&
+      playGroundDetailTexture !== null
+    ) {
+      return
+    }
+
+    playGroundAlbedoTexture =
+      new DynamicTexture(
+        'play-ground-albedo',
+        {
+          width:
+            playTerrainTextureSize,
+          height:
+            playTerrainTextureSize,
+        },
+        scene,
+        true,
+      )
+
+    playGroundNormalTexture =
+      new DynamicTexture(
+        'play-ground-normal',
+        {
+          width:
+            playTerrainTextureSize,
+          height:
+            playTerrainTextureSize,
+        },
+        scene,
+        true,
+      )
+
+    playGroundDetailTexture =
+      new DynamicTexture(
+        'play-ground-detail',
+        {
+          width:
+            playTerrainDetailTextureSize,
+          height:
+            playTerrainDetailTextureSize,
+        },
+        scene,
+        true,
+      )
+
+    const detailContext =
+      playGroundDetailTexture
+        .getContext() as unknown as
+        CanvasRenderingContext2D
+
+    const detailImage =
+      detailContext.createImageData(
+        playTerrainDetailTextureSize,
+        playTerrainDetailTextureSize,
+      )
+
+    detailImage.data.set(
+      createTerrainDetailMapPixels(
+        playTerrainDetailTextureSize,
+        playTerrainDetailTileMeters,
+        planet.planetId,
+      ),
+    )
+
+    detailContext.putImageData(
+      detailImage,
+      0,
+      0,
+    )
+
+    playGroundDetailTexture.update(
+      false,
+    )
+
+    playGroundAlbedoTexture
+      .anisotropicFilteringLevel =
+        8
+
+    playGroundNormalTexture
+      .anisotropicFilteringLevel =
+        8
+
+    playGroundDetailTexture
+      .anisotropicFilteringLevel =
+        8
+
+    playGroundDetailTexture.wrapU =
+      Texture.WRAP_ADDRESSMODE
+
+    playGroundDetailTexture.wrapV =
+      Texture.WRAP_ADDRESSMODE
+
+    playGroundDetailTexture.uScale =
+      playTerrainSizeMeters /
+      playTerrainDetailTileMeters
+
+    playGroundDetailTexture.vScale =
+      playTerrainSizeMeters /
+      playTerrainDetailTileMeters
+
+    playGroundMaterial.diffuseTexture =
+      playGroundAlbedoTexture
+
+    playGroundMaterial.bumpTexture =
+      playGroundNormalTexture
+
+    playGroundNormalTexture.level =
+      1.35
+
+    playGroundMaterial.detailMap.texture =
+      playGroundDetailTexture
+
+    playGroundMaterial.detailMap
+      .diffuseBlendLevel =
+        0.82
+
+    playGroundMaterial.detailMap
+      .bumpLevel =
+        1.65
+
+    playGroundMaterial.detailMap
+      .isEnabled =
+        true
+  }
+
+  const updatePlayTerrainTextures = (
+    terrainAnchor:
+      ManifestedEsterResponse,
+  ) => {
+    ensurePlayTerrainTextures()
+
+    if (
+      playGroundAlbedoTexture === null ||
+      playGroundNormalTexture === null ||
+      playGroundDetailTexture === null
+    ) {
+      return
+    }
+
+    const wrapTextureOffset = (
+      value: number,
+    ) =>
+      (
+        (
+          value %
+          1
+        ) +
+        1
+      ) %
+      1
+
+    if (
+      playGroundDetailAnchor === null
+    ) {
+      const latitudeRadians =
+        terrainAnchor
+          .latitudeDegrees *
+        Math.PI /
+        180
+
+      const longitudeRadians =
+        terrainAnchor
+          .longitudeDegrees *
+        Math.PI /
+        180
+
+      const absoluteEastMeters =
+        planet.meanRadiusMeters *
+        longitudeRadians *
+        Math.cos(
+          latitudeRadians,
+        )
+
+      const absoluteNorthMeters =
+        planet.meanRadiusMeters *
+        latitudeRadians
+
+      playGroundDetailUOffset =
+        wrapTextureOffset(
+          absoluteEastMeters /
+            playTerrainDetailTileMeters,
+        )
+
+      playGroundDetailVOffset =
+        wrapTextureOffset(
+          -absoluteNorthMeters /
+            playTerrainDetailTileMeters,
+        )
+    } else {
+      const detailAnchorDelta =
+        geographicToLocalMeters(
+          terrainAnchor,
+          playGroundDetailAnchor,
+          planet.meanRadiusMeters,
+        )
+
+      playGroundDetailUOffset =
+        wrapTextureOffset(
+          playGroundDetailUOffset +
+          detailAnchorDelta
+            .eastMeters /
+            playTerrainDetailTileMeters,
+        )
+
+      playGroundDetailVOffset =
+        wrapTextureOffset(
+          playGroundDetailVOffset -
+          detailAnchorDelta
+            .northMeters /
+            playTerrainDetailTileMeters,
+        )
+    }
+
+    playGroundDetailAnchor = {
+      ...terrainAnchor,
+    }
+
+    playGroundDetailTexture.uOffset =
+      playGroundDetailUOffset
+
+    playGroundDetailTexture.vOffset =
+      playGroundDetailVOffset
+
+    const textureSize =
+      playTerrainTextureSize
+
+    const pixelSpacingMeters =
+      playTerrainSizeMeters /
+      (
+        textureSize -
+        1
+      )
+
+    const albedoContext =
+      playGroundAlbedoTexture
+        .getContext() as unknown as
+        CanvasRenderingContext2D
+
+    const normalContext =
+      playGroundNormalTexture
+        .getContext() as unknown as
+        CanvasRenderingContext2D
+
+    const albedoImage =
+      albedoContext.createImageData(
+        textureSize,
+        textureSize,
+      )
+
+    const normalImage =
+      normalContext.createImageData(
+        textureSize,
+        textureSize,
+      )
+
+    const microHeights =
+      new Float32Array(
+        textureSize *
+        textureSize,
+      )
+
+    const albedoVariations =
+      new Float32Array(
+        textureSize *
+        textureSize,
+      )
+
+    const earthinessValues =
+      new Float32Array(
+        textureSize *
+        textureSize,
+      )
+
+    for (
+      let y = 0;
+      y < textureSize;
+      y += 1
+    ) {
+      const northMeters =
+        playTerrainSizeMeters *
+        (
+          0.5 -
+          y /
+            (
+              textureSize -
+              1
+            )
+        )
+
+      for (
+        let x = 0;
+        x < textureSize;
+        x += 1
+      ) {
+        const eastMeters =
+          playTerrainSizeMeters *
+          (
+            x /
+              (
+                textureSize -
+                1
+              ) -
+            0.5
+          )
+
+        const coordinate =
+          moveSurfaceCoordinate(
+            terrainAnchor,
+            northMeters,
+            eastMeters,
+            planet.meanRadiusMeters,
+          )
+
+        const appearance =
+          sampleTerrainSurfaceAppearance(
+            coordinate.latitudeDegrees,
+            coordinate.longitudeDegrees,
+            planet.meanRadiusMeters,
+            planet.planetId,
+          )
+
+        const index =
+          y *
+            textureSize +
+          x
+
+        microHeights[index] =
+          appearance
+            .microHeightMeters
+
+        albedoVariations[index] =
+          appearance
+            .albedoVariation
+
+        earthinessValues[index] =
+          appearance
+            .earthiness
+      }
+    }
+
+    for (
+      let y = 0;
+      y < textureSize;
+      y += 1
+    ) {
+      for (
+        let x = 0;
+        x < textureSize;
+        x += 1
+      ) {
+        const index =
+          y *
+            textureSize +
+          x
+
+        const pixelIndex =
+          index *
+          4
+
+        const variation =
+          (
+            albedoVariations[index] +
+            1
+          ) /
+          2
+
+        const earthBlend =
+          Math.min(
+            0.72,
+            Math.max(
+              0,
+              (
+                earthinessValues[
+                  index
+                ] -
+                0.54
+              ) /
+                0.46 *
+                0.72,
+            ),
+          )
+
+        let red =
+          0.25 +
+          variation *
+            0.18
+
+        let green =
+          0.36 +
+          variation *
+            0.17
+
+        let blue =
+          0.12 +
+          variation *
+            0.10
+
+        const earthRed =
+          0.46
+
+        const earthGreen =
+          0.36
+
+        const earthBlue =
+          0.21
+
+        red +=
+          (
+            earthRed -
+            red
+          ) *
+          earthBlend
+
+        green +=
+          (
+            earthGreen -
+            green
+          ) *
+          earthBlend
+
+        blue +=
+          (
+            earthBlue -
+            blue
+          ) *
+          earthBlend
+
+        albedoImage.data[
+          pixelIndex
+        ] =
+          Math.round(
+            red *
+            255,
+          )
+
+        albedoImage.data[
+          pixelIndex + 1
+        ] =
+          Math.round(
+            green *
+            255,
+          )
+
+        albedoImage.data[
+          pixelIndex + 2
+        ] =
+          Math.round(
+            blue *
+            255,
+          )
+
+        albedoImage.data[
+          pixelIndex + 3
+        ] =
+          255
+
+        const leftIndex =
+          y *
+            textureSize +
+          Math.max(
+            0,
+            x - 1,
+          )
+
+        const rightIndex =
+          y *
+            textureSize +
+          Math.min(
+            textureSize - 1,
+            x + 1,
+          )
+
+        const upIndex =
+          Math.max(
+            0,
+            y - 1,
+          ) *
+            textureSize +
+          x
+
+        const downIndex =
+          Math.min(
+            textureSize - 1,
+            y + 1,
+          ) *
+            textureSize +
+          x
+
+        const eastSlope =
+          (
+            microHeights[
+              rightIndex
+            ] -
+            microHeights[
+              leftIndex
+            ]
+          ) /
+          (
+            (
+              rightIndex ===
+              leftIndex
+                ? 1
+                : rightIndex -
+                  leftIndex
+            ) *
+            pixelSpacingMeters
+          )
+
+        const northSlope =
+          (
+            microHeights[
+              upIndex
+            ] -
+            microHeights[
+              downIndex
+            ]
+          ) /
+          (
+            (
+              upIndex ===
+              downIndex
+                ? 1
+                : Math.abs(
+                    upIndex -
+                    downIndex,
+                  ) /
+                  textureSize
+            ) *
+            pixelSpacingMeters
+          )
+
+        let normalX =
+          -eastSlope
+
+        let normalY =
+          northSlope
+
+        let normalZ =
+          1
+
+        const normalLength =
+          Math.hypot(
+            normalX,
+            normalY,
+            normalZ,
+          )
+
+        normalX /=
+          normalLength
+
+        normalY /=
+          normalLength
+
+        normalZ /=
+          normalLength
+
+        normalImage.data[
+          pixelIndex
+        ] =
+          Math.round(
+            (
+              normalX *
+              0.5 +
+              0.5
+            ) *
+            255,
+          )
+
+        normalImage.data[
+          pixelIndex + 1
+        ] =
+          Math.round(
+            (
+              normalY *
+              0.5 +
+              0.5
+            ) *
+            255,
+          )
+
+        normalImage.data[
+          pixelIndex + 2
+        ] =
+          Math.round(
+            (
+              normalZ *
+              0.5 +
+              0.5
+            ) *
+            255,
+          )
+
+        normalImage.data[
+          pixelIndex + 3
+        ] =
+          255
+      }
+    }
+
+    albedoContext.putImageData(
+      albedoImage,
+      0,
+      0,
+    )
+
+    normalContext.putImageData(
+      normalImage,
+      0,
+      0,
+    )
+
+    playGroundAlbedoTexture.update(
+      false,
+    )
+
+    playGroundNormalTexture.update(
+      false,
+    )
+  }
+
+  const ensurePlayTerrain = () => {
+    if (
+      !playMode ||
+      presentationEster === null
+    ) {
+      return
+    }
+
+    if (playGroundMesh === null) {
+      playGroundMesh =
+        CreateGround(
+          'play-ground',
+          {
+            width:
+              playTerrainSizeMeters,
+            height:
+              playTerrainSizeMeters,
+            subdivisions:
+              playTerrainSubdivisions,
+            updatable: true,
+          },
+          scene,
+        )
+
+      playGroundMesh.material =
+        playGroundMaterial
+
+      playGroundMesh.useVertexColors =
+        true
+
+      const groundPositions =
+        playGroundMesh.getVerticesData(
+          VertexBuffer.PositionKind,
+        )
+
+      if (
+        groundPositions === null
+      ) {
+        throw new Error(
+          'Local play terrain requires position vertex data.',
+        )
+      }
+
+      const groundUvs =
+        new Float32Array(
+          (
+            groundPositions.length /
+            3
+          ) *
+          2,
+        )
+
+      for (
+        let positionIndex = 0,
+          uvIndex = 0;
+        positionIndex <
+          groundPositions.length;
+        positionIndex += 3,
+          uvIndex += 2
+      ) {
+        groundUvs[
+          uvIndex
+        ] =
+          groundPositions[
+            positionIndex
+          ] /
+            playTerrainSizeMeters +
+          0.5
+
+        groundUvs[
+          uvIndex + 1
+        ] =
+          0.5 -
+          groundPositions[
+            positionIndex + 2
+          ] /
+            playTerrainSizeMeters
+      }
+
+      playGroundMesh.setVerticesData(
+        VertexBuffer.UVKind,
+        groundUvs,
+        true,
+        2,
+      )
+
+      ensurePlayTerrainTextures()
+
+      playGroundMesh.isPickable =
+        false
+    }
+
+    let shouldReanchor =
+      playTerrainAnchor === null
+
+    if (
+      playTerrainAnchor !== null
+    ) {
+      const anchorOffset =
+        geographicToLocalMeters(
+          presentationEster,
+          playTerrainAnchor,
+          planet.meanRadiusMeters,
+        )
+
+      shouldReanchor =
+        Math.hypot(
+          anchorOffset.eastMeters,
+          anchorOffset.northMeters,
+        ) >=
+        playTerrainReanchorDistanceMeters
+    }
+
+    if (!shouldReanchor) {
+      return
+    }
+
+    playTerrainAnchor = {
+      ...presentationEster,
+    }
+
+    playTerrainAnchorElevationMeters =
+      samplePlayTerrainElevationMeters(
+        playTerrainAnchor.latitudeDegrees,
+        playTerrainAnchor.longitudeDegrees,
+      )
+
+    const terrainAnchor =
+      playTerrainAnchor
+
+    playGroundMesh.updateMeshPositions(
+      positions => {
+        for (
+          let index = 0;
+          index < positions.length;
+          index += 3
+        ) {
+          const eastMeters =
+            positions[index]
+
+          const northMeters =
+            positions[index + 2]
+
+          const coordinate =
+            moveSurfaceCoordinate(
+              terrainAnchor,
+              northMeters,
+              eastMeters,
+              planet.meanRadiusMeters,
+            )
+
+          positions[index + 1] =
+            samplePlayTerrainElevationMeters(
+              coordinate.latitudeDegrees,
+              coordinate.longitudeDegrees,
+            ) -
+            playTerrainAnchorElevationMeters
+        }
+      },
+      true,
+    )
+
+    const terrainPositions =
+      playGroundMesh.getVerticesData(
+        VertexBuffer.PositionKind,
+      )
+
+    const terrainNormals =
+      playGroundMesh.getVerticesData(
+        VertexBuffer.NormalKind,
+      )
+
+    if (
+      terrainPositions === null ||
+      terrainNormals === null
+    ) {
+      throw new Error(
+        'Local play terrain requires position and normal vertex data.',
+      )
+    }
+
+    const terrainColors =
+      new Float32Array(
+        (
+          terrainPositions.length /
+          3
+        ) *
+        4,
+      )
+
+    for (
+      let positionIndex = 0,
+        colorIndex = 0;
+      positionIndex <
+        terrainPositions.length;
+      positionIndex += 3,
+        colorIndex += 4
+    ) {
+      const eastMeters =
+        terrainPositions[
+          positionIndex
+        ]
+
+      const northMeters =
+        terrainPositions[
+          positionIndex + 2
+        ]
+
+      const coordinate =
+        moveSurfaceCoordinate(
+          terrainAnchor,
+          northMeters,
+          eastMeters,
+          planet.meanRadiusMeters,
+        )
+
+      const appearanceVariation =
+        Math.max(
+          -1,
+          Math.min(
+            1,
+            sampleTerrainPresentationDetailMeters(
+              coordinate.latitudeDegrees,
+              coordinate.longitudeDegrees,
+              planet.meanRadiusMeters,
+              playTerrainAppearanceIdentity,
+            ) /
+              playTerrainPresentationDetailAmplitudeMeters,
+          ),
+        )
+
+      const variationAmount =
+        (
+          appearanceVariation +
+          1
+        ) /
+        2
+
+      // Two restrained natural ground tones provide geographic,
+      // deterministic variation without claiming a new simulation
+      // vegetation or soil state.
+      const darkGround = {
+        red: 0.78,
+        green: 0.84,
+        blue: 0.72,
+      }
+
+      const lightGround = {
+        red: 1.00,
+        green: 1.00,
+        blue: 0.92,
+      }
+
+      let red =
+        darkGround.red +
+        (
+          lightGround.red -
+          darkGround.red
+        ) *
+          variationAmount
+
+      let green =
+        darkGround.green +
+        (
+          lightGround.green -
+          darkGround.green
+        ) *
+          variationAmount
+
+      let blue =
+        darkGround.blue +
+        (
+          lightGround.blue -
+          darkGround.blue
+        ) *
+          variationAmount
+
+      const normalY =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            terrainNormals[
+              positionIndex + 1
+            ],
+          ),
+        )
+
+      // Steeper faces reveal a restrained earth/rock tone. This is a
+      // presentation cue derived from the actual rendered geometry,
+      // not authoritative geology or soil state.
+      const exposedSurfaceAmount =
+        Math.min(
+          0.6,
+          Math.max(
+            0,
+            (
+              1 -
+              normalY
+            ) /
+              0.03 *
+              0.6,
+          ),
+        )
+
+      const exposedRed =
+        1.00
+
+      const exposedGreen =
+        0.88
+
+      const exposedBlue =
+        0.74
+
+      red +=
+        (
+          exposedRed -
+          red
+        ) *
+        exposedSurfaceAmount
+
+      green +=
+        (
+          exposedGreen -
+          green
+        ) *
+        exposedSurfaceAmount
+
+      blue +=
+        (
+          exposedBlue -
+          blue
+        ) *
+        exposedSurfaceAmount
+
+      terrainColors[
+        colorIndex
+      ] =
+        red
+
+      terrainColors[
+        colorIndex + 1
+      ] =
+        green
+
+      terrainColors[
+        colorIndex + 2
+      ] =
+        blue
+
+      terrainColors[
+        colorIndex + 3
+      ] =
+        1
+    }
+
+    playGroundMesh.setVerticesData(
+      VertexBuffer.ColorKind,
+      terrainColors,
+      true,
+      4,
+    )
+
+    updatePlayTerrainTextures(
+      terrainAnchor,
+    )
+
+  }
+
   const updatePlaySpacePositions = () => {
     if (
       !playMode ||
       presentationEster === null
     ) {
       return
+    }
+
+    const latitudeRadians =
+      presentationEster.latitudeDegrees *
+      Math.PI /
+      180
+
+    const longitudeRadians =
+      presentationEster.longitudeDegrees *
+      Math.PI /
+      180
+
+    const cosLatitude =
+      Math.cos(
+        latitudeRadians,
+      )
+
+    const sinLatitude =
+      Math.sin(
+        latitudeRadians,
+      )
+
+    const cosLongitude =
+      Math.cos(
+        longitudeRadians,
+      )
+
+    const sinLongitude =
+      Math.sin(
+        longitudeRadians,
+      )
+
+    const east = {
+      x: -sinLongitude,
+      y: cosLongitude,
+      z: 0,
+    }
+
+    const up = {
+      x:
+        cosLatitude *
+        cosLongitude,
+      y:
+        cosLatitude *
+        sinLongitude,
+      z:
+        sinLatitude,
+    }
+
+    const north = {
+      x:
+        -sinLatitude *
+        cosLongitude,
+      y:
+        -sinLatitude *
+        sinLongitude,
+      z:
+        cosLatitude,
+    }
+
+    const localSunlightDirection =
+      new Vector3(
+        sunlightRayDirection.x *
+          east.x +
+          sunlightRayDirection.y *
+          east.y +
+          sunlightRayDirection.z *
+          east.z,
+        sunlightRayDirection.x *
+          up.x +
+          sunlightRayDirection.y *
+          up.y +
+          sunlightRayDirection.z *
+          up.z,
+        sunlightRayDirection.x *
+          north.x +
+          sunlightRayDirection.y *
+          north.y +
+          sunlightRayDirection.z *
+          north.z,
+      )
+
+    if (
+      localSunlightDirection
+        .lengthSquared() >
+      1e-12
+    ) {
+      localSunlightDirection
+        .normalize()
+
+      sunlight.direction =
+        localSunlightDirection
+
+      if (
+        playGrassMaterial !== null
+      ) {
+        playGrassMaterial.setVector3(
+          'uSurfaceToLightDirection',
+          localSunlightDirection
+            .scale(
+              -1,
+            ),
+        )
+      }
+    }
+
+    // Keep the local world readable even when the current simulated
+    // sun angle is shallow. Day/night presentation can later vary the
+    // sky contribution explicitly rather than allowing terrain to
+    // disappear into an unlit black field.
+    sunlight.intensity =
+      1.15
+
+    ensurePlayTerrain()
+
+    const esterElevationMeters =
+      samplePlayTerrainElevationMeters(
+        presentationEster.latitudeDegrees,
+        presentationEster.longitudeDegrees,
+      )
+
+    if (
+      playGroundMesh !== null &&
+      playTerrainAnchor !== null
+    ) {
+      const terrainAnchorOffset =
+        geographicToLocalMeters(
+          playTerrainAnchor,
+          presentationEster,
+          planet.meanRadiusMeters,
+        )
+
+      playGroundMesh.position.set(
+        terrainAnchorOffset.eastMeters,
+        playTerrainAnchorElevationMeters -
+          esterElevationMeters,
+        terrainAnchorOffset.northMeters,
+      )
     }
 
     if (playEsterMesh !== null) {
@@ -3233,12 +5619,21 @@ if (sessionId) {
         continue
       }
 
+      const personElevationMeters =
+        samplePlayTerrainElevationMeters(
+          person.latitudeDegrees,
+          person.longitudeDegrees,
+        )
+
       mesh.position.set(
         local.eastMeters,
-        0.85,
+        personElevationMeters -
+          esterElevationMeters +
+          0.85,
         local.northMeters,
       )
     }
+    updatePlaySurfaceScatterPositions()
   }
 
   const renderPlaySpace = () => {
@@ -3249,24 +5644,7 @@ if (sessionId) {
       return
     }
 
-    if (playGroundMesh === null) {
-      playGroundMesh =
-        CreateGround(
-          'play-ground',
-          {
-            width: 240,
-            height: 240,
-            subdivisions: 1,
-          },
-          scene,
-        )
-
-      playGroundMesh.material =
-        playGroundMaterial
-
-      playGroundMesh.isPickable =
-        false
-    }
+    ensurePlayTerrain()
 
     if (playEsterMesh === null) {
       playEsterMesh =
@@ -3275,17 +5653,173 @@ if (sessionId) {
           {
             height: 1.8,
             radius: 0.34,
-            tessellation: 16,
-            capSubdivisions: 6,
+            subdivisions: 4,
+            tessellation: 32,
+            capSubdivisions: 12,
           },
           scene,
         )
 
       playEsterMesh.material =
-        esterMarkerMaterial
+        createEsterCapsuleMaterial(
+          scene,
+          esterCapsuleSkin,
+        )
 
       playEsterMesh.isPickable =
         false
+
+      if (
+        esterCapsuleSkin ===
+        'tylenol'
+      ) {
+        // Temporary presentation-only winter hat for the Tylenol
+        // capsule skin. The whole assembly is parented to Ester so it
+        // follows the player without participating in simulation state.
+        const hatRoot =
+          new Mesh(
+            'play-ester-snow-hat-root',
+            scene,
+          )
+
+        hatRoot.parent =
+          playEsterMesh
+
+        hatRoot.position.set(
+          0.02,
+          0.91,
+          0,
+        )
+
+        hatRoot.rotation.z =
+          -0.22
+
+        hatRoot.isPickable =
+          false
+
+        const hatRedMaterial =
+          new StandardMaterial(
+            'play-ester-snow-hat-red',
+            scene,
+          )
+
+        hatRedMaterial.diffuseColor =
+          Color3.FromHexString(
+            '#c51622',
+          )
+
+        hatRedMaterial.specularColor =
+          new Color3(
+            0.18,
+            0.18,
+            0.18,
+          )
+
+        hatRedMaterial.specularPower =
+          24
+
+        const hatWhiteMaterial =
+          new StandardMaterial(
+            'play-ester-snow-hat-white',
+            scene,
+          )
+
+        hatWhiteMaterial.diffuseColor =
+          Color3.FromHexString(
+            '#f7f7f2',
+          )
+
+        hatWhiteMaterial.specularColor =
+          new Color3(
+            0.10,
+            0.10,
+            0.10,
+          )
+
+        hatWhiteMaterial.specularPower =
+          16
+
+        const hatTrim =
+          CreateCylinder(
+            'play-ester-snow-hat-trim',
+            {
+              height: 0.075,
+              diameter: 0.47,
+              tessellation: 24,
+            },
+            scene,
+          )
+
+        hatTrim.parent =
+          hatRoot
+
+        hatTrim.position.set(
+          0,
+          0.025,
+          0,
+        )
+
+        hatTrim.material =
+          hatWhiteMaterial
+
+        hatTrim.isPickable =
+          false
+
+        const hatBody =
+          CreateCylinder(
+            'play-ester-snow-hat-body',
+            {
+              height: 0.34,
+              diameterBottom: 0.36,
+              diameterTop: 0.08,
+              tessellation: 24,
+            },
+            scene,
+          )
+
+        hatBody.parent =
+          hatRoot
+
+        hatBody.position.set(
+          0.035,
+          0.225,
+          0,
+        )
+
+        hatBody.rotation.z =
+          -0.10
+
+        hatBody.material =
+          hatRedMaterial
+
+        hatBody.isPickable =
+          false
+
+        const hatPompom =
+          CreateSphere(
+            'play-ester-snow-hat-pompom',
+            {
+              diameter: 0.135,
+              segments: 16,
+            },
+            scene,
+          )
+
+        hatPompom.parent =
+          hatRoot
+
+        hatPompom.position.set(
+          0.095,
+          0.405,
+          0,
+        )
+
+        hatPompom.material =
+          hatWhiteMaterial
+
+        hatPompom.isPickable =
+          false
+      }
     }
 
     for (
