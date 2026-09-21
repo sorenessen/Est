@@ -95,10 +95,13 @@ import {
 
 import {
   createGrazerPresentation,
-  createWolfPresentation,
   type FaunaPresentation,
-  type WolfPresentation,
 } from './player/fauna-presentation'
+
+import {
+  createAnimatedWolfPresentation,
+  type WolfPresentation,
+} from './player/wolf-presentation'
 
 import {
   createHumanPresentation,
@@ -3531,6 +3534,15 @@ if (sessionId) {
       WolfPresentation
     >()
 
+  const playWolfLoadRequests =
+    new Map<
+      string,
+      Promise<void>
+    >()
+
+  const playWolfLoadFailures =
+    new Set<string>()
+
   const playGrazerPresentations =
     new Map<
       string,
@@ -5883,6 +5895,19 @@ if (sessionId) {
         actor.actorKey,
       )
 
+      const wolf =
+        playWolfPresentations.get(
+          actor.actorKey,
+        )
+
+      if (!wolf) {
+        ensurePlayWolfPresentation(
+          actor.actorKey,
+        )
+
+        continue
+      }
+
       const motion =
         playAnimalMotionTracker.observe({
           actorKey:
@@ -5895,23 +5920,9 @@ if (sessionId) {
             world.currentTimeSeconds,
         })
 
-      let wolf =
-        playWolfPresentations.get(
-          actor.actorKey,
-        )
-
-      if (!wolf) {
-        wolf =
-          createWolfPresentation(
-            scene,
-            actor.actorKey,
-          )
-
-        playWolfPresentations.set(
-          actor.actorKey,
-          wolf,
-        )
-      }
+      wolf.setSimulationTimeSeconds(
+        world.currentTimeSeconds,
+      )
 
       if (
         motion.headingRadians !==
@@ -6235,6 +6246,67 @@ if (sessionId) {
     }
 
     updatePlaySurfaceScatterPositions()
+  }
+
+  const ensurePlayWolfPresentation = (
+    actorKey: string,
+  ) => {
+    if (
+      playWolfPresentations.has(
+        actorKey,
+      ) ||
+      playWolfLoadRequests.has(
+        actorKey,
+      ) ||
+      playWolfLoadFailures.has(
+        actorKey,
+      )
+    ) {
+      return
+    }
+
+    const request =
+      createAnimatedWolfPresentation(
+        scene,
+        actorKey,
+      )
+        .then(
+          wolf => {
+            playWolfPresentations.set(
+              actorKey,
+              wolf,
+            )
+
+            updatePlaySpacePositions()
+          },
+        )
+        .catch(
+          error => {
+            playWolfLoadFailures.add(
+              actorKey,
+            )
+
+            console.error(
+              '[Est Babylon] Wolf presentation failed',
+              {
+                actorKey,
+                error,
+              },
+            )
+          },
+        )
+        .finally(
+          () => {
+            playWolfLoadRequests.delete(
+              actorKey,
+            )
+          },
+        )
+
+    playWolfLoadRequests.set(
+      actorKey,
+      request,
+    )
   }
 
   const ensurePlayHumanPresentation = (
