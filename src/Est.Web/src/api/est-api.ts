@@ -249,6 +249,7 @@ export interface ManifestedEsterResponse {
   planetId: string
   latitudeDegrees: number
   longitudeDegrees: number
+  surfaceCellId: string | null
 }
 
 export interface PersonEncounterResponse {

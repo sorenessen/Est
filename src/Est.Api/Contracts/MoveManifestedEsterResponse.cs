@@ -5,4 +5,5 @@ public sealed record MoveManifestedEsterResponse(
     Guid PlanetId,
     double LatitudeDegrees,
     double LongitudeDegrees,
+    Guid? SurfaceCellId,
     IReadOnlyList<PersonEncounterResponse> Encounters);

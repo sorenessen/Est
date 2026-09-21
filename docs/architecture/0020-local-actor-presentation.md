@@ -123,6 +123,25 @@ sex, and other simulation state remain independent from the renderer.
 Animation and visual movement smoothing may interpret that state but may not
 replace it.
 
+### Manifested Ester surface locality is derived
+
+A manifested Ester remains authoritatively located by planet and geographic
+latitude/longitude as established by ADR 0019.
+
+When that planet has authoritative surface topology, the API may project the
+opaque `SurfaceCellId` containing the Ester's current position.
+
+This is derived spatial context for consumers such as local ecological
+presentation. It is not additional durable Ester state.
+
+If the planet has no authoritative surface topology, the projected
+`SurfaceCellId` is absent.
+
+The client must consume this projection rather than reproduce
+`IPlanetSurfaceGrid.LocateCell`, infer the current grid's row/column structure,
+or otherwise make the current latitude/longitude tessellation part of the web
+contract.
+
 ### Aggregate grazer authority
 
 Grazer cohorts remain authoritative aggregate ecological state.
@@ -179,12 +198,26 @@ and evolves cohorts against coarse ecological surface state.
 Local grazer realization should therefore use available authoritative habitat
 state rather than treating a cohort center as a conventional game spawn point.
 
-A likely implementation may distribute cohort-backed local abundance across
-eligible surface regions using vegetation support and deterministic spatial
-policy.
+Local refinement may use vegetation support and deterministic spatial policy,
+but it must remain consistent with the cohort's authoritative current macro
+locality.
 
-This ADR does not freeze one nearest-cohort, influence-region, or density
-algorithm.
+The current simulation treats cohort latitude/longitude as the cohort's current
+macro position. During grazer evolution that position is located into the
+surface grid and movement evaluates the current cell and neighboring cells
+before selecting a local habitat target.
+
+A planet-wide nearest-cohort partition is therefore rejected for the current
+model. A distant habitat cell must not become presentation territory for a
+cohort merely because that cohort happens to be the closest cohort on the
+planet.
+
+The cohort's current surface cell is still only macro locality. It does not
+assert uniform member occupancy throughout the cell or provide walking-scale
+individual positions.
+
+This ADR still does not freeze one bounded local influence-region, density,
+representative-count, or placement algorithm.
 
 Any adopted algorithm must preserve the distinction between:
 
@@ -321,23 +354,35 @@ As of September 21, 2026:
 - Play mode currently renders nearby humans but not wolves or grazers;
 - authoritative surface, vegetation, animal, population, and grazer-cohort data
   are already available to the web client;
-- grazer cohort API responses now expose the authoritative current
-  `SurfaceCellId`.
+- grazer cohort API responses expose the authoritative current `SurfaceCellId`;
+- a renderer-independent local individual actor projection now maps nearby
+  authoritative people and individually simulated animals into local metre-space
+  while preserving `PersonId` and `AnimalId`;
+- manifested-Ester API responses now project a nullable `SurfaceCellId` from the
+  authoritative geographic position when surface topology exists, while worlds
+  without terrain continue to support manifestation without surface-cell state.
 
-Implementation checkpoint:
+Implementation checkpoints:
 
-- `00075f6` - expose grazer cohort surface cells.
+- `00075f6` - expose grazer cohort surface cells;
+- `4bd5fa5` - add local individual actor projection.
 
 ## Consequences
 
-The next implementation should introduce renderer-independent local actor
-projection policy before adding additional mesh-specific loops to `main.ts`.
+The renderer-independent local actor projection boundary now exists for
+authoritative individual actors.
 
 Humans and wolves can use direct authoritative individual identity.
 
-Grazers require deterministic aggregate-to-local refinement.
+New actor categories should continue to enter local presentation through that
+boundary rather than accumulating independent mesh-specific authority in
+`main.ts`.
 
-The projection layer should be unit-testable without Babylon.
+Grazers still require deterministic aggregate-to-local refinement. The rejected
+planet-wide nearest-cohort experiment narrows that design space without
+selecting the final bounded local-realization algorithm.
+
+Projection policy remains unit-testable without Babylon.
 
 Rendering assets can then be attached downstream to projected actors without
 changing simulation authority.

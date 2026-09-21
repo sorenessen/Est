@@ -804,6 +804,7 @@ app.MapGet(
             ? Results.NotFound()
             : Results.Ok(
                 ToManifestedEsterResponse(
+                    session,
                     manifested));
     });
 
@@ -873,6 +874,7 @@ app.MapPost(
 
             return Results.Ok(
                 ToManifestedEsterResponse(
+                    session,
                     manifested));
         }
         catch (PlanetNotFoundException)
@@ -933,6 +935,7 @@ app.MapPost(
 
             return Results.Ok(
                 ToMoveManifestedEsterResponse(
+                    session,
                     moveResult));
         }
         catch (ArgumentException exception)
@@ -1824,6 +1827,7 @@ app.Run();
 
 static MoveManifestedEsterResponse
     ToMoveManifestedEsterResponse(
+        SimulationSession session,
         ManifestedEsterMoveResult moveResult)
 {
     return new MoveManifestedEsterResponse(
@@ -1831,6 +1835,9 @@ static MoveManifestedEsterResponse
         moveResult.Manifestation.PlanetId.Value,
         moveResult.Manifestation.LatitudeDegrees,
         moveResult.Manifestation.LongitudeDegrees,
+        GetManifestedEsterSurfaceCellId(
+            session,
+            moveResult.Manifestation),
         moveResult.Encounters
             .Select(
                 encounter =>
@@ -1844,13 +1851,53 @@ static MoveManifestedEsterResponse
 
 static ManifestedEsterResponse
     ToManifestedEsterResponse(
+        SimulationSession session,
         Est.Simulation.Players.ManifestedEsterState manifested)
 {
     return new ManifestedEsterResponse(
         manifested.EsterId.Value,
         manifested.PlanetId.Value,
         manifested.LatitudeDegrees,
-        manifested.LongitudeDegrees);
+        manifested.LongitudeDegrees,
+        GetManifestedEsterSurfaceCellId(
+            session,
+            manifested));
+}
+
+static Guid? GetManifestedEsterSurfaceCellId(
+    SimulationSession session,
+    Est.Simulation.Players.ManifestedEsterState manifested)
+{
+    var planet =
+        session.CurrentWorld.Planets
+            .Single(
+                candidate =>
+                    candidate.Id ==
+                    manifested.PlanetId);
+
+    var terrain =
+        session.CurrentWorld.Terrain
+            .FirstOrDefault(
+                candidate =>
+                    candidate.PlanetId ==
+                    manifested.PlanetId);
+
+    if (terrain is null)
+    {
+        return null;
+    }
+
+    var surfaceGrid =
+        PlanetSurfaceGridFactory.Create(
+            planet,
+            terrain.GridDefinition);
+
+    return surfaceGrid
+        .LocateCell(
+            manifested.LatitudeDegrees,
+            manifested.LongitudeDegrees)
+        .Id
+        .Value;
 }
 
 static PersonSocialRecognitionResponse

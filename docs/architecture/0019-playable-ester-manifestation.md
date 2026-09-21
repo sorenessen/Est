@@ -71,6 +71,21 @@ At minimum that state identifies:
 
 The simulation/application boundary owns those facts.
 
+When authoritative surface topology exists for the manifested planet, API
+presentation contracts may additionally expose the `SurfaceCellId` containing
+the Ester's current geographic position.
+
+That surface-cell identity is derived from the authoritative latitude/longitude
+through the planet-surface-grid abstraction. It is not additional durable
+manifested-Ester state and it is not required for worlds that do not have
+authoritative surface topology.
+
+A world without terrain therefore remains a valid manifestation target and may
+report no surface-cell identity.
+
+Presentation consumers must not reproduce the current latitude/longitude grid's
+cell-location algorithm or decode opaque surface-cell identity themselves.
+
 The Babylon scene does not become authoritative merely because it displays the
 Ester.
 

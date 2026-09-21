@@ -4,4 +4,5 @@ public sealed record ManifestedEsterResponse(
     Guid EsterId,
     Guid PlanetId,
     double LatitudeDegrees,
-    double LongitudeDegrees);
+    double LongitudeDegrees,
+    Guid? SurfaceCellId);
