@@ -7,8 +7,11 @@ import {
 import {
   resolveWolfGaitFrame,
   resolveWolfPresentationAnimation,
+  resolveWolfSimulationFrame,
   wolfPresentationAnimationNames,
   wolfPresentationAssetPath,
+  wolfPresentationAssetScale,
+  wolfPresentationAssetYawCorrectionRadians,
 } from './wolf-presentation'
 
 
@@ -22,6 +25,23 @@ describe(
           wolfPresentationAssetPath,
         ).toBe(
           '/assets/animals/quaternius/ultimate-animated-animals/Wolf.gltf',
+        )
+      },
+    )
+
+    it(
+      'keeps source orientation and scale below the authoritative Est root',
+      () => {
+        expect(
+          wolfPresentationAssetYawCorrectionRadians,
+        ).toBe(
+          Math.PI / 2,
+        )
+
+        expect(
+          wolfPresentationAssetScale,
+        ).toBe(
+          0.25,
         )
       },
     )
@@ -88,7 +108,7 @@ describe(
           name:
             expectedName,
           playback:
-            'loop',
+            'simulation-time',
         })
       },
     )
@@ -125,6 +145,84 @@ describe(
           ),
         ).toBe(
           10,
+        )
+      },
+    )
+
+    it(
+      'maps authoritative simulation seconds deterministically across a clip',
+      () => {
+        expect(
+          resolveWolfSimulationFrame(
+            0,
+            10,
+            40,
+            3,
+          ),
+        ).toBe(
+          10,
+        )
+
+        expect(
+          resolveWolfSimulationFrame(
+            1.5,
+            10,
+            40,
+            3,
+          ),
+        ).toBe(
+          25,
+        )
+
+        expect(
+          resolveWolfSimulationFrame(
+            3,
+            10,
+            40,
+            3,
+          ),
+        ).toBe(
+          10,
+        )
+
+        expect(
+          resolveWolfSimulationFrame(
+            -1.5,
+            10,
+            40,
+            3,
+          ),
+        ).toBe(
+          25,
+        )
+      },
+    )
+
+    it(
+      'rejects invalid authoritative simulation time and clip duration',
+      () => {
+        expect(
+          () =>
+            resolveWolfSimulationFrame(
+              Number.NaN,
+              0,
+              10,
+              1,
+            ),
+        ).toThrow(
+          'Wolf simulation time must be finite.',
+        )
+
+        expect(
+          () =>
+            resolveWolfSimulationFrame(
+              0,
+              0,
+              10,
+              0,
+            ),
+        ).toThrow(
+          'Wolf animation frame range and duration must be finite, ordered, and positive.',
         )
       },
     )

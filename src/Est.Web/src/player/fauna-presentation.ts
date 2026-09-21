@@ -432,6 +432,23 @@ export function createWolfPresentation(
       )
     },
 
+    setSimulationTimeSeconds(
+      simulationTimeSeconds: number,
+    ) {
+      if (
+        !Number.isFinite(
+          simulationTimeSeconds,
+        )
+      ) {
+        throw new RangeError(
+          'Wolf simulation time must be finite.',
+        )
+      }
+
+      // The temporary primitive has no ambient animation clock.
+      // The method exists so both wolf renderers honor one contract.
+    },
+
     setState(
       state: WolfPresentationState,
     ) {
