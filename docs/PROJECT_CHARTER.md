@@ -145,7 +145,7 @@ We will not build a galaxy before one planet is compelling.
 
 We will not build cities before planetary systems work.
 
-We will not build individuals before aggregate civilization behavior justifies them.
+We will not add finer-grained simulation detail unless a concrete behavior, experience, or scientific requirement justifies it.
 
 We will not build multiplayer before a persistent world is worth sharing.
 

@@ -2,7 +2,7 @@
 
 Canonical operational reference for local development and repository recovery. Procedures described as verified have been exercised in the documented development environment.
 
-## Current planetary renderer — 2026-09-15
+## Current planetary renderer
 
 The active production browser renderer at `/` uses one immutable Babylon
 icosphere with authoritative terrain baked radially into fixed geometry.
@@ -31,23 +31,17 @@ Use the Babylon root route with an explicit presentation view:
 Both views present the same authoritative simulation session. Switching views
 must preserve the session ID rather than creating or copying world state.
 
-### Living-surface runtime checkpoint — 2026-09-17
+### Living-surface runtime boundary
 
 The current production globe presents authoritative live vegetation through
 per-vertex coverage on the immutable Babylon terrain sphere. Broad vegetation
 is terrain-surface state, not a globe-scale sprite layer, and the production
 terrain shader does not depend on a separate vegetation `RawTexture` sampler.
 
-Fresh-session validation against the rebuilt API also verified terrestrial
-founder placement against authoritative standing water:
+Generated terrestrial human and wolf founders are constrained to dry habitat
+when authoritative terrain and standing-water state are available.
 
-- humans: 0 flooded / 48 total;
-- wolves: 0 flooded / 8 total.
-
-This validates the generated-world dry-habitat placement path when terrain and
-hydrology are available.
-
-### Playable Ester runtime checkpoint — 2026-09-20
+### Playable Ester runtime boundary
 
 The production Babylon client now supports a manifested Ester entering the
 authoritative world in a ground-level play mode.
@@ -84,21 +78,6 @@ The Ester capsule remains temporary presentation scaffolding. Nearby simulated
 people now use an animated human presentation keyed by authoritative `PersonId`.
 Neither visual representation owns identity or simulation state.
 
-Checkpoint commits:
-
-- `4001097` — playable Ester embodiment proof;
-- `10e0639` — playable environment presentation;
-- `13ab399` — playable Ester manifestation documentation;
-- `e1e4540` — animated human presentation;
-- `d89048b` — authoritative Ester encounter recognition.
-
-Latest verified web gate on September 21, 2026:
-
-- 26 test files passed;
-- 172 / 172 tests passed;
-- `npx tsc --noEmit` passed;
-- `git diff --check` passed.
-
 The physical recognition proof is now complete. A manifested Ester can approach
 a stable simulated person, cross an encounter boundary derived from
 authoritative geographic positions, create the social encounter through the
@@ -119,7 +98,10 @@ From the repository root:
 dotnet test Est.slnx
 ```
 
-Latest verified full .NET solution result: September 17, 2026: 745 passed, 0 failed, 0 skipped. Latest verified web result: September 21, 2026: 172 / 172 tests passed with TypeScript and diff checks clean.
+Use the commands in this section as the validation gate rather than preserving
+test counts as long-lived documentation. For web validation, run `npm test` and
+`npx tsc --noEmit` from `src/Est.Web`, then run `git diff --check` from the
+repository root.
 
 ## Repository Inspection
 

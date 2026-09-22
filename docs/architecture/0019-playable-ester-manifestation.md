@@ -234,35 +234,6 @@ The Observatory may use viewpoints that an embodied entity could not physically
 reach. Camera freedom and entity locomotion remain separate concepts as already
 established by ADR 0003.
 
-## Current implementation checkpoint
-
-As of September 21, 2026, Est has demonstrated:
-
-- stable Ester identity in the browser/application path;
-- authoritative manifested-Ester state;
-- manifestation and movement API/application operations;
-- geographic movement on the authoritative planet;
-- responsive local prediction with server reconciliation;
-- a Babylon local metre-space centered on the Ester;
-- animated nearby human presentation tied to stable `PersonId`;
-- authoritative terrain sampled into a local walking surface;
-- deterministic presentation-only terrain enhancement;
-- geographically stable grass and surface scatter;
-- independently streamed grass with progressive edge fading;
-- a world-generated encounter boundary based on authoritative positions;
-- encounter mutation routed through the existing simulation social operation;
-- API reporting of recognition state from before each qualifying encounter;
-- runtime proof that the same person recognizes the same Ester after the Ester
-  leaves encounter range and returns;
-- temporary Ester capsule presentation.
-
-Relevant implementation checkpoints include:
-
-- `4001097` — playable Ester embodiment proof;
-- `10e0639` — playable environment presentation;
-- `13ab399` — playable Ester manifestation documentation;
-- `e1e4540` — animated human presentation;
-- `d89048b` — authoritative Ester encounter recognition.
 
 ## Completed causal proof
 

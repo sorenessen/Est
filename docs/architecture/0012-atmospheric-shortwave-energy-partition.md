@@ -30,8 +30,8 @@ Scattered shortwave may subsequently travel:
 - downward toward the surface;
 - upward toward space.
 
-Without that partition, Est cannot yet account for the shortwave energy budget
-needed by a future regional thermal model.
+Without that partition, Est cannot account for the shortwave energy budget
+consumed by the regional thermal chain.
 
 Optical depth alone is insufficient to determine this partition.
 
@@ -441,7 +441,7 @@ This milestone does not add:
 ## Consequences
 
 Est gains an energy-conserving bridge between direct-beam atmospheric
-extinction and future regional thermal forcing.
+extinction and downstream regional thermal forcing.
 
 The physical shortwave chain becomes:
 
@@ -450,8 +450,8 @@ The physical shortwave chain becomes:
 `-> direct-beam extinction`
 `-> atmospheric absorption + scattering`
 `-> direct + diffuse surface downwelling`
-`-> future surface reflection / absorption`
-`-> future regional thermal response`
+`-> surface reflection / absorption`
+`-> regional thermal response`
 
 The model remains deliberately replaceable.
 

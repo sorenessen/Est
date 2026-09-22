@@ -377,78 +377,29 @@ separately.
 Local actor projection must work from the authoritative world snapshot it is
 given regardless of the eventual time-control policy.
 
-## Current implementation checkpoint
+## Implementation evidence
 
-As of September 21, 2026:
+The local-actor proof established that:
 
-- local human presentation is tied to stable `PersonId`;
-- male and female human presentation assets are supported;
-- human age can be derived from authoritative birth time and current world time;
-- wolves already exist as individually authoritative `AnimalState` entities
-  with stable `AnimalId`;
-- grazers exist as authoritative cohorts rather than individually identified
-  animals;
-- the default grazer model deliberately compresses planet-scale abundance into a
-  bounded number of cohort entities;
-- Play mode renders nearby authoritative humans and wolves directly, while
-  nearby grazers use deterministic cohort-backed presentation representatives;
-- authoritative surface, vegetation, animal, population, and grazer-cohort data
-  are already available to the web client;
-- grazer cohort API responses expose the authoritative current `SurfaceCellId`;
-- a renderer-independent local individual actor projection now maps nearby
-  authoritative people and individually simulated animals into local metre-space
-  while preserving `PersonId` and `AnimalId`;
-- manifested-Ester API responses now project a nullable `SurfaceCellId` from the
-  authoritative geographic position when surface topology exists, while worlds
-  without terrain continue to support manifestation without surface-cell state.
-
-Implementation checkpoints:
-
-- `00075f6` - expose grazer cohort surface cells;
-- `4bd5fa5` - add local individual actor projection;
-- `c5a2a3e` - expose manifested Ester surface locality;
-- `5437d00` through `0f66009` - establish local fauna presentation and
-  authoritative individual-animal motion observation;
-- `a1c1ea5` through `afb0ab7` - attach the animated wolf presentation to stable
-  `AnimalId` authority and remove the obsolete primitive wolf representation;
-- `21848ec` through `56d4913` - attach animated deterministic grazer
-  representatives to authoritative cohort-backed projection and remove the
-  obsolete primitive grazer representation;
-- local grazer projection supports deterministic, bounded, cohort-backed
-  presentation representatives without inventing `AnimalId` identity;
-- local authoritative animal motion observation derives presentation heading
-  from successive geographic snapshots while preserving stable `AnimalId`;
+- authoritative individual humans and wolves can be projected into local
+  metre-space while preserving stable `PersonId` and `AnimalId`;
+- aggregate grazer cohorts can produce deterministic, bounded presentation
+  representatives without inventing individual simulation identity;
+- local animal motion observation can derive presentation displacement and
+  heading from successive authoritative geographic snapshots;
 - repeated projection of one authoritative timestamp preserves the same motion
-  observation instead of allowing renderer refresh frequency to redefine
+  observation rather than allowing renderer refresh frequency to redefine
   locomotion;
-- wolf presentation resolves authoritative activity separately from observed
-  locomotion and uses bounded renderer interpolation plus temporary gait only
-  between known authoritative endpoints;
-- grazer presentation deliberately exposes only presentation locomotion
-  (`stationary` or `moving`) because authoritative grazer cohorts do not expose
-  per-representative activity, heading, or velocity;
-- deterministic grazer representative displacement may drive temporary Walk
-  presentation and facing during a bounded transition, but does not assert that
-  one authoritative individual followed that walking-scale path;
-- both wolf and grazer animation sampling are renderer presentation state rather
-  than free-running wall-clock simulation;
-- the focused fauna development view provides an explicit `+1s` authoritative
-  simulation step for runtime motion proof without enabling automatic embodied
-  simulation time;
-- runtime proof confirmed that camera or local-view movement alone does not
-  create grazer locomotion, while authoritative cohort displacement produces a
-  bounded Walk transition that lands on the projected target and returns to
-  stationary presentation.
-
-The current local grazer projection deliberately treats representative spread as
-presentation policy rather than authoritative herd extent.
-
-It also carries vegetation biomass from the cohort's authoritative current
-surface cell as macro habitat context when that cell is represented in the
-sparse vegetation state. A valid surface cell that is absent from vegetation
-state yields null habitat context; absence does not invalidate the cohort.
-That cell-level value is not interpreted as sub-cell ecological distribution
-at each generated representative position.
+- wolf activity remains distinct from observed locomotion, while bounded
+  interpolation and temporary gait remain presentation state;
+- grazer representatives expose only presentation locomotion when authoritative
+  cohort state does not provide per-representative activity, heading, velocity,
+  or path;
+- explicit authoritative fauna stepping demonstrated that camera or local-view
+  movement alone does not create actor locomotion, while authoritative
+  displacement can drive a bounded transition to the projected target;
+- cohort surface-cell vegetation may provide macro habitat context for local
+  grazer presentation without asserting sub-cell ecological distribution.
 
 The final abundance-to-representative density policy and habitat-aware local
 placement algorithm remain undecided.

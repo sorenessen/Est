@@ -38,10 +38,10 @@ A thermal reservoir needs, at minimum:
 
 A radiating thermal reservoir also requires a longwave-emission model.
 
-Est already contains these concepts inside the zero-dimensional
+Est already contains equivalent concepts inside the zero-dimensional
 `PlanetaryEnergyBalanceSystem`.
 
-That system currently computes:
+That system computes:
 
 `absorbed solar flux`
 
@@ -52,11 +52,9 @@ minus:
 and converts the resulting net flux to a mean planetary temperature change
 using an effective areal heat capacity.
 
-That existing system remains the current authoritative global thermal model.
-
-The regional foundation must therefore extract reusable thermal physics without
-silently replacing, partially rewiring, or changing the semantics of the
-existing planetary energy-balance system.
+ADR 0014 extracts reusable thermal physics without assigning simulation
+authority. Thermal authority selection remains a separate simulation-model
+concern; ADR 0016 defines mutually exclusive planetary and regional authority.
 
 ## Decision
 
@@ -154,7 +152,8 @@ It does not itself decide whether that flux is:
 - emitted from a surface boundary;
 - emitted from one face of an atmospheric layer.
 
-Those are responsibilities of a future radiative-energy-budget model.
+Those responsibilities belong to the regional radiative-energy-budget
+topology defined by ADR 0015.
 
 This prevents directional greenhouse assumptions from being hidden inside the
 Stefan-Boltzmann calculation.
@@ -277,10 +276,10 @@ The conversion chain is explicitly:
 
 ADR 0012 exposes an atmospheric absorbed-shortwave factor.
 
-That factor may eventually contribute energy to an atmospheric thermal
-reservoir.
+That factor can contribute energy to an atmospheric thermal reservoir through
+the downstream regional energy-budget topology.
 
-ADR 0014 does not yet assign it to one.
+ADR 0014 itself does not assign it to one.
 
 In particular, ADR 0014 does not create:
 
@@ -297,10 +296,10 @@ Those require a deliberate atmospheric energy-budget model.
 
 ADR 0013 exposes a surface-system absorbed-shortwave factor.
 
-That factor may eventually contribute energy to one or more surface or
-near-surface thermal reservoirs.
+That factor can contribute energy to a surface or near-surface thermal
+reservoir through the downstream regional energy-budget topology.
 
-ADR 0014 does not yet decide whether absorbed shortwave heats:
+ADR 0014 itself does not decide whether absorbed shortwave heats:
 
 - vegetation;
 - soil;
@@ -311,83 +310,47 @@ ADR 0014 does not yet decide whether absorbed shortwave heats:
 - an ocean mixed layer;
 - a composite effective surface reservoir.
 
-That assignment requires a future regional thermal-state model.
+That assignment belongs to the downstream regional thermal architecture
+defined by ADRs 0015 and 0016.
 
 ## Converting shortwave factors to physical flux
 
 ADRs 0010 through 0013 use dimensionless factors relative to normal-incidence
 stellar flux.
 
-Before a shortwave factor can become a thermal input in `W/m^2`, a future
-energy-budget model must multiply it by the authoritative stellar-flux
-magnitude.
-
-`PlanetaryEnergyBalanceParameters.StellarFluxWattsPerSquareMeter` remains the
-current stellar-flux authority.
-
-ADR 0014 does not create a second stellar-flux authority.
+Before a shortwave factor becomes a thermal input in `W/m^2`, downstream model
+policy supplies the authoritative stellar-flux magnitude.
 
 The thermal-reservoir calculator itself consumes physical net flux in `W/m^2`
-and therefore does not know about dimensionless shortwave factors.
+and does not own stellar-flux policy.
 
-## Relationship to current authoritative temperature
+## Relationship to thermal authority
 
-`PlanetEnvironment.MeanSurfaceTemperatureKelvin` remains authoritative.
+ADR 0014 does not create authoritative temperature state.
 
-Existing systems currently consume that planetary mean temperature directly or
-derive coarse local temperature from it using elevation lapse-rate rules.
+Under planetary energy-balance authority,
+`PlanetEnvironment.MeanSurfaceTemperatureKelvin` is the causal thermal state.
 
-Those consumers include current hydrology and biological systems.
+Under configured regional thermal authority, ADR 0016 makes regional thermal
+state causal and derives the planetary mean as compatibility state.
 
-ADR 0014 does not change those consumers.
-
-It does not introduce a competing regional temperature field.
-
-It does not make local thermal calculations authoritative merely because the
-pure foundation exists.
-
-## Relationship to PlanetaryEnergyBalanceSystem
-
-`PlanetaryEnergyBalanceSystem` remains unchanged and causal.
-
-Its current:
-
-- global absorbed-solar calculation;
-- effective longwave emissivity;
-- effective areal heat capacity;
-- Stefan-Boltzmann outgoing-longwave calculation;
-- mean-surface-temperature evolution;
-- ice-temperature feedback;
-
-remain the active zero-dimensional thermal baseline.
-
-ADR 0014 extracts compatible reusable physical concepts for future regional
-climate without partially migrating the existing model.
-
-A later ADR must define the migration boundary before regional thermal state can
-replace or coexist causally with the planetary mean-temperature model.
+The pure calculations defined here remain reusable in either authority mode.
 
 ## Regional thermal-state boundary
 
-The eventual regional thermal model is expected to use the authoritative
-surface grid.
-
-ADR 0014 does not yet add temperature to `SurfaceCell`.
+ADR 0016 associates evolving regional thermal state with authoritative
+surface-cell identity through a dedicated thermal-state model.
 
 `SurfaceCell` remains geometry and topology only.
 
-Future evolving thermal state should be associated with surface-cell identity
-through a dedicated regional thermal-state model rather than by mutating the
-grid geometry type.
+The regional thermal model defines:
 
-That model must define:
-
-- which thermal reservoirs exist per cell;
-- which temperature is authoritative for each reservoir;
-- how reservoir properties are derived;
-- how surface and atmospheric energy exchange is represented;
-- how state survives snapshots, archives, replay, and branching;
-- how existing global temperature consumers migrate.
+- the thermal reservoirs represented per cell;
+- authoritative temperature for those reservoirs;
+- model policy and effective reservoir properties;
+- surface and atmospheric radiative exchange;
+- persistence through snapshots and archives;
+- compatibility behavior for downstream consumers.
 
 ## Longwave energy budget intentionally deferred
 
@@ -494,11 +457,11 @@ The first implementation must prove thermal-reservoir behavior including:
 
 ## Consequences
 
-Est gains the reusable physical bridge between radiative energy accounting and
-future authoritative thermal state without prematurely creating regional
-climate.
+Est gains reusable physical calculations connecting radiative energy accounting,
+thermal-reservoir response, and longwave emission without making those pure
+calculations independent simulation authorities.
 
-The physical chain can now be built toward:
+The physical chain is:
 
 `stellar flux magnitude`
 `-> solar geometry`
@@ -508,10 +471,7 @@ The physical chain can now be built toward:
 `-> thermal-reservoir energy deposition`
 `-> temperature response`
 `-> longwave emission`
-`-> future surface / atmosphere / space energy exchange`
+`-> surface / atmosphere / space energy exchange`
 
-The current zero-dimensional planetary energy-balance model remains intact.
-
-The next causal milestone after this foundation must explicitly define the
-regional thermal reservoirs and the surface-atmosphere-space energy-budget
-topology before any regional temperature becomes authoritative.
+ADR 0015 defines the regional radiative energy-budget topology. ADR 0016 defines
+durable regional thermal state and causal thermal-authority migration.

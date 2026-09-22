@@ -8,7 +8,7 @@ The foundational shared-surface, terrain, hydrology, vegetation, and current
 biosphere-integration phases are implemented. Later ecological, climate, soil,
 decomposition, and evolutionary layers continue to build on this substrate.
 
-## Renderer clarification — 2026-09-16
+## Renderer clarification
 
 Any Cesium references in this ADR are historical/evaluation references only.
 Est currently uses Babylon.js for planetary rendering. `/cesium.html` must not
@@ -26,7 +26,7 @@ reproduction, and predator interactions.
 Those systems were sufficient for a vertical simulation slice, but they
 did not yet form a self-sustaining biosphere.
 
-## Implementation update - 2026-09-16
+## Implemented vegetation integration
 
 Authoritative live plant biomass now exists on the shared surface substrate,
 and configured population foraging consumes that vegetation directly.
@@ -48,7 +48,7 @@ Snapshots from schemas 4 through 10 remain readable: their legacy
 and then discarded rather than restored into current authoritative world
 state.
 
-## Biosphere implementation update - 2026-09-17
+## Implemented biosphere integration
 
 The shared surface substrate is now carrying causal biological state rather
 than serving only as future infrastructure.
@@ -71,10 +71,10 @@ Current authoritative integration includes:
 The temporary synthetic food-resource layer has therefore been superseded by
 authoritative vegetation and consumer material flows.
 
-Regional climate, richer soils, detailed decomposition, species-specific
-seasonal behavior, and evolutionary dynamics remain later layers. Those later
-systems must continue to consume the same authoritative surface and material
-state rather than introducing parallel ecological truth.
+Broader regional climate physics, richer soils, detailed decomposition,
+species-specific seasonal behavior, and evolutionary dynamics remain later
+layers. Those systems must continue to consume the same authoritative surface
+and material state rather than introducing parallel ecological truth.
 
 The current `PlanetEnvironment` contains deliberately coarse planetary
 properties:
@@ -93,7 +93,7 @@ for environmental fields. Adding one bespoke coordinate model for hydrology,
 another for vegetation, and another for small-animal populations would have
 created avoidable architectural fragmentation.
 
-## Presentation clarification — 2026-09-15
+## Presentation clarification
 
 The reusable surface grid in this ADR remains authoritative simulation topology
 for terrain, hydrology, vegetation, ecosystem state, and future regional
@@ -128,10 +128,9 @@ hydrology and biological surface state.
 The surface grid provides stable cell identity and spatial topology for
 environmental and biological fields.
 
-Hydrology, vegetation, and invertebrate populations reference the same
-surface-cell identity. Regional climate and other future spatial systems must
-continue to use that shared topology rather than creating independent location
-grids.
+Hydrology, vegetation, invertebrate populations, and regional thermal state
+share the authoritative surface topology. Future spatial systems must continue
+to use that topology rather than creating independent location grids.
 
 ### Planet independence
 
@@ -391,7 +390,7 @@ Future simulation LOD may materialize and dematerialize individuals from
 aggregate populations while preserving conserved population and biomass
 state.
 
-## Implementation sequence and current status
+## Implementation sequence
 
 ### Phase A: shared surface substrate - implemented
 
@@ -425,10 +424,9 @@ all depend on topography.
 
 Terrain also physically precedes regional climate effects such as
 orographic precipitation, rain shadows, and elevation-dependent
-temperature. The existing zero-dimensional planetary energy-balance
-model may continue to provide a global climate baseline before regional
-climate is implemented, but regional climate must consume terrain rather
-than precede it.
+temperature. Regional thermal and broader climate systems must consume
+authoritative terrain rather than precede it or create parallel spatial
+truth.
 
 A terrain elevation datum is not sea level. Ocean coverage must
 eventually emerge from water inventory, basin geometry, and hydrologic

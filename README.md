@@ -127,8 +127,8 @@ generated terrain and hydrology provide authoritative standing-water context.
 
 This remains an intentionally bounded living-world simulation rather than a
 reconstruction of modern or historical census-scale Earth. Species detail,
-seasonal lifecycle activation, regional climate, soils, richer decomposition,
-and evolutionary inheritance remain later work.
+seasonal lifecycle activation, broader regional climate physics, soils, richer
+decomposition, and evolutionary inheritance remain later work.
 
 The current causal direction is:
 
@@ -172,5 +172,7 @@ be switched in-app without creating a new session.
 Focused presentation proofs can use development hints such as
 `./scripts/dev/play.sh --focus fauna`.
 
-See `docs/DEVELOPMENT.md` for development commands and
-`docs/SURFACE_EVALUATION.md` for the data pipeline and next steps.
+See `docs/CURRENT_STATE.md` for canonical current implementation status,
+`docs/DEVELOPMENT.md` for development commands, and
+`docs/SURFACE_EVALUATION.md` for preserved historical renderer-evaluation
+evidence.

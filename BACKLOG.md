@@ -25,7 +25,7 @@ Build the smallest complete vertical foundation for Est: one persistent planet, 
 
 ### Architecture Foundation
 
-- [ ] Define simulation-domain boundaries
+- [x] Establish simulation/application/persistence/API ownership boundaries
 - [x] Define world identity model
 - [x] Define immutable simulation-time representation
 - [x] Define simulation clock
@@ -204,7 +204,7 @@ implementation is not the production foundation.
 - [ ] User-selectable 100x
 - [ ] User-selectable 1000x
 
-### Planetary renderer rebuild
+### Planetary presentation
 
 Architecture:
 
@@ -214,78 +214,36 @@ Core rule:
 
 `simulation spatial resolution != render spatial resolution`
 
-The authoritative surface grid remains simulation state. It is not the
-finished terrain mesh, coastline geometry, imagery pixel grid, or render LOD
-structure.
+The current production planet uses the immutable Babylon icosphere described in
+ADR 0006 and `docs/CURRENT_STATE.md`.
 
-#### R1 - Babylon planetary foundation
+The earlier cube-sphere, terrain-patch, quadtree, culling, stitching, and
+camera-driven planetary LOD work is preserved as engineering evidence rather
+than active implementation work. See ADR 0006 and
+`docs/SURFACE_EVALUATION.md`.
 
-- [x] Add a Babylon renderer entry point separate from the Cesium evaluation.
-- [x] Define six renderer-owned cube faces.
-- [x] Implement deterministic cube-to-sphere mapping.
-- [x] Render one mathematically correct six-face sphere.
-- [x] Support stable orbit, zoom, and resize.
-- [x] Runtime-verify face orientation and continuity with no visible gaps.
+Current presentation backlog:
 
-Do not connect authoritative terrain yet.
-
-#### R2 - Quadtree terrain patches
-
-- [x] Introduce reusable regular terrain patches.
-- [x] Add renderer-owned quadtree subdivision and merging.
-- [x] Add view-dependent terrain LOD.
-- [x] Preserve continuity between neighboring LOD levels.
-- [x] Add frustum culling.
-- [x] Add horizon culling.
-- [x] Runtime-verify stable geometry with no disappearing sectors.
-- [x] Runtime-verify no visible cube-face seams or quadtree cracks.
-
-#### R3 - Authoritative terrain sampling
-
-- [x] Connect the renderer to Est-owned terrain sampling.
-- [x] Sample authoritative macro terrain into render vertices.
-- [x] Verify major terrain structure corresponds to authoritative Est state.
-- [x] Preserve deterministic output from the same world and terrain seed.
-- [x] Ensure authoritative surface-cell boundaries are not visible.
-- [x] Keep any intermediate procedural visual detail explicitly
-      presentation-only.
-
-#### R4 - Materials, lighting, ocean, and atmosphere
-
-- [x] Compute terrain normals from the rendered terrain surface.
-- [x] Add Est-controlled terrain materials.
-- [x] Add directional planetary lighting independent of Cesium assumptions.
-- [x] Add a continuous ocean representation driven by authoritative water state.
-- [x] Make visible shorelines emerge from terrain/water intersection rather
-      than hydrology-cell polygons.
-- [ ] Add atmosphere only after terrain, lighting, and water are runtime-green.
-
-#### R5 - Living-world presentation
-
-- [x] Reconnect authoritative population presentation.
-- [x] Reconnect authoritative animal and resource presentation as justified.
-- [ ] Select representations by view scale rather than rendering every
-      authoritative object identically at every distance.
-- [ ] Preserve `simulation truth -> API -> presentation`.
-- [ ] Do not infer simulation truth from renderer animation or procedural
+- [ ] Add atmosphere after the current terrain, lighting, and standing-water
+      foundation.
+- [ ] Select representations by view scale when concrete product requirements
+      require representation transitions or LOD.
+- [x] Preserve `simulation truth -> API -> presentation`.
+- [x] Do not infer simulation truth from renderer animation or procedural
       decoration.
 
-#### R6 - Historical Cesium cleanup
-
-The production-renderer decision is complete: Babylon.js is the current
-planetary renderer. Cesium is historical/evaluation-only and must not be used
-for current launch, development, smoke testing, runtime validation, or
-simulation visualization.
+Historical renderer cleanup:
 
 - [x] Retarget normal Play Est flow to the production Babylon renderer.
 - [x] Remove Cesium from the production application path.
-- [x] Retain Cesium only as historical/evaluation evidence where it remains
-      technically useful.
+- [x] Retain useful Cesium and regional-rendering evidence as historical
+      engineering reference.
 - [ ] Remove obsolete Cesium-specific terrain, imagery, and water adapters when
       doing so does not erase useful historical evidence.
 - [ ] Remove obsolete Cesium dependencies when no preserved evaluation artifact
       requires them.
-- [x] Update launcher and development documentation for the Babylon renderer path.
+- [x] Keep launcher and development documentation on the Babylon production
+      path.
 
 Renderer milestones require browser runtime validation.
 
@@ -411,7 +369,7 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
 - [x] Verify cell area accounting, lookup, and neighbor topology.
 - [x] Define durable per-cell terrain state.
 - [x] Generate deterministic tectonic-informed planet-scale topography from a seed.
-- [ ] Derive flooded land/ocean/lake state from terrain plus hydrologic water inventory.
+- [x] Derive flooded land/ocean/lake state from terrain plus hydrologic water inventory.
   - [x] Derive connected standing-water bodies from authoritative per-cell
         surface-liquid state.
   - [x] Initialize global-equilibrium flooded distribution from planet-level
@@ -517,10 +475,9 @@ Architecture: `docs/architecture/0005-biosphere-surface-hydrology.md`.
   - [x] Make plant productivity consume and respond to authoritative available
         nitrogen without breaking existing biomass accounting.
   - [x] Route mortality from authoritative material-bearing biological state
-        into detritus: plant mortality returns biomass and tissue nitrogen, and
-        invertebrate mortality returns realized biomass without inventing
-        untracked nitrogen. Count-only fauna remain outside material accounting
-        until authoritative physical composition is modeled.
+        into detritus across current plant, invertebrate, human, wolf, bird, and
+        grazer representations while preserving explicit biomass and nitrogen
+        accounting.
   - [x] Wire biogeochemistry through the session/API boundary and validate the
         closed terrestrial nutrient loop end to end.
 - [ ] Unify organism material and lifecycle accounting before evolutionary
@@ -771,71 +728,17 @@ These are intentionally not rejected. They are simply not allowed to distort Fir
 - Galaxy generation
 - Cross-universe travel
 
-### Olympia land-cover vertical slice (historical renderer evaluation)
+### Historical renderer evaluation
 
+Completed and superseded Cesium, regional-surface, TMS, local-geometry,
+view-significance, and multi-scale presentation experiments are preserved in:
 
-The following completed surface and Cesium experiments are retained as
-architectural evidence. They are not the active production-renderer path.
-New planetary rendering work follows ADR 0006 and the Phase 7 R1-R6 sequence
-above.
+- `docs/SURFACE_EVALUATION.md`
+- `docs/archive/cesium/`
+- `docs/architecture/0006-planetary-rendering-separation.md`
 
+They are engineering evidence, not active backlog.
 
-- [x] Retrieve the 2025 Annual NLCD GeoTIFF from MRLC request `5a3e2c72-778a-4f3b-9c57-be4e7b1fef82`.
-- [x] Inspect CRS, bounds, resolution, NoData, categorical values, legend, and source provenance.
-- [x] Build a reproducible regional conversion pipeline without committing large raw datasets by default.
-- [x] Define Est-owned surface semantics independently of NLCD codes and Cesium materials.
-- [x] Render a coherent Olympia/Puget Sound/Mount Rainier slice using real terrain and land-cover semantics.
-- [x] Verify geographic alignment, coastline placement, terrain relief, and snow/ice coverage through close-range browser inspection.
-- [x] Preserve the working satellite baseline, terrain study, and USGS WMS comparison; keep renderer selection open.
-- [x] Evaluate full-resolution regional rendering through a static geographic TMS pyramid at levels 7-11.
-- [ ] Improve regional coverage boundaries and fallback surface treatment.
-- [x] Establish an Est-owned natural material presentation seam with deterministic geographic variation, independent of Cesium.
-- [ ] Evaluate water treatment, close-range quality, performance, and transitions at multiple scales.
-
-## Regional surface TMS follow-up (historical renderer evaluation)
-
-- [x] Generate and validate a full-resolution regional geographic TMS pyramid.
-- [x] Integrate the pyramid as a fifth Cesium comparison mode.
-- [x] Confirm improved close-range lake/shoreline detail in the browser.
-- [x] Fix launcher ownership detection for differently capitalized macOS paths.
-- [x] Add renderer-only daylight/real-lighting evaluation control.
-- [x] Preserve camera position during surface-mode A/B switching.
-- [x] Validate coverage edges, transparency, seams, and fallback behavior.
-- [x] Evaluate the first deterministic natural material treatment at close range and preserve its architectural seam for category-specific follow-up.
-- [x] Evaluate category-specific broad/medium/fine material structure and confirm that classified-raster geometry, not generic tonal variation, is now the dominant close-range visual limitation.
-- [x] Evaluate whether semantic-boundary treatment is the next visual surface direction; source-class comparison showed that direct categorical rendering remains the limiting model even when richer NLCD structure is preserved.
-- [x] Define and prove a visual-surface input/composition seam separate from authoritative Est surface semantics; terrain-derived slope now influences presentation without changing semantic identity, coverage, or renderer ownership.
-- [x] Define the next visual-surface composition model so categorical land-cover geometry can inform appearance without being directly exposed as the rendered surface. Continuous Sentinel-2 RGB now provides the visual basis while Est semantics independently define surface identity and coverage.
-- [x] Decouple visual-surface resolution from semantic-grid resolution so approximately 10-meter imagery detail is preserved instead of being downsampled onto the approximately 30-meter semantic grid before composition.
-- [x] Derive visual TMS detail level from the effective visual-source resolution rather than the semantic raster resolution.
-- [x] Evaluate the resulting 10-meter Sentinel-2 surface through a level-13 regional TMS and confirm that the pipeline preserves additional source detail but remains insufficient for close-range urban representation.
-- [x] Conclude the raster-resolution escalation experiment: do not pursue additional Sentinel zoom levels, sharpening, interpolation, semantic tinting, or slope tuning as substitutes for local geometric detail.
-- [ ] Harden and test TMS publication rollback behavior.
-
-## Multi-scale presentation evaluation (historical renderer evaluation)
-
-The regional surface experiments established that no single representation
-should be expected to serve planetary, regional, city, and street scales.
-Preserve authoritative Est world state independently of presentation while
-evaluating progressively richer visual representations as camera distance
-decreases.
-
-- [x] Prove the local-geometry hypothesis with a deliberately small Washington State Capitol campus vertical slice.
-- [x] Acquire real building footprints for the Capitol evaluation area without committing large or disposable source extracts by default.
-- [x] Define a renderer-neutral Est local-scene artifact for the building spike rather than exposing OSM semantics directly to Cesium.
-- [x] Render recognizable building geometry over terrain and imagery without moving semantic or simulation ownership into Cesium.
-- [x] Evaluate the visual transition from regional imagery at altitude to local building geometry during descent.
-- [x] Decide from the building spike whether roads, vegetation, water features, and other local geometry should be evaluated next.
-- [ ] Define final scale/LOD boundaries only after the view-selection experiments provide sufficient evidence for transition thresholds and behavior.
-- [x] Prove that regional terrain/surface presentation and mapped local geometry can coexist in one descent path in a terrain-rich Mount Rainier environment; the Longmire evaluation preserved coherent terrain-relative building geometry from landscape scale through close descent.
-- [x] Validate the local-scene preparation/rendering boundary in materially different environments: dense Olympia civic/urban structure and sparse Longmire mountain structures.
-- [x] Prove that Est can own representation selection independently of Cesium through a renderer-neutral presentation policy with hysteresis; keep the current 2,000/3,000-metre thresholds experimental.
-- [x] Evaluate view-dependent local-scene relevance and reject camera altitude, aggregate scene-bounding-sphere projection, and one scene-wide projected footprint as sufficient standalone significance measures.
-- [x] Demonstrate a terrain-correct feature-aware view signal at Longmire: controlled observations produced 0/59 visible features and 0.0% feature-box coverage looking away, 57/59 and 5.1% close and centered, and 59/59 and 0.2% farther and centered.
-- [x] Confirm that representation evaluation must use sufficiently current view state; sparse renderer camera-change cadence must not materially alter semantic representation decisions.
-- [x] Compare aggregate and union feature-box screen contribution across sparse Longmire and dense Olympia views; union coverage removed overlap double-counting and preserved coherent view-relative ordering in both environments.
-- [x] Add normalized renderer-neutral `localRepresentationScreenSignificance` to `PresentationViewContext`, then experimentally compose nonzero significance with the existing camera-height boundaries without promoting final significance thresholds.
-- [x] Codify the Observatory user as a privileged observer and simulation operator: presentation must accommodate unusual but finite viewpoints, operator interventions alter simulation conditions or state through explicit operations, and world-entity movement constraints remain separate.
-- [x] Verify that the experimental zero-significance boundary does not produce stationary representation chatter in Olympia; temporary camera-pose diagnostics recorded zero stationary transitions through thousands of render-cadence checks, so significance hysteresis remains unjustified without further evidence.
-- [ ] Refine the renderer-neutral view context and significance measure before promoting feature-box coverage, thresholds, update cadence, or transition rules into production presentation policy.
-- [ ] Evaluate the next local spatial capability based on simulation and world-structure value rather than cosmetic polish; likely candidates include roads or richer building structure.
+If a future product requirement needs one of those capabilities, add a new
+current backlog item based on that requirement and reuse the preserved evidence
+rather than reopening historical experiment checkboxes.

@@ -22,22 +22,21 @@ The existing chain can determine:
 - signed net radiative flux for an atmospheric-column thermal reservoir;
 - thermal-reservoir temperature response to a signed net heat flux.
 
-Those foundations are deliberately pure.
+Those foundations are deliberately pure and do not themselves own evolving
+regional temperature state.
 
-They do not yet own evolving regional temperature state.
-
-The current authoritative thermal state remains:
+At the time this ADR was adopted, thermal authority was represented by:
 
 `PlanetEnvironment.MeanSurfaceTemperatureKelvin`
 
-and the current causal thermal writer remains:
+with:
 
 `PlanetaryEnergyBalanceSystem`
 
-Current hydrology and biological systems consume that planetary mean directly or
-derive coarse local temperature from it.
+as the causal thermal writer. Hydrology and biological systems consumed that
+planetary mean directly or through coarse local derivation.
 
-ADR 0015 established the next topology:
+ADR 0015 had established the regional topology:
 
 - one surface-system thermal reservoir per surface cell;
 - one vertically integrated atmospheric-column thermal reservoir per surface
@@ -46,9 +45,9 @@ ADR 0015 established the next topology:
 - no horizontal transport yet;
 - no vertical non-radiative transport yet.
 
-The next milestone must establish durable regional thermal state and define how
-thermal authority migrates without allowing two independent causal climate
-models to write the same conceptual planet.
+This ADR defines the durable regional state and authority migration required to
+activate that topology without allowing two independent causal climate models
+to write the same conceptual planet.
 
 ## Decision
 
@@ -863,9 +862,9 @@ Planet-level telemetry should include at minimum:
 
 Diagnostics do not become separate state authority.
 
-## Initial implementation sequence
+## Implementation sequence
 
-ADR 0016 should be implemented in deliberate layers.
+ADR 0016 defines the migration in deliberate layers.
 
 ### Phase A: durable regional thermal state
 
@@ -1039,5 +1038,5 @@ After migration:
 The compatibility mean remains available during consumer migration without
 remaining an independent climate truth.
 
-The next implementation work should begin with Phase A durable regional thermal
-state and persistence before any new causal temperature evolution is activated.
+The staged sequence keeps durable state authority, model policy, and causal
+activation independently testable.

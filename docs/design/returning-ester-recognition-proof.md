@@ -366,11 +366,12 @@ It may rely on:
 > of one person's durable social history, disappear, survive time and
 > persistence, and be recognized when presented again.
 
-That is the prerequisite for the next proof.
+That establishes the prerequisite for connecting durable recognition to a
+world-generated physical encounter.
 
 ## Physical Gameplay Follow-On
 
-### Implementation status — completed 2026-09-21
+### Completed physical gameplay evidence
 
 The physical gameplay follow-on to this design proof is now complete.
 

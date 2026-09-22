@@ -162,7 +162,7 @@ and must not be conflated with whether pregnancy currently works.
 
 ## Seasonal Capability
 
-Est currently has an implemented seasonal-control foundation.
+Est has an implemented seasonal-control foundation.
 
 That foundation includes:
 
@@ -172,15 +172,24 @@ That foundation includes:
 - derived seasonal-system support;
 - circular-orbit seasonal parameters and provider;
 - seasonal-state replacement through the simulation operation boundary;
+- persistence and API representation of seasonal state and configuration;
 - tests covering seasonal control and derived seasonal behavior.
+
+When a simulation explicitly configures circular-orbit seasonality together
+with regional thermal authority, derived or overridden physical seasonal
+context supplies subsolar latitude to the regional thermal system before
+thermal evaluation.
+
+The ordinary public API session-creation path does not currently expose
+seasonal-model or regional-thermal-model configuration, so that physical
+seasonal chain is not automatically active in ordinary API-created worlds.
 
 This does not mean that Est currently has broadly realized seasonal ecology or
 gameplay.
 
-Species and systems such as vegetation, animals, migration, breeding,
-dormancy, hibernation, and other ecological consumers do not automatically gain
-meaningful seasonal behavior merely because the shared seasonal substrate
-exists.
+Species-specific seasonal responses such as breeding windows, migration,
+torpor, dormancy, hibernation, and vegetation seasonality remain separate
+future consumer behavior.
 
 The architecture deliberately avoids hardcoding one Earth four-season model.
 It preserves room for physically derived Earth-like seasonality as well as

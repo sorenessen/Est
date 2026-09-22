@@ -55,8 +55,8 @@ The physical chain is:
 `stellar flux magnitude`
 `-> top-of-atmosphere solar geometry`
 `-> atmospheric direct-beam extinction`
-`-> future direct + diffuse surface radiation`
-`-> future regional climate`
+`-> direct + diffuse surface radiation`
+`-> regional thermal and broader climate response`
 
 ## Vertical optical depth
 

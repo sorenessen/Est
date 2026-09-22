@@ -24,37 +24,12 @@ The established chain can determine:
 
 ADR 0014 deliberately stopped before creating regional thermal state.
 
-That boundary is important.
+ADR 0015 therefore defines the regional radiative topology while remaining
+independent from thermal-state authority.
 
-`PlanetEnvironment.MeanSurfaceTemperatureKelvin` remains the current
-authoritative thermal state.
-
-`PlanetaryEnergyBalanceSystem` remains the current zero-dimensional causal
-thermal model.
-
-Current hydrology and biological systems still consume that global thermal
-baseline directly or through coarse elevation lapse-rate calculations.
-
-The next required architectural decision is therefore not merely another
-radiative formula.
-
-Est must define:
-
-- which regional thermal reservoirs conceptually exist;
-- which radiative transfers connect those reservoirs;
-- what constitutes energy leaving the modeled planet for space;
-- how shortwave absorption is assigned;
-- how longwave emission, absorption, transmission, and reflection are counted;
-- how energy conservation is enforced;
-- how this future regional model will coexist with the current global thermal
-  authority during migration;
-- where durable regional thermal state will eventually live.
-
-The first implementation following this ADR must still remain non-authoritative.
-
-It will prove the regional radiative topology as pure deterministic physics
-before durable temperature state, persistence, causal stepping, or consumer
-migration is introduced.
+ADR 0016 defines the durable regional thermal state, model policy, persistence,
+causal stepping, and mutually exclusive thermal-authority migration that consume
+this topology.
 
 ## Decision
 
@@ -165,8 +140,8 @@ ADR 0013 produces surface-system absorbed-shortwave factors.
 
 Those factors remain dimensionless relative to normal-incidence stellar flux.
 
-A future regional energy-budget composer will convert them into physical fluxes
-using the existing authoritative stellar-flux magnitude:
+Downstream regional thermal composition converts them into physical fluxes
+using the configured authoritative stellar-flux magnitude:
 
 `Q_sw_atmosphere = StellarFluxWattsPerSquareMeter * F_absorbed_atmosphere`
 
@@ -500,10 +475,10 @@ the future integration may use:
 
 ADR 0015 does not yet perform those integrations causally against `WorldState`.
 
-## Future durable regional thermal state
+## Durable regional thermal state
 
-When regional thermal state is introduced, it will follow the established
-planet-associated surface-field pattern.
+Regional thermal state follows the established planet-associated
+surface-field pattern defined by ADR 0016.
 
 The intended structure is conceptually:
 
@@ -515,7 +490,7 @@ containing:
 - `SurfaceGridDefinition`;
 - exactly one thermal cell state for every authoritative surface cell.
 
-Each future thermal cell state will at minimum need:
+Each regional thermal cell state requires at minimum:
 
 - `SurfaceCellId`;
 - surface-system temperature;
@@ -536,13 +511,12 @@ Durable thermal state must:
 
 The surface grid itself remains geometry and topology only.
 
-## Future thermal model policy
+## Regional thermal model policy
 
 Thermal model policy belongs in `SimulationDefinition`, not in individual
 thermal-state cells.
 
-Future per-planet regional thermal policy is expected to own effective
-parameters such as:
+Per-planet regional thermal policy owns effective parameters such as:
 
 - surface longwave emissivity;
 - atmospheric longwave emissivity;
@@ -555,15 +529,15 @@ Those parameters may later become derived or spatially varying.
 The first durable model should not hide Earth-specific constants inside the
 thermal-state records.
 
-Model policy must eventually be persisted with timeline archives so replay and
-branching preserve thermal semantics.
+Regional thermal model policy is persisted with timeline archives so replay
+and branching preserve thermal semantics.
 
 ## Relationship to hydrology, terrain, and vegetation
 
 Terrain, hydrology, vegetation, and biogeochemistry already occupy the
 authoritative shared surface topology.
 
-Future regional thermal state must use the same grid definition for a planet.
+Regional thermal state uses the same grid definition for a planet.
 
 ADR 0015 does not yet derive thermal properties from:
 
@@ -690,80 +664,55 @@ Those require a richer atmospheric-radiation model.
 The one-layer gray topology is an explicit first-order closure, not a claim that
 real atmospheres are gray or isothermal.
 
-## Global thermal authority remains unchanged
+## Thermal authority boundary
 
-ADR 0015 does not make regional temperature authoritative.
+ADR 0015 itself does not make regional temperature authoritative.
 
-`PlanetEnvironment.MeanSurfaceTemperatureKelvin` remains the current
-authoritative thermal boundary consumed by existing systems.
+Its regional radiative calculation is pure physical accounting and does not
+write `PlanetEnvironment`, hydrology, vegetation, biogeochemistry, population,
+or animal state.
 
-`PlanetaryEnergyBalanceSystem` remains active and unchanged.
+ADR 0016 defines thermal authority and enforces that one planet cannot run
+planetary energy-balance and regional thermal models as competing causal
+temperature writers.
 
-The pure regional radiative calculation must not write:
+## Thermal authority migration
 
-- `PlanetEnvironment`;
-- hydrology;
-- vegetation;
-- biogeochemistry;
-- population or animal state.
+ADR 0016 performs the thermal-authority migration anticipated by this topology.
 
-The existence of a calculated regional flux does not make that flux or any
-derived temperature authoritative.
+For a regionally authoritative planet:
 
-## Future migration from the global energy-balance model
+- `PlanetaryEnergyBalanceSystem` is not the causal temperature writer;
+- regional thermal state owns causal surface and atmospheric temperatures;
+- the regional model composes the radiative calculations defined here;
+- the planetary mean remains available only through an explicit compatibility
+  rule.
 
-A future ADR must explicitly migrate thermal authority.
+This preserves the core invariant that a planet has one causal thermal
+authority.
 
-That migration must obey one core rule:
+## Compatibility meaning of MeanSurfaceTemperatureKelvin
 
-**A planet must not have two independent causal thermal authorities updating the
-same conceptual climate state.**
+Under regional thermal authority,
+`PlanetEnvironment.MeanSurfaceTemperatureKelvin` is derived from authoritative
+regional surface temperatures as an area-weighted compatibility value.
 
-When regional thermal state eventually becomes authoritative, the migration
-must define how `PlanetaryEnergyBalanceSystem` is:
+It is not an independent evolving thermal truth.
 
-- disabled for that planet;
-- replaced for that planet;
-- or retained only as a non-causal diagnostic or compatibility model.
+## Consumer migration
 
-It must not remain a second causal temperature writer in parallel with the
-regional thermal model.
+ADR 0017 makes hydrology consume regional surface temperature when regional
+thermal authority is configured.
 
-## Future meaning of MeanSurfaceTemperatureKelvin
+Other systems may continue to consume the compatibility planetary mean until a
+deliberate regional consumer contract is introduced for them.
 
-When regional surface temperatures eventually become authoritative,
-`PlanetEnvironment.MeanSurfaceTemperatureKelvin` must not remain an independent
-evolving thermal truth.
-
-A later migration may redefine it as an area-weighted derived compatibility
-value from authoritative regional surface temperature:
-
-`T_mean
- = sum(T_surface_cell * cell_area)
-   / sum(cell_area)`
-
-or retire it from causal use.
-
-ADR 0015 does not make that migration yet.
-
-The exact compatibility strategy requires the later authority-migration ADR.
-
-## Existing consumer migration
-
-Current hydrology and biological systems still use the global mean temperature
-or an elevation-adjusted value derived from it.
-
-They remain unchanged in this milestone.
-
-When regional temperature becomes authoritative, consumers must migrate
-deliberately to the appropriate regional thermal signal.
-
-The migration must not leave some systems reading a stale global temperature
-while others read regional temperature without an explicit compatibility rule.
+Consumer migration must preserve an explicit authority rule rather than allowing
+some systems to read unrelated competing temperature truths.
 
 ## Simulation ordering
 
-The intended future causal order is conceptually:
+The configured causal order is:
 
 `astronomical / seasonal context`
 `-> regional radiative forcing`
@@ -773,21 +722,18 @@ The intended future causal order is conceptually:
 `-> consumers`
 `-> consequences`
 
-This preserves the existing architectural direction in which climate provides
-thermal boundary conditions to hydrology and biology.
+This preserves the architectural direction in which climate provides thermal
+boundary conditions to hydrology and biology.
 
-ADR 0015 does not yet alter `SimulationStepRunner` configuration.
+ADR 0015 itself remains a pure radiative topology; ADRs 0016 and 0017 establish
+the stateful thermal and hydrology ordering.
 
 ## Persistence boundary
 
-No regional thermal state is persisted by this first topology milestone.
+ADR 0015 itself introduces no persisted regional thermal state.
 
-When durable regional thermal state is introduced, both:
-
-- world snapshots;
-- timeline archives;
-
-must be versioned deliberately.
+ADR 0016 adds durable regional thermal state and deliberately versions both
+world snapshots and timeline archives around that authority.
 
 The current spatial-state persistence pattern already preserves planet identity,
 surface-grid definition, and per-cell state for terrain, hydrology, vegetation,
@@ -801,10 +747,9 @@ definition in timeline archives.
 
 ## First implementation boundary
 
-The first implementation following ADR 0015 will remain pure deterministic
-physics.
+The implementation boundary of ADR 0015 remains pure deterministic physics.
 
-It will add a regional radiative energy-budget calculation that consumes:
+It adds a regional radiative energy-budget calculation that consumes:
 
 - physical surface absorbed-shortwave flux in `W/m^2`;
 - physical atmospheric absorbed-shortwave flux in `W/m^2`;
@@ -828,9 +773,9 @@ It will produce enough explicit terms to verify:
 - outgoing longwave radiation to space;
 - combined cell-level radiative conservation.
 
-The implementation will reuse ADR 0014 graybody emission.
+The implementation reuses ADR 0014 graybody emission.
 
-It will not create durable regional thermal state.
+ADR 0015 itself does not create durable regional thermal state.
 
 ## Initial validation boundary
 
@@ -915,11 +860,9 @@ The regional physical chain becomes conceptually:
 `-> outgoing longwave radiation to space`
 `-> signed surface + atmospheric net radiative flux`
 `-> ADR 0014 thermal-reservoir response`
-`-> future authoritative regional thermal state`
+`-> authoritative regional thermal state when configured`
 
-The first implementation remains a pure energy-accounting layer.
+ADR 0015 remains a pure energy-accounting layer.
 
-The next stateful milestone after this topology is proven must define durable
-regional thermal state, initialization, model policy, persistence, and thermal
-authority migration before any regional temperature drives hydrology or
-biology.
+ADR 0016 provides the stateful regional thermal authority built on this
+topology, and ADR 0017 connects that authority to hydrology.

@@ -16,8 +16,9 @@ reproduction, movement, foraging, and organism-material state. The shared
 planetary surface already provides terrain, hydrology, vegetation, and other
 environmental state.
 
-Future seasonal and regional-climate work will make environmental conditions
-more spatially and temporally variable.
+Seasonal and regional-thermal foundations provide authoritative context for
+spatially and temporally varying environmental conditions, while broader
+climate processes remain incomplete.
 
 That creates an important human-survival requirement.
 
@@ -125,8 +126,9 @@ ADR 0007 remains authoritative for seasonal-control policy.
 
 Seasonal context is an upstream source of simulation context.
 
-A seasonal provider may eventually influence climate, photoperiod, hydrology,
-vegetation, migration, agriculture, or other systems.
+Configured seasonal context can already provide astronomical forcing to
+regional thermal evaluation. Photoperiod, vegetation, migration, agriculture,
+and other seasonal consumers remain separate system-specific concerns.
 
 Human shelter requirements must not be implemented as a direct check of
 effective season.
@@ -151,24 +153,24 @@ Living Worlds.
 
 ## Regional climate dependency
 
-The current planetary energy-balance model provides coarse thermal boundary
-conditions.
+Est supports both coarse planetary energy-balance authority and configured
+regional thermal authority, with only one causal thermal authority for a planet.
 
-Detailed human exposure requires environmental state at a finer spatial
-resolution.
+Detailed human exposure requires environmental state at finer spatial
+resolution than a planetary mean.
 
-A future regional-climate layer may provide cell-level or otherwise spatially
-resolved state such as:
+Configured regional thermal state provides cell-level surface and
+atmospheric-column temperature. Broader regional climate work may later add
+inputs such as:
 
-- temperature;
 - precipitation;
 - humidity;
 - wind;
-- insolation;
-- snow or ice conditions.
+- local snow and ice conditions;
+- other spatially resolved environmental forcing.
 
-Human exposure should consume that authoritative environmental state through
-stable simulation contracts.
+Human exposure should consume authoritative environmental state through stable
+simulation contracts.
 
 The human model must not own regional climate.
 
@@ -337,12 +339,12 @@ Historical or externally sourced building geometry may remain useful for Earth
 Observatory and evaluation work, but it must not silently become authoritative
 Living World construction state.
 
-## Initial implementation boundary
+## Implementation boundary
 
-This ADR does not expand the current dormant seasonal-control milestone.
+The seasonal-control and regional-thermal foundations referenced by this ADR
+exist independently from the human environmental-exposure model.
 
-The seasonal-control foundation defined by ADR 0007 should be completed without
-adding:
+This ADR still does not itself add:
 
 - human exposure damage;
 - shelter-seeking behavior;
@@ -353,11 +355,8 @@ adding:
 - settlements;
 - civilization simulation.
 
-Those capabilities build on environmental and seasonal foundations later.
-
-The first human-environment implementation, when prioritized, should establish
-causal exposure and protection before detailed construction or settlement
-simulation.
+When human-environment behavior is implemented, causal exposure and protection
+should precede detailed construction or settlement simulation.
 
 ## Architectural invariants
 
@@ -412,6 +411,3 @@ Future implementation must preserve these rules:
   structural, economic, and social state.
 
 These costs are deferred until those capabilities are actually implemented.
-
-The immediate implementation priority remains the dormant seasonal-control
-foundation defined by ADR 0007.

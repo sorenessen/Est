@@ -920,23 +920,12 @@ Future implementation must preserve these rules:
 15. Richer cognition must grow from explicit authoritative state rather than
     replacing recognition with ungrounded generated behavior.
 
-## Playable manifestation follow-up — 2026-09-20
+## Playable manifestation integration
 
-The recognition foundation is now paired with a working manifested-Ester
-foundation.
+The recognition foundation composes with the manifested-Ester architecture in
+ADR 0019.
 
-Est currently has:
-
-- stable Ester identity;
-- authoritative manifested Ester geographic state;
-- player locomotion through the application/API authority path;
-- a local Babylon play representation;
-- stable authoritative `PersonId` values for nearby simulated humans;
-- person-owned actor-specific recognition state.
-
-This does not yet mean a physical gameplay encounter is authoritative.
-
-The next proof must connect world circumstances to this existing social model:
+A qualifying physical encounter follows the authoritative chain:
 
     manifested Ester and Person A occupy qualifying world proximity
       -> application requests an encounter state transition
@@ -946,15 +935,12 @@ The next proof must connect world circumstances to this existing social model:
       -> same Ester later returns
       -> recognition is observed before another encounter is recorded
 
-The renderer must not create recognition because two meshes overlap or because
+The renderer does not create recognition because two meshes overlap or because
 an animation plays.
 
-Presentation may detect or display useful proximity evidence, but the
-authoritative encounter boundary and resulting social-state change remain
-simulation/application concerns.
-
-This follow-up is specified in ADR 0019 and
-`docs/design/returning-ester-recognition-proof.md`.
+Presentation may display proximity or recognition evidence, but the encounter
+boundary and resulting social-state change remain simulation/application
+concerns.
 
 ## Consequences
 
@@ -987,10 +973,10 @@ These costs are appropriate for the first durable social-simulation seam.
 
 ## Working proof
 
-The first social milestone is successful when Est can truthfully demonstrate:
+The foundational social proof is:
 
 > A human encountered an Ester, time passed, the world was saved, loaded, or
 > branched, and that same human still knew they had met that same Ester before.
 
-That proof establishes the smallest causal foundation needed for a world in
-which social history can eventually matter.
+That establishes the smallest causal foundation needed for a world in which
+social history can matter.

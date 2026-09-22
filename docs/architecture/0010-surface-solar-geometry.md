@@ -20,7 +20,7 @@ That state is physically meaningful, but no surface system yet translates
 subsolar latitude into latitude-specific sunlight geometry.
 
 ADR 0005 establishes the shared planet-surface grid as the authoritative
-topology for future regional climate and explicitly anticipates cell-level
+topology for regional environmental state and explicitly anticipates cell-level
 insolation.
 
 The existing `PlanetaryEnergyBalanceSystem` remains a zero-dimensional global
@@ -233,12 +233,12 @@ and biological models.
 Est gains the physical bridge between astronomical seasonality and the shared
 surface substrate without prematurely coupling it to climate or biology.
 
-Future regional climate can consume:
+Regional thermal and broader climate systems can consume:
 
 `stellar flux magnitude -> solar geometry -> local incoming radiation`
 
-while preserving the existing global energy-balance model as the current
-planetary thermal baseline.
+without making the solar-geometry layer itself a thermal authority. Thermal
+authority selection is defined separately by ADR 0016.
 
 Biological systems that later need photoperiod can consume daylight geometry
 without interpreting abstract season labels.

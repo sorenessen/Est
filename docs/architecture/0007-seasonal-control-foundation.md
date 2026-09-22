@@ -168,5 +168,7 @@ controlled seasonality.
 Species lifecycle work no longer needs to invent its own annual clock or season
 representation.
 
-The immediate next implementation task is the dormant seasonal-control
-foundation, not seasonal enforcement in any organism system.
+The shared seasonal-control foundation described by this ADR is implemented.
+Configured derived seasonality may supply physical seasonal context to systems
+that explicitly consume it, while species-specific seasonal behavior remains a
+separate consumer concern.

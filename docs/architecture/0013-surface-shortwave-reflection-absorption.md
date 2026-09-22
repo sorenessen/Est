@@ -322,32 +322,27 @@ In particular, this milestone does not invent fixed albedos for:
 Those values require a deliberate surface-optics model rather than hidden
 constants inside the energy-partition calculation.
 
-## Relationship to the existing global energy-balance model
+## Relationship to thermal authority
 
-`PlanetaryEnergyBalanceSystem` remains unchanged.
+ADR 0013 does not reinterpret planetary energy-balance albedos as local surface
+reflectance and does not itself select or replace thermal authority.
 
-Its:
+When `PlanetaryEnergyBalanceSystem` is configured, its existing:
 
 - `IceFreeAlbedo`;
 - `IceAlbedo`;
 - global `StellarFluxWattsPerSquareMeter / 4` convention;
-- existing ice-temperature feedback;
+- ice-temperature feedback;
 
-remain the current zero-dimensional planetary thermal baseline.
+retain their planetary-model semantics.
 
-ADR 0013 does not reinterpret those albedos as local surface reflectance.
-
-It does not replace the current energy-balance system.
-
-It does not feed the new local surface absorption result into that system.
-
-Migration from the coarse global energy-balance model to a regional radiative
-energy budget requires a separate architectural decision.
+Regional thermal authority consumes the local optical accounting through the
+separate authority and migration boundary defined by ADR 0016.
 
 ## Thermal semantics
 
-Absorbed shortwave is necessary for future thermal forcing, but it is not
-sufficient to define temperature change.
+Absorbed shortwave is necessary for downstream thermal forcing, but it is not
+sufficient by itself to define temperature change.
 
 `F_absorbed_surface` does not yet determine:
 
@@ -453,7 +448,7 @@ This milestone does not add:
 ## Consequences
 
 Est gains an explicit, energy-conserving optical boundary between incoming
-surface shortwave radiation and future thermal forcing.
+surface shortwave radiation and downstream thermal forcing.
 
 The physical shortwave chain becomes:
 
@@ -463,11 +458,12 @@ The physical shortwave chain becomes:
 `-> atmospheric absorption + scattering`
 `-> direct + diffuse surface downwelling`
 `-> surface reflection + absorption`
-`-> future thermal-reservoir energy deposition`
-`-> future regional thermal response`
+`-> thermal-reservoir energy deposition`
+`-> regional thermal response`
 
-The new surface-optics foundation remains deliberately independent of the
-existing zero-dimensional planetary energy-balance model.
+The surface-optics foundation remains deliberately independent of thermal
+authority selection.
 
-That separation allows Est to build a regional physical radiation chain without
-silently changing the semantics of the current global climate baseline.
+That separation allows the same optical accounting to feed planetary or
+regional thermal models without making the optics layer itself a climate-state
+authority.

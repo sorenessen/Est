@@ -4,9 +4,9 @@
 
 Accepted for implementation.
 
-## Current renderer authority — 2026-09-16
+## Renderer authority
 
-Babylon.js is Est's current planetary renderer.
+Babylon.js is Est's accepted production planetary renderer.
 
 Cesium is retired and preserved only as historical/evaluation evidence. It is
 not an alternate current renderer or fallback development path.
@@ -14,13 +14,13 @@ not an alternate current renderer or fallback development path.
 **Do not use `/cesium.html` for current development, launch, smoke testing,
 runtime validation, or simulation visualization.**
 
-## Current implementation direction — 2026-09-15
+## Production implementation boundary
 
 The architectural separation in this ADR remains accepted:
 
 `simulation spatial resolution != render spatial resolution`
 
-The current First Light production planet uses one immutable Babylon icosphere.
+The First Light production planet uses one immutable Babylon icosphere.
 Authoritative terrain is sampled by stable spherical direction, displaced
 radially once, and normals are computed from the final fixed geometry. Camera
 movement changes only the view and must never change planet topology, vertex
@@ -260,14 +260,15 @@ ADR 0003 remains accepted.
 
 This decision strengthens it.
 
-A cube-sphere quadtree provides the planetary terrain foundation. It does not
-require one representation to serve every feature at every scale.
+The current production planetary terrain foundation is one immutable Babylon
+icosphere. Multi-scale presentation does not depend on the planet mesh itself
+using a quadtree, cube faces, or camera-driven topology.
 
 Regional imagery, materials, buildings, roads, vegetation, settlements,
 characters, and other representations may still appear, disappear, aggregate,
 stream, or transition according to viewing scale and significance.
 
-## Implementation Sequence
+## Historical Implementation Sequence
 
 ### Historical R-series preservation note
 
@@ -276,14 +277,8 @@ record. They document implemented and tested techniques, runtime gates,
 failures, and lessons. They are not the current marching orders for live planet
 geometry.
 
-Current path:
-
-1. keep one immutable spherical terrain mesh;
-2. add convincing water without changing terrain geometry;
-3. add atmosphere and environmental presentation;
-4. reconnect living-world and ecosystem presentation;
-5. revisit advanced LOD, streaming, regional/local transitions, or Cesium-derived
-   capabilities only when a concrete feature requires them.
+The production implementation that superseded this sequence is described in the
+current-authority sections above and summarized in `docs/CURRENT_STATE.md`.
 
 ### R1: Babylon planetary foundation
 
@@ -374,25 +369,26 @@ Renderer milestones require runtime visual validation.
 
 A successful build or unit-test suite is necessary but not sufficient.
 
-At minimum the rebuilt planetary foundation must demonstrate:
+The current production planetary presentation must demonstrate:
 
 - no visible authoritative simulation-cell grid in terrain;
 - no cell-shaped ocean coastline;
-- no cube-face seams during ordinary viewing;
-- no quadtree cracks;
-- no disappearing or camera-dependent terrain sectors;
-- stable geometry while the camera moves;
+- stable planetary geometry while the camera moves;
+- no camera-dependent changes to planet topology or terrain ownership;
 - consistent terrain normals and lighting;
-- continuous ocean presentation;
+- continuous standing-water presentation;
 - shoreline determined by terrain/water intersection;
 - deterministic correspondence with authoritative macro terrain;
-- smooth global-to-regional viewing;
 - usable browser performance on the primary Apple Silicon development machine;
 - authoritative simulation remains runnable and testable without graphics.
 
+The cube-face seam, quadtree crack, patch-stability, and related gates recorded
+in the historical R-series applied to that superseded implementation and remain
+useful evidence if similar techniques are reconsidered.
+
 A failed runtime visual gate overrides a green build.
 
-## Playable local-space presentation — 2026-09-20
+## Playable local-space presentation
 
 The playable-Ester implementation extends this ADR without changing the
 immutable production planet decision.
@@ -447,16 +443,17 @@ ADR 0019 is authoritative for the manifested-Ester/local-play-space boundary.
 
 ### Costs
 
-- Est now owns more real-time planetary rendering machinery.
-- Cube-sphere mapping, quadtree LOD, patch continuity, culling, precision, and
-  eventually streaming become explicit engineering responsibilities.
+- Est owns its real-time planetary and local presentation machinery.
 - Presentation-only procedural detail requires disciplined ownership so it is
   not confused with simulation truth.
-- Cesium evaluation code temporarily coexists with the replacement renderer.
+- Preserved renderer experiments and historical code require clear boundaries
+  so they are not mistaken for current production architecture.
 - Visual quality must be validated continuously in the browser.
+- Future streaming, LOD, or regional representation work will remain Est-owned
+  engineering when concrete product requirements justify it.
 
-These costs are preferable to continuing to force simulation geography through
-a rendering architecture that exposes the wrong representation.
+These costs are preferable to coupling simulation geography to the topology or
+resolution of a particular renderer.
 
 ## Superseded Assumptions
 
@@ -478,25 +475,20 @@ It does not supersede:
 - the browser-hosted direction;
 - renderer replaceability.
 
-## Immediate Next Step
+## Current Implementation Boundary
 
-Keep the runtime-green immutable spherical terrain foundation and accepted
-standing-water presentation unchanged.
-
-Current living-world presentation keeps broad vegetation on the terrain surface
-by mapping authoritative biomass into per-vertex coverage on the immutable
-Babylon sphere. Fauna remains independently presented according to its
-authoritative individual, flock, or cohort representation.
+The production planetary representation is the immutable Babylon icosphere.
+Standing water, terrain, vegetation, and other presentation consume
+authoritative Est state without owning simulation truth.
 
 Preserve the invariant:
 
 `camera movement changes the view, never the planet`
 
-Atmosphere, closer-scale ecosystem representation, and future presentation
-detail may build on this foundation without transferring simulation ownership
-into the renderer.
+Local and scale-dependent presentation may build on this foundation without
+transferring simulation ownership into the renderer.
 
 Do not reintroduce cube-sphere patches, camera-driven planet topology, or
 generalized planetary LOD merely as speculative optimization. Preserve and
-review the earlier R-series and Cesium evidence when a concrete future feature
-justifies that complexity.
+review the historical R-series and Cesium evidence when a concrete product
+requirement justifies that complexity.
