@@ -8030,6 +8030,10 @@ if (sessionId) {
     string | null =
       null
 
+  let simulationTimeControlErrorLabel:
+    string | null =
+      null
+
   let simulationPresentationRefreshCount =
     0
 
@@ -8227,6 +8231,7 @@ if (sessionId) {
 
       simulationTimeState.textContent =
         simulationTimeControlPendingLabel ??
+        simulationTimeControlErrorLabel ??
         (
           sessionRuntime.isPaused
             ? 'PAUSED'
@@ -8237,6 +8242,8 @@ if (sessionId) {
         'is-running',
         !sessionRuntime.isPaused &&
           simulationTimeControlPendingLabel ===
+            null &&
+          simulationTimeControlErrorLabel ===
             null,
       )
     }
@@ -8259,6 +8266,9 @@ if (sessionId) {
       simulationTimeControlPendingLabel =
         pendingLabel
 
+      simulationTimeControlErrorLabel =
+        null
+
       simulationTimeControlVersion +=
         1
 
@@ -8277,8 +8287,8 @@ if (sessionId) {
           error,
         )
 
-        simulationTimeState.textContent =
-          'Time control error · see browser console'
+        simulationTimeControlErrorLabel =
+          'TIME CONTROL ERROR'
       } finally {
         simulationTimeControlInProgress =
           false
