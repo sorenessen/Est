@@ -6,6 +6,7 @@ public sealed record SessionResponse(
     Guid TimelineId,
     long CurrentTimeSeconds,
     bool IsPaused,
+    int SimulationRateMultiplier,
     int PlanetCount,
     int EventCount,
     int CheckpointCount);

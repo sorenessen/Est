@@ -143,6 +143,9 @@ public sealed class SessionEndpointTests
 
         Assert.NotNull(created);
         Assert.False(created.IsPaused);
+        Assert.Equal(
+            1,
+            created.SimulationRateMultiplier);
 
         var pauseResponse =
             await client.PostAsync(
@@ -175,6 +178,185 @@ public sealed class SessionEndpointTests
 
         Assert.NotNull(resumed);
         Assert.False(resumed.IsPaused);
+    }
+
+    [Fact]
+    public async Task SimulationRateAndTick_ApplySessionExecutionPolicy()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var created =
+            await (await client.PostAsJsonAsync(
+                    "/sessions",
+                    new CreateSessionRequest([])))
+                .Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(created);
+
+        var rateResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/rate",
+                new SetSimulationRateRequest(
+                    4));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            rateResponse.StatusCode);
+
+        var rated =
+            await rateResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(rated);
+        Assert.False(rated.IsPaused);
+        Assert.Equal(
+            4,
+            rated.SimulationRateMultiplier);
+
+        var tickResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/tick",
+                new TickSimulationRequest(
+                    15));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            tickResponse.StatusCode);
+
+        var ticked =
+            await tickResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(ticked);
+        Assert.Equal(
+            60,
+            ticked.CurrentTimeSeconds);
+        Assert.Equal(
+            4,
+            ticked.SimulationRateMultiplier);
+        Assert.Equal(
+            1,
+            ticked.EventCount);
+
+        await client.PostAsync(
+            $"/sessions/{created.SessionId}/pause",
+            null);
+
+        var pausedTickResponse =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/tick",
+                new TickSimulationRequest(
+                    15));
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            pausedTickResponse.StatusCode);
+
+        var pausedTick =
+            await pausedTickResponse.Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(pausedTick);
+        Assert.True(pausedTick.IsPaused);
+        Assert.Equal(
+            60,
+            pausedTick.CurrentTimeSeconds);
+        Assert.Equal(
+            4,
+            pausedTick.SimulationRateMultiplier);
+        Assert.Equal(
+            1,
+            pausedTick.EventCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1001)]
+    public async Task UnsupportedSimulationRate_ReturnsBadRequestWithoutChangingState(
+        int multiplier)
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var created =
+            await (await client.PostAsJsonAsync(
+                    "/sessions",
+                    new CreateSessionRequest([])))
+                .Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(created);
+
+        var response =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/rate",
+                new SetSimulationRateRequest(
+                    multiplier));
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var unchanged =
+            await client.GetFromJsonAsync<SessionResponse>(
+                $"/sessions/{created.SessionId}");
+
+        Assert.NotNull(unchanged);
+        Assert.Equal(
+            1,
+            unchanged.SimulationRateMultiplier);
+        Assert.Equal(
+            0,
+            unchanged.CurrentTimeSeconds);
+    }
+
+    [Fact]
+    public async Task NegativeTick_ReturnsBadRequestWithoutChangingState()
+    {
+        await using var factory =
+            new WebApplicationFactory<Program>();
+
+        using var client =
+            factory.CreateClient();
+
+        var created =
+            await (await client.PostAsJsonAsync(
+                    "/sessions",
+                    new CreateSessionRequest([])))
+                .Content
+                .ReadFromJsonAsync<SessionResponse>();
+
+        Assert.NotNull(created);
+
+        var response =
+            await client.PostAsJsonAsync(
+                $"/sessions/{created.SessionId}/tick",
+                new TickSimulationRequest(
+                    -1));
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var unchanged =
+            await client.GetFromJsonAsync<SessionResponse>(
+                $"/sessions/{created.SessionId}");
+
+        Assert.NotNull(unchanged);
+        Assert.Equal(
+            0,
+            unchanged.CurrentTimeSeconds);
+        Assert.Equal(
+            0,
+            unchanged.EventCount);
     }
 
     [Fact]

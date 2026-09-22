@@ -51,6 +51,7 @@ import {
 import {
   EstApi,
   type ManifestedEsterResponse,
+  type SessionResponse,
 } from './api/est-api'
 
 import {
@@ -297,6 +298,51 @@ app.innerHTML = `
           aria-label="Minimize observatory"
           title="Minimize observatory"
         >Minimize</button>
+      </div>
+    </div>
+
+    <div
+      id="simulationTimeControls"
+      class="babylon-time-controls"
+      aria-label="Simulation time controls"
+    >
+      <div class="babylon-time-display">
+        <strong
+          id="simulationTimeClock"
+          class="babylon-time-clock"
+        >Day 0 · 00:00:00</strong>
+
+        <span
+          id="simulationTimeState"
+          class="babylon-time-state"
+          role="status"
+          aria-live="polite"
+        >Loading…</span>
+      </div>
+
+      <div class="babylon-time-controls-row">
+        <button
+          id="simulationPauseButton"
+          type="button"
+          aria-pressed="false"
+          title="Pause simulation"
+        >Pause</button>
+
+        <label class="babylon-time-speed">
+          <span>Speed</span>
+
+          <select
+            id="simulationRateSelect"
+            aria-label="Simulation speed"
+          >
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="4">4×</option>
+            <option value="10">10×</option>
+            <option value="100">100×</option>
+            <option value="1000">1000×</option>
+          </select>
+        </label>
       </div>
     </div>
 
@@ -608,6 +654,11 @@ const showFaceDiagnostics =
 const sessionId =
   queryParameters.get('session')
 
+const resumeAfterEmbodimentStorageKey =
+  sessionId === null
+    ? null
+    : `est:resume-after-embodiment:${sessionId}`
+
 const requestedView =
   queryParameters.get('view')
 
@@ -659,6 +710,31 @@ const sessionStatus =
     '#sessionStatus',
   )
 
+const simulationTimeControls =
+  document.querySelector<HTMLDivElement>(
+    '#simulationTimeControls',
+  )
+
+const simulationPauseButton =
+  document.querySelector<HTMLButtonElement>(
+    '#simulationPauseButton',
+  )
+
+const simulationTimeClock =
+  document.querySelector<HTMLElement>(
+    '#simulationTimeClock',
+  )
+
+const simulationTimeState =
+  document.querySelector<HTMLSpanElement>(
+    '#simulationTimeState',
+  )
+
+const simulationRateSelect =
+  document.querySelector<HTMLSelectElement>(
+    '#simulationRateSelect',
+  )
+
 const observerPanel =
   document.querySelector<HTMLElement>(
     '#observerPanel',
@@ -698,6 +774,11 @@ if (
   !observerPanel ||
   !viewModeButton ||
   !faunaProofStepButton ||
+  !simulationTimeControls ||
+  !simulationPauseButton ||
+  !simulationTimeClock ||
+  !simulationTimeState ||
+  !simulationRateSelect ||
   !observerPanelDragHandle ||
   !observerPanelMinimizeButton ||
   !observerPanelRestoreButton ||
@@ -727,6 +808,14 @@ viewModeButton.title =
 
 viewModeButton.disabled =
   sessionId === null
+
+simulationTimeControls.hidden =
+  sessionId === null
+
+simulationTimeControls.classList.toggle(
+  'is-clock-only',
+  playMode,
+)
 
 faunaProofStepButton.hidden =
   !(
@@ -765,9 +854,67 @@ viewModeButton.addEventListener(
       'play',
     )
 
-    window.location.assign(
-      nextUrl.toString(),
-    )
+    if (
+      viewMode === 'embodied'
+    ) {
+      window.location.assign(
+        nextUrl.toString(),
+      )
+
+      return
+    }
+
+    viewModeButton.disabled =
+      true
+
+    const originalText =
+      viewModeButton.textContent
+
+    viewModeButton.textContent =
+      'Entering…'
+
+    const transitionApi =
+      new EstApi('/api')
+
+    void (
+      async () => {
+        try {
+          await transitionApi.pauseSession(
+            sessionId,
+          )
+
+          await transitionApi.setSimulationRate(
+            sessionId,
+            1,
+          )
+
+          if (
+            resumeAfterEmbodimentStorageKey !==
+            null
+          ) {
+            window.sessionStorage.setItem(
+              resumeAfterEmbodimentStorageKey,
+              '1',
+            )
+          }
+
+          window.location.assign(
+            nextUrl.toString(),
+          )
+        } catch (error) {
+          console.error(
+            '[Est Babylon] failed to enter embodied world',
+            error,
+          )
+
+          viewModeButton.disabled =
+            false
+
+          viewModeButton.textContent =
+            originalText
+        }
+      }
+    )()
   },
 )
 
@@ -1959,6 +2106,11 @@ if (sessionId) {
 
   const api =
     new EstApi('/api')
+
+  let sessionRuntime =
+    await api.getSession(
+      sessionId,
+    )
 
   const esterId =
     playMode
@@ -7853,17 +8005,356 @@ if (sessionId) {
     terrainStatus.textContent =
       `authoritative terrain · ${terrain.cells.length.toLocaleString()} cells · ${minimumElevationMeters.toFixed(0)} to ${maximumElevationMeters.toFixed(0)} m`
   }
-  const simulationStepSeconds =
-    86_400
+  const simulationClockPollMilliseconds =
+    250
 
-  const simulationTickMilliseconds =
-    500
+  const simulationPresentationRefreshMilliseconds =
+    1_000
 
-  let simulationTickInProgress =
+  let simulationClockTickInProgress =
     false
 
-  let simulationTickCount =
+  let simulationPresentationRefreshInProgress =
+    false
+
+  let simulationExplicitAdvanceInProgress =
+    false
+
+  let simulationTimeControlInProgress =
+    false
+
+  let simulationTimeControlVersion =
     0
+
+  let simulationTimeControlPendingLabel:
+    string | null =
+      null
+
+  let simulationPresentationRefreshCount =
+    0
+
+  let simulationClockAnchorMilliseconds =
+    performance.now()
+
+  let simulationDisplayTimeSeconds =
+    sessionRuntime.currentTimeSeconds
+
+  let simulationDisplayLastFrameMilliseconds =
+    performance.now()
+
+  const formatSimulationClock =
+    (
+      totalSeconds: number,
+    ): string => {
+      const wholeSeconds =
+        Math.max(
+          0,
+          Math.floor(
+            totalSeconds,
+          ),
+        )
+
+      const day =
+        Math.floor(
+          wholeSeconds /
+            86_400,
+        )
+
+      const secondsWithinDay =
+        wholeSeconds %
+        86_400
+
+      const hour =
+        Math.floor(
+          secondsWithinDay /
+            3_600,
+        )
+
+      const minute =
+        Math.floor(
+          (
+            secondsWithinDay %
+            3_600
+          ) /
+            60,
+        )
+
+      const second =
+        secondsWithinDay %
+        60
+
+      const clock =
+        [
+          hour,
+          minute,
+          second,
+        ]
+          .map(
+            value =>
+              value
+                .toString()
+                .padStart(
+                  2,
+                  '0',
+                ),
+          )
+          .join(':')
+
+      return `Day ${day} · ${clock}`
+    }
+
+  const advanceSimulationDisplayClock =
+    (
+      nowMilliseconds: number,
+    ): void => {
+      const elapsedRealSeconds =
+        Math.max(
+          0,
+          (
+            nowMilliseconds -
+            simulationDisplayLastFrameMilliseconds
+          ) /
+            1_000,
+        )
+
+      if (
+        !sessionRuntime.isPaused
+      ) {
+        simulationDisplayTimeSeconds +=
+          elapsedRealSeconds *
+          sessionRuntime
+            .simulationRateMultiplier
+      }
+
+      simulationDisplayLastFrameMilliseconds =
+        nowMilliseconds
+    }
+
+  const adoptSessionRuntime =
+    (
+      nextRuntime: SessionResponse,
+    ): void => {
+      const nowMilliseconds =
+        performance.now()
+
+      advanceSimulationDisplayClock(
+        nowMilliseconds,
+      )
+
+      const timelineChanged =
+        nextRuntime.timelineId !==
+        sessionRuntime.timelineId
+
+      sessionRuntime =
+        nextRuntime
+
+      if (timelineChanged) {
+        simulationDisplayTimeSeconds =
+          nextRuntime.currentTimeSeconds
+      } else {
+        simulationDisplayTimeSeconds =
+          Math.max(
+            simulationDisplayTimeSeconds,
+            nextRuntime.currentTimeSeconds,
+          )
+      }
+
+      simulationDisplayLastFrameMilliseconds =
+        nowMilliseconds
+    }
+
+  const renderSimulationClockDisplay =
+    (): void => {
+      const nowMilliseconds =
+        performance.now()
+
+      advanceSimulationDisplayClock(
+        nowMilliseconds,
+      )
+
+      simulationTimeClock.textContent =
+        formatSimulationClock(
+          simulationDisplayTimeSeconds,
+        )
+
+      window.requestAnimationFrame(
+        renderSimulationClockDisplay,
+      )
+    }
+
+  window.requestAnimationFrame(
+    renderSimulationClockDisplay,
+  )
+
+  const renderSimulationTimeControls =
+    (): void => {
+      const controlsBusy =
+        simulationTimeControlInProgress
+
+      simulationPauseButton.textContent =
+        sessionRuntime.isPaused
+          ? 'Resume'
+          : 'Pause'
+
+      simulationPauseButton.title =
+        sessionRuntime.isPaused
+          ? 'Resume simulation'
+          : 'Pause simulation'
+
+      simulationPauseButton.setAttribute(
+        'aria-pressed',
+        String(
+          sessionRuntime.isPaused,
+        ),
+      )
+
+      simulationPauseButton.classList.toggle(
+        'is-active',
+        sessionRuntime.isPaused,
+      )
+
+      simulationPauseButton.disabled =
+        controlsBusy
+
+      simulationRateSelect.value =
+        String(
+          sessionRuntime
+            .simulationRateMultiplier,
+        )
+
+      simulationRateSelect.disabled =
+        controlsBusy
+
+      simulationTimeState.textContent =
+        simulationTimeControlPendingLabel ??
+        (
+          sessionRuntime.isPaused
+            ? 'PAUSED'
+            : `RUNNING · ${sessionRuntime.simulationRateMultiplier}×`
+        )
+
+      simulationTimeState.classList.toggle(
+        'is-running',
+        !sessionRuntime.isPaused &&
+          simulationTimeControlPendingLabel ===
+            null,
+      )
+    }
+
+  const applySimulationTimeControl =
+    async (
+      pendingLabel: string,
+      operation:
+        () => Promise<SessionResponse>,
+    ): Promise<void> => {
+      if (
+        simulationTimeControlInProgress
+      ) {
+        return
+      }
+
+      simulationTimeControlInProgress =
+        true
+
+      simulationTimeControlPendingLabel =
+        pendingLabel
+
+      simulationTimeControlVersion +=
+        1
+
+      renderSimulationTimeControls()
+
+      try {
+        adoptSessionRuntime(
+          await operation(),
+        )
+
+        simulationClockAnchorMilliseconds =
+          performance.now()
+      } catch (error) {
+        console.error(
+          '[Est Babylon] simulation time control failed',
+          error,
+        )
+
+        simulationTimeState.textContent =
+          'Time control error · see browser console'
+      } finally {
+        simulationTimeControlInProgress =
+          false
+
+        simulationTimeControlPendingLabel =
+          null
+
+        renderSimulationTimeControls()
+      }
+    }
+
+  simulationPauseButton.addEventListener(
+    'click',
+    () => {
+      const isResuming =
+        sessionRuntime.isPaused
+
+      void applySimulationTimeControl(
+        isResuming
+          ? 'RESUMING…'
+          : 'PAUSING…',
+        () =>
+          isResuming
+            ? api.resumeSession(
+                sessionId,
+              )
+            : api.pauseSession(
+                sessionId,
+              ),
+      )
+    },
+  )
+
+  simulationRateSelect.addEventListener(
+    'change',
+    () => {
+      const multiplier =
+        Number(
+          simulationRateSelect.value,
+        )
+
+      if (
+        !Number.isInteger(
+          multiplier,
+        ) ||
+        multiplier < 1 ||
+        multiplier > 1_000
+      ) {
+        return
+      }
+
+      void applySimulationTimeControl(
+        `SETTING ${multiplier}×…`,
+        async () => {
+          let nextRuntime =
+            await api.setSimulationRate(
+              sessionId,
+              multiplier,
+            )
+
+          if (
+            nextRuntime.isPaused
+          ) {
+            nextRuntime =
+              await api.resumeSession(
+                sessionId,
+              )
+          }
+
+          return nextRuntime
+        },
+      )
+    },
+  )
+
+  renderSimulationTimeControls()
 
   const updatePlanetVegetationCoverage = () => {
     const positions =
@@ -7972,102 +8463,243 @@ if (sessionId) {
     )
   }
 
-  const refreshSimulation = async (
-    stepSeconds =
-      simulationStepSeconds,
-  ) => {
-    if (simulationTickInProgress) {
-      return
+  const refreshSimulationPresentation =
+    async (): Promise<void> => {
+      if (
+        simulationPresentationRefreshInProgress
+      ) {
+        return
+      }
+
+      simulationPresentationRefreshInProgress =
+        true
+
+      try {
+        const [
+          nextWorld,
+          nextVegetation,
+          nextInvertebrates,
+          nextBirdFlocks,
+          nextGrazerCohorts,
+        ] =
+          await Promise.all([
+            api.getWorld(
+              sessionId,
+            ),
+            api.getPlanetVegetation(
+              sessionId,
+              planet.planetId,
+            ),
+            api.getPlanetInvertebrates(
+              sessionId,
+              planet.planetId,
+            ),
+            api.getPlanetBirdFlocks(
+              sessionId,
+              planet.planetId,
+            ),
+            api.getPlanetGrazerCohorts(
+              sessionId,
+              planet.planetId,
+            ),
+          ])
+
+        world =
+          nextWorld
+
+        vegetation =
+          nextVegetation
+
+        invertebrates =
+          nextInvertebrates
+
+        birdFlocks =
+          nextBirdFlocks
+
+        grazerCohorts =
+          nextGrazerCohorts
+
+        simulationPresentationRefreshCount +=
+          1
+
+        if (
+          simulationPresentationRefreshCount %
+            10 ===
+          0
+        ) {
+          await refreshTimelineMetrics()
+        }
+
+        updateVegetationCoverageState()
+        updatePlanetVegetationCoverage()
+
+        if (playMode) {
+          updatePlaySpacePositions()
+        } else {
+          renderLivingWorld()
+        }
+
+        renderSimulationTelemetry()
+      } catch (error) {
+        console.error(
+          '[Est Babylon] live simulation presentation refresh failed',
+          error,
+        )
+
+        if (faunaStatus) {
+          faunaStatus.textContent =
+            'LIVE UPDATE ERROR · see browser console'
+        }
+      } finally {
+        simulationPresentationRefreshInProgress =
+          false
+      }
     }
 
-    simulationTickInProgress =
-      true
+  const advanceSimulationClock =
+    async (): Promise<void> => {
+      if (
+        simulationClockTickInProgress ||
+        simulationTimeControlInProgress ||
+        simulationExplicitAdvanceInProgress
+      ) {
+        return
+      }
 
-    try {
-      await api.advanceSession(
-        sessionId,
-        stepSeconds,
-      )
+      const nowMilliseconds =
+        performance.now()
 
-      const [
-        nextWorld,
-        nextVegetation,
-        nextInvertebrates,
-        nextBirdFlocks,
-        nextGrazerCohorts,
-      ] =
-        await Promise.all([
-          api.getWorld(
-            sessionId,
-          ),
-          api.getPlanetVegetation(
-            sessionId,
-            planet.planetId,
-          ),
-          api.getPlanetInvertebrates(
-            sessionId,
-            planet.planetId,
-          ),
-          api.getPlanetBirdFlocks(
-            sessionId,
-            planet.planetId,
-          ),
-          api.getPlanetGrazerCohorts(
-            sessionId,
-            planet.planetId,
-          ),
-        ])
+      if (sessionRuntime.isPaused) {
+        simulationClockAnchorMilliseconds =
+          nowMilliseconds
 
-      world =
-        nextWorld
+        return
+      }
 
-      vegetation =
-        nextVegetation
-
-      invertebrates =
-        nextInvertebrates
-
-      birdFlocks =
-        nextBirdFlocks
-
-      grazerCohorts =
-        nextGrazerCohorts
-
-      simulationTickCount +=
-        1
+      const elapsedRealSeconds =
+        Math.floor(
+          (
+            nowMilliseconds -
+            simulationClockAnchorMilliseconds
+          ) /
+            1_000,
+        )
 
       if (
-        simulationTickCount %
-          10 ===
-        0
+        elapsedRealSeconds <
+        1
       ) {
-        await refreshTimelineMetrics()
+        return
       }
 
-      updateVegetationCoverageState()
-      updatePlanetVegetationCoverage()
+      const timeControlVersionAtStart =
+        simulationTimeControlVersion
 
-      if (playMode) {
-        updatePlaySpacePositions()
-      } else {
-        renderLivingWorld()
+      simulationClockTickInProgress =
+        true
+
+      try {
+        const nextSessionRuntime =
+          await api.tickSession(
+            sessionId,
+            elapsedRealSeconds,
+          )
+
+        simulationClockAnchorMilliseconds +=
+          elapsedRealSeconds *
+          1_000
+
+        if (
+          simulationTimeControlVersion ===
+          timeControlVersionAtStart
+        ) {
+          adoptSessionRuntime(
+            nextSessionRuntime,
+          )
+
+          renderSimulationTimeControls()
+        }
+      } catch (error) {
+        console.error(
+          '[Est Babylon] simulation clock tick failed',
+          error,
+        )
+      } finally {
+        simulationClockTickInProgress =
+          false
       }
-
-      renderSimulationTelemetry()
-    } catch (error) {
-      console.error(
-        '[Est Babylon] live simulation heartbeat failed',
-        error,
-      )
-
-      if (faunaStatus) {
-        faunaStatus.textContent =
-          'LIVE UPDATE ERROR · see browser console'
-      }
-    } finally {
-      simulationTickInProgress =
-        false
     }
+
+  const advanceSimulationExplicitly =
+    async (
+      seconds: number,
+    ): Promise<void> => {
+      if (
+        simulationClockTickInProgress ||
+        simulationExplicitAdvanceInProgress ||
+        simulationTimeControlInProgress
+      ) {
+        return
+      }
+
+      const timeControlVersionAtStart =
+        simulationTimeControlVersion
+
+      simulationExplicitAdvanceInProgress =
+        true
+
+      try {
+        const nextSessionRuntime =
+          await api.advanceSession(
+            sessionId,
+            seconds,
+          )
+
+        simulationClockAnchorMilliseconds =
+          performance.now()
+
+        if (
+          simulationTimeControlVersion ===
+          timeControlVersionAtStart
+        ) {
+          adoptSessionRuntime(
+            nextSessionRuntime,
+          )
+
+          renderSimulationTimeControls()
+        }
+
+        await refreshSimulationPresentation()
+      } catch (error) {
+        console.error(
+          '[Est Babylon] explicit simulation advance failed',
+          error,
+        )
+      } finally {
+        simulationExplicitAdvanceInProgress =
+          false
+      }
+    }
+
+  if (
+    playMode &&
+    resumeAfterEmbodimentStorageKey !==
+      null &&
+    window.sessionStorage.getItem(
+      resumeAfterEmbodimentStorageKey,
+    ) === '1'
+  ) {
+    adoptSessionRuntime(
+      await api.resumeSession(
+        sessionId,
+      ),
+    )
+
+    window.sessionStorage.removeItem(
+      resumeAfterEmbodimentStorageKey,
+    )
+
+    renderSimulationTimeControls()
   }
 
   if (
@@ -8077,7 +8709,10 @@ if (sessionId) {
     faunaProofStepButton.addEventListener(
       'click',
       () => {
-        if (simulationTickInProgress) {
+        if (
+          simulationExplicitAdvanceInProgress ||
+          simulationClockTickInProgress
+        ) {
           return
         }
 
@@ -8090,7 +8725,7 @@ if (sessionId) {
         faunaProofStepButton.textContent =
           'Stepping…'
 
-        void refreshSimulation(
+        void advanceSimulationExplicitly(
           1,
         ).finally(
           () => {
@@ -8105,14 +8740,23 @@ if (sessionId) {
     )
   }
 
-  if (!playMode) {
-    window.setInterval(
-      () => {
-        void refreshSimulation()
-      },
-      simulationTickMilliseconds,
-    )
-  }
+  window.setInterval(
+    () => {
+      void advanceSimulationClock()
+    },
+    simulationClockPollMilliseconds,
+  )
+
+  window.setInterval(
+    () => {
+      if (
+        !sessionRuntime.isPaused
+      ) {
+        void refreshSimulationPresentation()
+      }
+    },
+    simulationPresentationRefreshMilliseconds,
+  )
 
 } else {
   if (terrainStatus) {

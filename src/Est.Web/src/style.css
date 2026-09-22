@@ -845,11 +845,168 @@ body {
   letter-spacing: 0.04em;
 }
 
+.babylon-time-controls {
+  flex: 0 0 auto;
+  padding: 8px 14px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(4, 10, 16, 0.94);
+}
+
+.babylon-time-controls[hidden] {
+  display: none;
+}
+
+.babylon-time-controls.is-clock-only {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.babylon-time-controls.is-clock-only
+.babylon-time-display {
+  margin-bottom: 0;
+}
+
+.babylon-time-controls.is-clock-only
+.babylon-time-controls-row {
+  display: none;
+}
+
+.babylon-time-display {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.babylon-time-clock {
+  min-width: 0;
+  color: #ffffff;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.babylon-time-state {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.90);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.babylon-time-state::before {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.46);
+  content: '';
+}
+
+.babylon-time-state.is-running::before {
+  background: #69e89d;
+  box-shadow:
+    0 0 5px rgba(105, 232, 157, 0.55);
+}
+
+.babylon-time-controls-row {
+  display: grid;
+  grid-template-columns:
+    minmax(72px, 0.8fr)
+    minmax(118px, 1.2fr);
+  gap: 7px;
+}
+
+.babylon-time-controls button,
+.babylon-time-speed select {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.085);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.babylon-time-controls button {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.babylon-time-controls button:hover:not(:disabled),
+.babylon-time-speed select:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.babylon-time-controls button.is-active {
+  border-color: rgba(255, 255, 255, 0.54);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.babylon-time-controls button:disabled,
+.babylon-time-speed select:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.babylon-time-speed {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.babylon-time-speed select {
+  width: 100%;
+  padding: 4px 24px 4px 8px;
+  cursor: pointer;
+  color-scheme: dark;
+}
+
 .babylon-observer-view-switch {
   flex: 0 0 auto;
   padding: 8px 14px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.025);
+}
+
+.babylon-time-controls.is-clock-only +
+.babylon-observer-view-switch {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.babylon-time-controls.is-clock-only +
+.babylon-observer-view-switch
+#viewModeButton {
+  min-height: 36px;
+  padding-top: 9px;
+  padding-bottom: 9px;
 }
 
 .babylon-observer-view-switch button {
@@ -890,6 +1047,8 @@ body {
   opacity: 0.45;
 }
 
+.babylon-observer-panel.is-collapsed
+.babylon-time-controls,
 .babylon-observer-panel.is-collapsed
 .babylon-observer-view-switch {
   display: none;

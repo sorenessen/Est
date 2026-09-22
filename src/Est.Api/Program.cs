@@ -1632,6 +1632,99 @@ app.MapPost(
     });
 
 app.MapPost(
+    "/sessions/{id:guid}/rate",
+    (
+        Guid id,
+        SetSimulationRateRequest request,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty)
+            return Results.NotFound();
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        try
+        {
+            session.SetSimulationRateMultiplier(
+                request.Multiplier);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = exception.Message
+                });
+        }
+
+        return Results.Ok(
+            ToResponse(
+                sessionId,
+                session));
+    });
+
+app.MapPost(
+    "/sessions/{id:guid}/tick",
+    (
+        Guid id,
+        TickSimulationRequest request,
+        SimulationSessionManager manager) =>
+    {
+        if (id == Guid.Empty)
+            return Results.NotFound();
+
+        if (request.ElapsedRealSeconds < 0)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Elapsed real time cannot be negative."
+                });
+        }
+
+        var sessionId =
+            new SimulationSessionId(id);
+
+        if (!manager.TryGet(
+                sessionId,
+                out var session) ||
+            session is null)
+        {
+            return Results.NotFound();
+        }
+
+        try
+        {
+            session.Tick(
+                request.ElapsedRealSeconds);
+        }
+        catch (OverflowException)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Requested tick exceeds the supported simulation time range."
+                });
+        }
+
+        return Results.Ok(
+            ToResponse(
+                sessionId,
+                session));
+    });
+
+app.MapPost(
     "/sessions/{id:guid}/planets/{planetId:guid}/environment",
     (
         Guid id,
@@ -2470,6 +2563,7 @@ static SessionResponse ToResponse(
         timeline.Id.Value,
         world.CurrentTime.TotalSeconds,
         session.IsPaused,
+        session.SimulationRateMultiplier,
         world.Planets.Length,
         timeline.Events.Length,
         timeline.Checkpoints.Length);

@@ -4,6 +4,7 @@ export interface SessionResponse {
   timelineId: string
   currentTimeSeconds: number
   isPaused: boolean
+  simulationRateMultiplier: number
   planetCount: number
   eventCount: number
   checkpointCount: number
@@ -446,6 +447,44 @@ export class EstApi {
   getTimeline(sessionId: string): Promise<TimelineResponse> {
     return this.get(
       `/sessions/${encodeURIComponent(sessionId)}/timeline`,
+    )
+  }
+
+  pauseSession(
+    sessionId: string,
+  ): Promise<SessionResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/pause`,
+      null,
+    )
+  }
+
+  resumeSession(
+    sessionId: string,
+  ): Promise<SessionResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/resume`,
+      null,
+    )
+  }
+
+  setSimulationRate(
+    sessionId: string,
+    multiplier: number,
+  ): Promise<SessionResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/rate`,
+      { multiplier },
+    )
+  }
+
+  tickSession(
+    sessionId: string,
+    elapsedRealSeconds: number,
+  ): Promise<SessionResponse> {
+    return this.post(
+      `/sessions/${encodeURIComponent(sessionId)}/tick`,
+      { elapsedRealSeconds },
     )
   }
 

@@ -67,6 +67,103 @@ public sealed class SimulationSessionTests
     }
 
     [Fact]
+    public void Create_StartsAtOneTimesSimulationRate()
+    {
+        var session = CreateSession();
+
+        Assert.Equal(
+            1,
+            session.SimulationRateMultiplier);
+    }
+
+    [Fact]
+    public void Tick_AppliesConfiguredSimulationRate()
+    {
+        var session = CreateSession();
+
+        session.SetSimulationRateMultiplier(
+            4);
+
+        session.Tick(
+            15);
+
+        Assert.Equal(
+            4,
+            session.SimulationRateMultiplier);
+
+        Assert.Equal(
+            60,
+            session.CurrentWorld
+                .CurrentTime
+                .TotalSeconds);
+
+        Assert.Single(
+            session.Timeline.Events);
+
+        Assert.Equal(
+            60,
+            session.Timeline.Events[0]
+                .ElapsedSeconds);
+    }
+
+    [Fact]
+    public void Pause_PreservesConfiguredSimulationRate()
+    {
+        var session = CreateSession();
+
+        session.SetSimulationRateMultiplier(
+            100);
+
+        session.Pause();
+
+        session.Tick(
+            60);
+
+        Assert.True(
+            session.IsPaused);
+
+        Assert.Equal(
+            100,
+            session.SimulationRateMultiplier);
+
+        Assert.Equal(
+            0,
+            session.CurrentWorld
+                .CurrentTime
+                .TotalSeconds);
+
+        session.Resume();
+
+        session.Tick(
+            1);
+
+        Assert.Equal(
+            100,
+            session.CurrentWorld
+                .CurrentTime
+                .TotalSeconds);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1001)]
+    public void SetSimulationRateMultiplier_RejectsUnsupportedRate(
+        int multiplier)
+    {
+        var session = CreateSession();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                session.SetSimulationRateMultiplier(
+                    multiplier));
+
+        Assert.Equal(
+            1,
+            session.SimulationRateMultiplier);
+    }
+
+    [Fact]
     public void Advance_RejectsNegativeDurationWithoutChangingState()
     {
         var session = CreateSession();

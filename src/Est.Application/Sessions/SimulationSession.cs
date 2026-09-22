@@ -28,8 +28,15 @@ public sealed class SimulationSession
     private const long MaximumCausalCouplingStepSeconds =
         86_400;
 
+    private const int MinimumSimulationRateMultiplier =
+        1;
+
+    private const int MaximumSimulationRateMultiplier =
+        1_000;
+
     private readonly object _sync = new();
     private readonly SimulationClock _clock = new();
+    private int _simulationRateMultiplier = 1;
     private readonly IReadOnlyList<ICausalSystem> _causalSystems;
     private SimulationTimeline _timeline;
 
@@ -285,6 +292,15 @@ public sealed class SimulationSession
         }
     }
 
+    public int SimulationRateMultiplier
+    {
+        get
+        {
+            lock (_sync)
+                return _simulationRateMultiplier;
+        }
+    }
+
     public void Pause()
     {
         lock (_sync)
@@ -295,6 +311,27 @@ public sealed class SimulationSession
     {
         lock (_sync)
             _clock.Resume();
+    }
+
+    public void SetSimulationRateMultiplier(
+        int multiplier)
+    {
+        if (
+            multiplier <
+                MinimumSimulationRateMultiplier ||
+            multiplier >
+                MaximumSimulationRateMultiplier)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(multiplier),
+                $"Simulation rate multiplier must be between {MinimumSimulationRateMultiplier} and {MaximumSimulationRateMultiplier}.");
+        }
+
+        lock (_sync)
+        {
+            _simulationRateMultiplier =
+                multiplier;
+        }
     }
 
     public SimulationTimeline Advance(long seconds)
@@ -308,17 +345,27 @@ public sealed class SimulationSession
         }
     }
 
-    public SimulationTimeline Tick(long seconds)
+    public SimulationTimeline Tick(
+        long elapsedRealSeconds)
     {
-        if (seconds < 0)
-            throw new ArgumentOutOfRangeException(nameof(seconds));
+        if (elapsedRealSeconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(elapsedRealSeconds));
+        }
 
         lock (_sync)
         {
             if (_clock.IsPaused)
                 return _timeline;
 
-            return AdvanceCore(seconds);
+            var simulationSeconds =
+                checked(
+                    elapsedRealSeconds *
+                    _simulationRateMultiplier);
+
+            return AdvanceCore(
+                simulationSeconds);
         }
     }
 
