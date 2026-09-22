@@ -407,9 +407,15 @@ Implementation checkpoints:
 - `00075f6` - expose grazer cohort surface cells;
 - `4bd5fa5` - add local individual actor projection;
 - `c5a2a3e` - expose manifested Ester surface locality;
-- local grazer projection now supports deterministic, bounded,
-  cohort-backed presentation representatives without inventing `AnimalId`
-  identity;
+- `5437d00` through `0f66009` - establish local fauna presentation and
+  authoritative individual-animal motion observation;
+- `a1c1ea5` through `afb0ab7` - attach the animated wolf presentation to stable
+  `AnimalId` authority and remove the obsolete primitive wolf representation;
+- `21848ec` through `56d4913` - attach animated deterministic grazer
+  representatives to authoritative cohort-backed projection and remove the
+  obsolete primitive grazer representation;
+- local grazer projection supports deterministic, bounded, cohort-backed
+  presentation representatives without inventing `AnimalId` identity;
 - local authoritative animal motion observation derives presentation heading
   from successive geographic snapshots while preserving stable `AnimalId`;
 - repeated projection of one authoritative timestamp preserves the same motion
@@ -418,9 +424,21 @@ Implementation checkpoints:
 - wolf presentation resolves authoritative activity separately from observed
   locomotion and uses bounded renderer interpolation plus temporary gait only
   between known authoritative endpoints;
+- grazer presentation deliberately exposes only presentation locomotion
+  (`stationary` or `moving`) because authoritative grazer cohorts do not expose
+  per-representative activity, heading, or velocity;
+- deterministic grazer representative displacement may drive temporary Walk
+  presentation and facing during a bounded transition, but does not assert that
+  one authoritative individual followed that walking-scale path;
+- both wolf and grazer animation sampling are renderer presentation state rather
+  than free-running wall-clock simulation;
 - the focused fauna development view provides an explicit `+1s` authoritative
   simulation step for runtime motion proof without enabling automatic embodied
-  simulation time.
+  simulation time;
+- runtime proof confirmed that camera or local-view movement alone does not
+  create grazer locomotion, while authoritative cohort displacement produces a
+  bounded Walk transition that lands on the projected target and returns to
+  stationary presentation.
 
 The current local grazer projection deliberately treats representative spread as
 presentation policy rather than authoritative herd extent.
