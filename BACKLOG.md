@@ -197,12 +197,14 @@ implementation is not the production foundation.
 - [x] Prove continuous authoritative simulation advancement in a globe view
 - [x] Prove authoritative population presentation and movement
 - [x] Build the production Babylon planetary renderer
-- [ ] Add production-quality simulation time controls
-- [ ] Pause
-- [ ] User-selectable 1x
-- [ ] User-selectable 10x
-- [ ] User-selectable 100x
-- [ ] User-selectable 1000x
+- [x] Add production-quality simulation time controls
+- [x] Pause and resume
+- [x] User-selectable 1x
+- [x] User-selectable 2x
+- [x] User-selectable 4x
+- [x] User-selectable 10x
+- [x] User-selectable 100x
+- [x] User-selectable 1000x
 
 ### Planetary presentation
 
@@ -345,7 +347,7 @@ Completed causal slice:
 
 Presentation follow-up after the causal loop is green:
 
-- [ ] Add human locomotion/orientation presentation driven by authoritative
+- [x] Add human locomotion/orientation presentation driven by authoritative
       movement rather than renderer-authored behavior.
 - [ ] Refine human terrain contact and close-range camera framing.
 - [ ] Add local vegetation/detail LOD only when runtime evidence shows the
@@ -355,6 +357,27 @@ Presentation follow-up after the causal loop is green:
 
 The priority is the causal gameplay loop, not additional cosmetic polishing of
 the already-proven terrain and grass presentation.
+
+### Local fauna presentation verification
+
+The wolf and grazer presentation foundations exist, but close-range animation
+quality must pass the same browser-runtime acceptance standard used for human
+locomotion. Automated tests do not substitute for visual verification.
+
+- [ ] Runtime-verify wolf locomotion against successive authoritative snapshots,
+      including facing, gait activation, visual speed, foot sliding, stopping,
+      and interpolation behavior.
+- [ ] Runtime-verify grazer locomotion against its authoritative cohort-backed
+      presentation inputs, including facing, gait activation, visual speed,
+      foot sliding, stopping, and representative continuity.
+- [ ] Verify idle/walk transitions do not introduce mesh deformation, popping,
+      skating, treadmill motion, root stalls, or reconciliation snaps.
+- [ ] Compare authored animation cadence with actual presented root travel and
+      correct any proven timing or speed mismatch.
+- [ ] Keep all fauna fixes presentation-only unless runtime evidence identifies
+      a genuine authoritative simulation defect.
+- [ ] Require a clean browser runtime acceptance pass for each fauna path before
+      treating its locomotion presentation as visually complete.
 
 ### Biosphere support foundation
 

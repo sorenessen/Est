@@ -75,8 +75,16 @@ Ester with hidden preload and progressive geographic fade, preventing the prior
 whole-field regeneration pop during ordinary walking.
 
 The Ester capsule remains temporary presentation scaffolding. Nearby simulated
-people now use an animated human presentation keyed by authoritative `PersonId`.
-Neither visual representation owns identity or simulation state.
+people use an animated human presentation keyed by authoritative `PersonId`.
+Successive authoritative person snapshots drive observed movement and facing.
+The human renderer advances authored walk gait in presentation time and uses
+velocity-preserving interpolation/continuation between authoritative snapshots
+without creating renderer-owned geographic movement.
+
+Idle and walk currently switch atomically rather than crossfading because
+intermediate weights on the retargeted human rig produced visible deformation.
+Neither the Ester nor human visual representation owns identity or simulation
+state.
 
 The physical recognition proof is now complete. A manifested Ester can approach
 a stable simulated person, cross an encounter boundary derived from
@@ -172,25 +180,51 @@ places a newly manifested Ester near authoritative fauna when available so
 walking-scale fauna presentation can be exercised without changing fauna
 authority or normal movement semantics.
 
-In this focused embodied view, **Step Fauna +1s** explicitly advances the
-authoritative simulation by one second and refreshes the local world snapshot.
-It exists to prove local actor motion and facing against authoritative state.
+Normal Play mode advances authoritative session time while the session is
+running. The browser converts elapsed real time into API simulation ticks using
+the current authoritative session rate. The shared controls support Pause/Resume
+and 1x, 2x, 4x, 10x, 100x, and 1000x rates.
 
-The step control does not establish the final embodied simulation-time policy
-and does not enable an automatic Play-mode heartbeat. Wolf facing is derived
-from successive authoritative geographic positions for the same `AnimalId`;
-camera movement and Ester movement do not count as wolf motion.
+In the focused fauna view, **Step Fauna +1s** remains available as a controlled
+diagnostic operation. Pause the session before using it when the goal is to
+observe one known one-second authoritative fauna displacement at a time.
 
-Repeated presentation of the same authoritative timestamp preserves the same
-wolf motion observation. A newly observed authoritative wolf displacement is
-presented through a short bounded interpolation from the current rendered
-position to the new authoritative target. Temporary gait presentation runs only
-during that interpolation and stops at the target; it does not create continued
-movement while simulation time is paused.
+Wolf facing is derived from successive authoritative geographic positions for
+the same `AnimalId`; camera movement and Ester movement do not count as wolf
+motion. Repeated presentation of the same authoritative timestamp preserves the
+same movement observation.
 
-Wolf activity remains authoritative simulation state. Presentation combines that
-activity with observed displacement to select pose and gait without inferring a
-different simulation activity from renderer animation.
+A newly observed authoritative wolf displacement is presented through bounded
+interpolation from the current rendered position toward the authoritative
+target. Wolf activity remains authoritative simulation state. Presentation
+combines activity with observed displacement to select pose and gait without
+inferring a different simulation activity from renderer animation.
+
+Human locomotion follows the same authority rule but currently uses
+velocity-preserving continuation between snapshots so the visual root does not
+freeze while a newer authoritative snapshot is pending.
+
+### Focused fauna runtime acceptance
+
+Wolf and grazer animation still require deliberate close-range runtime
+verification. Use the focused fauna view to inspect actual movement rather than
+assuming that green unit tests imply visually correct locomotion.
+
+For each presented fauna type, verify:
+
+- visual facing agrees with authoritative displacement;
+- gait begins only when movement is observed;
+- animation cadence and root travel agree closely enough to avoid obvious
+  skating or treadmill motion;
+- feet and body do not visibly pop or deform during locomotion-state changes;
+- movement does not stall between snapshots while gait continues;
+- reconciliation does not introduce visible snaps;
+- stopping movement produces a stable idle presentation;
+- camera or Ester movement alone does not manufacture fauna locomotion.
+
+If runtime evidence contradicts the existing animation implementation, preserve
+the authoritative simulation contract and fix presentation first unless the
+evidence independently demonstrates a simulation defect.
 
 Both launchers start or reuse Est.Api and Est.Web, wait for their health
 checks, create a fresh Earth session through `POST /sessions`, and open the

@@ -1226,6 +1226,11 @@ the simulation remains authoritative. Nearby simulated humans retain stable
 `PersonId` identity, and local terrain presentation derives from the same world
 rather than becoming a disconnected game map.
 
+The embodied presentation now also derives human heading and locomotion from
+successive authoritative person snapshots. Authored walking animation and
+visual smoothing make that causal movement legible without turning the renderer
+into a second movement authority.
+
 The capsule avatar remains presentation scaffolding rather than a commitment to
 final avatar form.
 

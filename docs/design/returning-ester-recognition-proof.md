@@ -395,6 +395,11 @@ The movement response exposes the recognition state that existed before the
 qualifying encounter operation, so presentation can display recognition on
 return without inventing social state.
 
+Subsequent embodiment work added human locomotion presentation driven by
+successive authoritative person snapshots, including derived facing, authored
+walk gait, and presentation-only interpolation/continuation. That later work
+does not change the recognition authority proven here.
+
 This gameplay run occurred while authoritative simulation time remained paused,
 so first and last encounter times were both the same simulation instant. It
 therefore proves the physical world-generated recognition loop, not a new

@@ -100,6 +100,11 @@ survival state, reproduction, material state, and purposeful movement.
 Configured human foraging consumes authoritative vegetation rather than a
 separate synthetic food-resource layer.
 
+In the embodied Living World, nearby human presentation remains keyed by stable
+`PersonId`. Human heading and locomotion are derived from successive
+authoritative person snapshots, while authored idle/walk animation, gait phase,
+and short-term presentation smoothing remain non-authoritative visual state.
+
 The shared planetary surface now also carries authoritative hydrology,
 vegetation, biogeochemistry, and aggregate invertebrate biomass. Terrestrial
 grazers are represented as cohorts, birds as flocks, and wolves as individual
@@ -113,7 +118,11 @@ Current examples include material-backed wolf provisioning and reproduction,
 grazer recruitment from consumed vegetation, invertebrate growth from consumed
 vegetation, and bird recruitment from consumed invertebrate prey.
 
-The browser globe advances the same authoritative simulation through Est.Api.
+The Babylon client advances the same authoritative simulation through Est.Api.
+Current session controls support Pause/Resume and selectable 1x, 2x, 4x, 10x,
+100x, and 1000x simulation rates. While a session is running, elapsed real time
+is converted into authoritative simulation ticks through the API.
+
 Simulation spatial resolution remains independent from the Babylon presentation
 mesh, and biological behavior is never invented by the renderer.
 

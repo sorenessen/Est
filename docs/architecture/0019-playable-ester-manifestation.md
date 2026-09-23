@@ -186,6 +186,11 @@ must not create a new simulated person.
 The current local human presentation uses an animated avatar keyed by stable
 `PersonId`.
 
+Observed heading and locomotion are derived from successive authoritative
+person positions. Authored idle/walk animation, gait phase, and visual
+interpolation remain presentation state and do not replace authoritative
+geographic position.
+
 Changing or replacing that avatar still must not change person identity,
 location authority, history, needs, relationships, or social recognition.
 
@@ -260,7 +265,8 @@ This decision does not yet establish:
 - collision architecture;
 - navigation meshes;
 - physics-engine authority;
-- animation authority;
+- final character-animation policy beyond the current presentation-only
+  locomotion clips;
 - combat;
 - dialogue;
 - generated language;

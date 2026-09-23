@@ -363,19 +363,28 @@ The current wolf simulation does not store authoritative heading or velocity.
 Local wolf facing is therefore derived from observed displacement rather than
 adding renderer-owned direction to simulation state.
 
+Human presentation uses the same authoritative movement-observation boundary.
+When successive person snapshots demonstrate movement, presentation derives
+heading from that displacement, advances the authored walk cycle in
+presentation time, and may continue measured velocity briefly between
+authoritative snapshots. That continuation is a rendering prediction only and
+is replaced by newer authoritative state.
+
 ### Simulation time during embodied play
 
-Current Play mode does not install the Observatory automatic simulation
-heartbeat.
+Embodied Play and Observatory use the same authoritative session-time controls.
 
-That is an intentional unresolved product and simulation-control question, not
-permission for the presentation layer to advance time implicitly.
+The Babylon client exposes Pause/Resume and selectable 1x, 2x, 4x, 10x, 100x,
+and 1000x rates. While a session is unpaused, elapsed real time is converted
+into explicit API simulation ticks using the authoritative session rate.
 
-How simulation time advances while an Ester is embodied will be decided
-separately.
+Presentation animation and interpolation do not independently advance
+simulation time. The focused fauna step control remains a diagnostic explicit
+advance for observing known authoritative motion samples, especially while the
+session is paused.
 
 Local actor projection must work from the authoritative world snapshot it is
-given regardless of the eventual time-control policy.
+given regardless of presentation refresh cadence.
 
 ## Implementation evidence
 
@@ -385,8 +394,11 @@ The local-actor proof established that:
   metre-space while preserving stable `PersonId` and `AnimalId`;
 - aggregate grazer cohorts can produce deterministic, bounded presentation
   representatives without inventing individual simulation identity;
-- local animal motion observation can derive presentation displacement and
+- local actor motion observation can derive presentation displacement and
   heading from successive authoritative geographic snapshots;
+- human locomotion presentation can combine authored gait with
+  velocity-preserving interpolation/continuation without transferring
+  geographic authority into the renderer;
 - repeated projection of one authoritative timestamp preserves the same motion
   observation rather than allowing renderer refresh frequency to redefine
   locomotion;
@@ -403,6 +415,12 @@ The local-actor proof established that:
 
 The final abundance-to-representative density policy and habitat-aware local
 placement algorithm remain undecided.
+
+These implementation proofs establish the local-actor authority and movement
+contracts. They do not, by themselves, prove that every imported wolf or grazer
+animation is visually correct at walking scale. Close-range fauna gait,
+foot-contact, transition, root-motion, and reconciliation behavior still
+require browser-runtime acceptance testing.
 
 ## Consequences
 
@@ -441,7 +459,6 @@ This ADR does not yet decide:
 - carcass simulation;
 - persistent wounded-animal representation;
 - the promotion schema for aggregate animals;
-- Play-mode simulation-time cadence;
 - final LOD distances;
 - local actor networking or multiplayer behavior.
 

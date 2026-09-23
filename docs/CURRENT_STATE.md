@@ -116,6 +116,15 @@ is historical or evaluation evidence, not an alternate current runtime.
 
 Simulation spatial resolution and rendering spatial resolution are independent.
 
+## Simulation Time Control
+
+Session time is authoritative application/simulation state.
+
+The current Babylon client exposes Pause/Resume and selectable 1x, 2x, 4x, 10x,
+100x, and 1000x simulation rates. While a session is running, elapsed real time
+is submitted through the API as authoritative simulation ticks. Presentation
+refresh and animation do not independently advance simulation truth.
+
 ## Current Living-World Simulation
 
 Active authoritative state currently includes:
@@ -221,9 +230,16 @@ Current local presentation includes:
 - bounded fauna presentation interpolation without renderer-authored simulation
   movement.
 
+Wolf and grazer presentation foundations are implemented, but their close-range
+animation quality has not yet completed the same deliberate browser-runtime
+acceptance pass used for human locomotion. Their authority contracts are
+current; gait, foot contact, transition quality, root travel, and reconciliation
+remain active visual-verification work.
+
 Human partner-seeking movement is authoritative simulation behavior expressed
-as physical surface distance. Human rendering consumes that movement and
-orientation while keeping geographic position ownership in simulation state.
+as physical surface distance, currently calibrated to 1.31 metres per second.
+Human rendering consumes that movement and orientation while keeping geographic
+position ownership in simulation state.
 
 The returning-Ester recognition proof is active authoritative behavior. A
 manifested Ester can approach a simulated person, create an authoritative
