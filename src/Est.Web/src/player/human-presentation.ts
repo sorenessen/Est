@@ -35,11 +35,26 @@ export const humanPresentationAnimationAssetPath =
 export const humanPresentationIdleAnimationName =
   'Idle_Loop'
 
+export const humanPresentationWalkAnimationName =
+  'Walk_Loop'
+
+export const humanPresentationAssetYawCorrectionRadians =
+  Math.PI / 2
+
 export interface HumanPresentation {
   personId: string
   bodyVariant: HumanBodyVariant
   root: TransformNode
   setEnabled(enabled: boolean): void
+  setHeadingRadians(
+    headingRadians: number,
+  ): void
+  setWalkBlendWeight(
+    weight: number,
+  ): void
+  setGaitPhase(
+    phaseRadians: number,
+  ): void
   dispose(): void
 }
 
@@ -75,6 +90,81 @@ export function resolveHumanBodyVariant(
     default:
       return null
   }
+}
+
+
+export function resolveHumanPresentationRotationY(
+  headingRadians: number,
+): number {
+  if (
+    !Number.isFinite(
+      headingRadians,
+    )
+  ) {
+    throw new RangeError(
+      'Human presentation heading must be finite.',
+    )
+  }
+
+  return -headingRadians
+}
+
+export function resolveHumanGaitFrame(
+  phaseRadians: number,
+  fromFrame: number,
+  toFrame: number,
+): number {
+  if (
+    !Number.isFinite(
+      phaseRadians,
+    )
+  ) {
+    throw new RangeError(
+      'Human gait phase must be finite.',
+    )
+  }
+
+  if (
+    !Number.isFinite(
+      fromFrame,
+    ) ||
+    !Number.isFinite(
+      toFrame,
+    ) ||
+    toFrame <
+      fromFrame
+  ) {
+    throw new RangeError(
+      'Human animation frame range must be finite and ordered.',
+    )
+  }
+
+  const cycleRadians =
+    Math.PI *
+    2
+
+  const wrappedPhase =
+    (
+      (
+        phaseRadians %
+        cycleRadians
+      ) +
+      cycleRadians
+    ) %
+    cycleRadians
+
+  const progress =
+    wrappedPhase /
+    cycleRadians
+
+  return (
+    fromFrame +
+    (
+      toFrame -
+      fromFrame
+    ) *
+      progress
+  )
 }
 
 function getTemplateMap(
@@ -232,12 +322,24 @@ export async function createHumanPresentation(
       scene,
     )
 
+  const assetRoot =
+    new TransformNode(
+      `play-human-${personId}-asset`,
+      scene,
+    )
+
+  assetRoot.parent =
+    root
+
+  assetRoot.rotation.y =
+    humanPresentationAssetYawCorrectionRadians
+
   for (
     const sourceRoot of
     instance.rootNodes
   ) {
     sourceRoot.parent =
-      root
+      assetRoot
   }
 
   for (
@@ -299,38 +401,91 @@ export async function createHumanPresentation(
           humanPresentationIdleAnimationName,
       )
 
-  if (!idleTemplate) {
+  const walkTemplate =
+    animationLibrary
+      .animationGroups
+      .find(
+        animationGroup =>
+          animationGroup.name ===
+          humanPresentationWalkAnimationName,
+      )
+
+  const missingAnimationNames = [
+    idleTemplate
+      ? null
+      : humanPresentationIdleAnimationName,
+    walkTemplate
+      ? null
+      : humanPresentationWalkAnimationName,
+  ].filter(
+    (
+      animationName,
+    ): animationName is string =>
+      animationName !== null,
+  )
+
+  if (
+    missingAnimationNames.length >
+    0
+  ) {
     instance.dispose()
     root.dispose()
 
     throw new Error(
-      `Human animation '${humanPresentationIdleAnimationName}' was not found.`,
+      [
+        `Human animation library is missing required animations for ${personId}:`,
+        ...missingAnimationNames,
+      ].join(
+        ' ',
+      ),
     )
   }
 
+  if (
+    !idleTemplate ||
+    !walkTemplate
+  ) {
+    throw new Error(
+      `Human animation validation failed for ${personId}.`,
+    )
+  }
+
+  const requiredTemplates = [
+    idleTemplate,
+    walkTemplate,
+  ]
+
   const missingTargetNames =
-    idleTemplate
-      .targetedAnimations
-      .map(
-        targetedAnimation => {
-          const targetName =
-            targetedAnimation
-              .target
-              ?.name
+    requiredTemplates
+      .flatMap(
+        animationTemplate =>
+          animationTemplate
+            .targetedAnimations
+            .map(
+              targetedAnimation => {
+                const targetName =
+                  targetedAnimation
+                    .target
+                    ?.name
 
-          if (
-            typeof targetName !==
-            'string'
-          ) {
-            return '<unnamed>'
-          }
+                if (
+                  typeof targetName !==
+                  'string'
+                ) {
+                  return (
+                    `${animationTemplate.name}:<unnamed>`
+                  )
+                }
 
-          return personNodesBySourceName.has(
-            targetName,
-          )
-            ? null
-            : targetName
-        },
+                return personNodesBySourceName.has(
+                  targetName,
+                )
+                  ? null
+                  : (
+                      `${animationTemplate.name}:${targetName}`
+                    )
+              },
+            ),
       )
       .filter(
         (
@@ -348,8 +503,7 @@ export async function createHumanPresentation(
 
     throw new Error(
       [
-        `Human animation '${humanPresentationIdleAnimationName}'`,
-        `could not map ${missingTargetNames.length} targets`,
+        'Human animations could not map required targets',
         `for person ${personId}:`,
         ...missingTargetNames,
       ].join(
@@ -358,43 +512,63 @@ export async function createHumanPresentation(
     )
   }
 
+  const mapAnimationTarget = (
+    sourceTarget:
+      typeof idleTemplate
+        .targetedAnimations[number]['target'],
+  ) => {
+    const targetName =
+      sourceTarget?.name
+
+    if (
+      typeof targetName !==
+      'string'
+    ) {
+      throw new Error(
+        `Human animation target has no name for person ${personId}.`,
+      )
+    }
+
+    const mapped =
+      personNodesBySourceName.get(
+        targetName,
+      )
+
+    if (!mapped) {
+      throw new Error(
+        `Human animation target '${targetName}' was not mapped for person ${personId}.`,
+      )
+    }
+
+    return mapped
+  }
+
   const idleAnimation =
     idleTemplate.clone(
       `${instanceNamePrefix}${humanPresentationIdleAnimationName}`,
-      sourceTarget => {
-        const targetName =
-          sourceTarget?.name
-
-        if (
-          typeof targetName !==
-          'string'
-        ) {
-          throw new Error(
-            `Human animation target has no name for person ${personId}.`,
-          )
-        }
-
-        const mapped =
-          personNodesBySourceName.get(
-            targetName,
-          )
-
-        if (!mapped) {
-          throw new Error(
-            `Human animation target '${targetName}' was not mapped for person ${personId}.`,
-          )
-        }
-
-        return mapped
-      },
+      mapAnimationTarget,
       false,
     )
 
-  // Animation controls only the cloned humanoid rig beneath this root.
-  // Est continues to position the outer root from authoritative
-  // geographic simulation state.
+  const walkAnimation =
+    walkTemplate.clone(
+      `${instanceNamePrefix}${humanPresentationWalkAnimationName}`,
+      mapAnimationTarget,
+      false,
+    )
+
+  let currentGaitPhase =
+    0
+
+  let walkAnimationStarted =
+    false
+
   idleAnimation.start(
     true,
+  )
+
+  idleAnimation.setWeightForAllAnimatables(
+    1,
   )
 
   // The presentation remains hidden until main.ts has placed it from
@@ -416,8 +590,99 @@ export async function createHumanPresentation(
       )
     },
 
+    setHeadingRadians(
+      headingRadians: number,
+    ) {
+      root.rotation.y =
+        resolveHumanPresentationRotationY(
+          headingRadians,
+        )
+    },
+
+    setWalkBlendWeight(
+      weight: number,
+    ) {
+      if (
+        !Number.isFinite(
+          weight,
+        ) ||
+        weight < 0 ||
+        weight > 1
+      ) {
+        throw new RangeError(
+          'Human walk blend weight must be finite and between zero and one.',
+        )
+      }
+
+      idleAnimation.setWeightForAllAnimatables(
+        1 - weight,
+      )
+
+      if (
+        weight <= 0 &&
+        !walkAnimationStarted
+      ) {
+        return
+      }
+
+      if (!walkAnimationStarted) {
+        walkAnimation.start(
+          false,
+        )
+
+        walkAnimation.pause()
+
+        walkAnimationStarted =
+          true
+      }
+
+      walkAnimation.setWeightForAllAnimatables(
+        weight,
+      )
+
+      walkAnimation.goToFrame(
+        resolveHumanGaitFrame(
+          currentGaitPhase,
+          walkAnimation.from,
+          walkAnimation.to,
+        ),
+        true,
+      )
+    },
+
+    setGaitPhase(
+      phaseRadians: number,
+    ) {
+      if (
+        !Number.isFinite(
+          phaseRadians,
+        )
+      ) {
+        throw new RangeError(
+          'Human gait phase must be finite.',
+        )
+      }
+
+      currentGaitPhase =
+        phaseRadians
+
+      if (!walkAnimationStarted) {
+        return
+      }
+
+      walkAnimation.goToFrame(
+        resolveHumanGaitFrame(
+          currentGaitPhase,
+          walkAnimation.from,
+          walkAnimation.to,
+        ),
+        true,
+      )
+    },
+
     dispose() {
       idleAnimation.dispose()
+      walkAnimation.dispose()
       instance.dispose()
       root.dispose()
     },

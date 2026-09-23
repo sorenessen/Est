@@ -82,6 +82,7 @@ import {
   createLocalActorPresentationTransition,
   sampleLocalActorPresentationTransition,
   type LocalActorPresentationPosition,
+  type LocalActorPresentationContinuation,
   type LocalActorPresentationTransition,
 } from './player/local-actor-interpolation'
 
@@ -689,6 +690,14 @@ const viewMode:
 
 const faunaFocusRequested =
   queryParameters.get('focus') === 'fauna'
+
+const humanFocusRequested =
+  queryParameters.get('focus') === 'human'
+
+const humanFocusPersonId =
+  humanFocusRequested
+    ? queryParameters.get('person')
+    : null
 
 playSkyLight.intensity =
   playMode
@@ -2188,8 +2197,22 @@ if (sessionId) {
         world.population.find(
           person =>
             person.planetId ===
-            planet.planetId,
+              planet.planetId &&
+            (
+              humanFocusPersonId === null ||
+              person.personId ===
+                humanFocusPersonId
+            ),
         )
+
+      if (
+        humanFocusPersonId !== null &&
+        nearbyPerson === undefined
+      ) {
+        throw new Error(
+          `Requested human focus person '${humanFocusPersonId}' does not exist on the rendered planet.`,
+        )
+      }
 
       const nearbyWolf =
         faunaFocusRequested
@@ -2217,12 +2240,17 @@ if (sessionId) {
           0,
       }
 
+      const spawnOffsetMeters =
+        humanFocusRequested
+          ? 4
+          : 12
+
       const spawn =
         spawnAnchor
           ? moveSurfaceCoordinate(
               spawnBase,
               0,
-              12,
+              spawnOffsetMeters,
               planet.meanRadiusMeters,
             )
           : spawnBase
@@ -2629,12 +2657,53 @@ if (sessionId) {
     camera.maxZ =
       500
 
+    const focusedEster =
+      manifestedEster
+
+    const humanFocusPerson =
+      humanFocusRequested
+        ? world.population.find(
+            person =>
+              person.planetId ===
+                focusedEster.planetId &&
+              (
+                humanFocusPersonId === null ||
+                person.personId ===
+                  humanFocusPersonId
+              ),
+          )
+        : undefined
+
+    if (
+      humanFocusPersonId !== null &&
+      humanFocusPerson === undefined
+    ) {
+      throw new Error(
+        `Requested human focus person '${humanFocusPersonId}' is not available for presentation.`,
+      )
+    }
+
+    const humanFocusLocal =
+      humanFocusPerson
+        ? geographicToLocalMeters(
+            humanFocusPerson,
+            focusedEster,
+            planet.meanRadiusMeters,
+          )
+        : null
+
     camera.setTarget(
-      new Vector3(
-        0,
-        0.9,
-        0,
-      ),
+      humanFocusLocal === null
+        ? new Vector3(
+            0,
+            0.9,
+            0,
+          )
+        : new Vector3(
+            humanFocusLocal.eastMeters,
+            0.9,
+            humanFocusLocal.northMeters,
+          ),
     )
 
     camera.setPosition(
@@ -3721,6 +3790,22 @@ if (sessionId) {
   const playGrazerMotionTracker =
     new LocalActorMotionTracker()
 
+  const playHumanMotionTracker =
+    new LocalActorMotionTracker()
+
+  interface PlayHumanPresentationTransition {
+    snapshotTimeSeconds: number
+    interpolation:
+      LocalActorPresentationTransition
+    continuation?:
+      LocalActorPresentationContinuation
+    gaitPhaseRadians: number
+    lastPresentationAdvanceMilliseconds: number
+    walkBlendWeight: number
+    walkBlendTargetWeight: number
+    isComplete: boolean
+  }
+
   interface PlayWolfPresentationTransition {
     snapshotTimeSeconds: number
     interpolation:
@@ -3739,6 +3824,12 @@ if (sessionId) {
     isComplete: boolean
   }
 
+  const playHumanPresentationTransitions =
+    new Map<
+      string,
+      PlayHumanPresentationTransition
+    >()
+
   const playWolfPresentationTransitions =
     new Map<
       string,
@@ -3750,6 +3841,28 @@ if (sessionId) {
       string,
       PlayGrazerPresentationTransition
     >()
+
+  // Presentation-only calibration for a usual healthy-adult walk.
+  // 116.65 steps per minute gives one full two-step gait cycle
+  // approximately every 1.029 seconds.
+  const humanPresentationUsualWalkingCadenceStepsPerMinute =
+    116.65
+
+  const humanPresentationWalkCycleMilliseconds =
+    60_000 /
+    (
+      humanPresentationUsualWalkingCadenceStepsPerMinute /
+      2
+    )
+
+  // Preserve a small overlap between successive authoritative
+  // samples. Moving presentation duration is expanded dynamically when
+  // an actual snapshot gap spans more than one real-time second.
+  const humanPresentationTransitionMilliseconds =
+    1_100
+
+  const humanPresentationTransitionOverlapMilliseconds =
+    100
 
   const wolfPresentationTransitionMilliseconds =
     450
@@ -6017,12 +6130,19 @@ if (sessionId) {
       )
     }
 
+    const projectedHumanIds =
+      new Set<string>()
+
     for (
       const actor of
       localIndividuals.people
     ) {
       const person =
         actor.source
+
+      projectedHumanIds.add(
+        person.personId,
+      )
 
       const human =
         playHumanPresentations.get(
@@ -6038,6 +6158,27 @@ if (sessionId) {
         continue
       }
 
+      const motion =
+        playHumanMotionTracker.observe({
+          actorKey:
+            person.personId,
+          coordinate:
+            person,
+          planetRadiusMeters:
+            planet.meanRadiusMeters,
+          snapshotTimeSeconds:
+            world.currentTimeSeconds,
+        })
+
+      if (
+        motion.headingRadians !==
+        null
+      ) {
+        human.setHeadingRadians(
+          motion.headingRadians,
+        )
+      }
+
       const visible =
         actor.distanceMeters <=
         visibleRadiusMeters
@@ -6046,21 +6187,311 @@ if (sessionId) {
         visible,
       )
 
-      if (!visible) {
-        continue
-      }
-
       const personElevationMeters =
         samplePlayTerrainElevationMeters(
           person.latitudeDegrees,
           person.longitudeDegrees,
         )
 
-      human.root.position.set(
-        actor.local.eastMeters,
-        personElevationMeters -
-          esterElevationMeters,
-        actor.local.northMeters,
+      const targetPosition:
+        LocalActorPresentationPosition = {
+          eastMeters:
+            actor.local.eastMeters,
+          verticalMeters:
+            personElevationMeters -
+            esterElevationMeters,
+          northMeters:
+            actor.local.northMeters,
+        }
+
+      const previousTransition =
+        playHumanPresentationTransitions.get(
+          person.personId,
+        )
+
+      if (
+        previousTransition?.snapshotTimeSeconds ===
+        world.currentTimeSeconds
+      ) {
+        const targetDelta = {
+          eastMeters:
+            targetPosition.eastMeters -
+            previousTransition
+              .interpolation
+              .target
+              .eastMeters,
+          verticalMeters:
+            targetPosition.verticalMeters -
+            previousTransition
+              .interpolation
+              .target
+              .verticalMeters,
+          northMeters:
+            targetPosition.northMeters -
+            previousTransition
+              .interpolation
+              .target
+              .northMeters,
+        }
+
+        previousTransition.interpolation = {
+          ...previousTransition.interpolation,
+          start: {
+            eastMeters:
+              previousTransition
+                .interpolation
+                .start
+                .eastMeters +
+              targetDelta.eastMeters,
+            verticalMeters:
+              previousTransition
+                .interpolation
+                .start
+                .verticalMeters +
+              targetDelta.verticalMeters,
+            northMeters:
+              previousTransition
+                .interpolation
+                .start
+                .northMeters +
+              targetDelta.northMeters,
+          },
+          target: {
+            ...targetPosition,
+          },
+        }
+
+        if (
+          previousTransition.isComplete
+        ) {
+          human.root.position.set(
+            targetPosition.eastMeters,
+            targetPosition.verticalMeters,
+            targetPosition.northMeters,
+          )
+        } else {
+          human.root.position.addInPlaceFromFloats(
+            targetDelta.eastMeters,
+            targetDelta.verticalMeters,
+            targetDelta.northMeters,
+          )
+        }
+      } else if (
+        motion.isMoving &&
+        previousTransition !== undefined
+      ) {
+        const presentationNowMilliseconds =
+          performance.now()
+
+        const elapsedSimulationSeconds =
+          world.currentTimeSeconds -
+          previousTransition.snapshotTimeSeconds
+
+        if (
+          !Number.isFinite(
+            elapsedSimulationSeconds,
+          ) ||
+          elapsedSimulationSeconds <= 0
+        ) {
+          throw new Error(
+            'Moving human snapshot must advance authoritative simulation time.',
+          )
+        }
+
+        if (
+          !Number.isFinite(
+            sessionRuntime.simulationRateMultiplier,
+          ) ||
+          sessionRuntime.simulationRateMultiplier <= 0
+        ) {
+          throw new Error(
+            'Human presentation requires a positive finite simulation rate.',
+          )
+        }
+
+        const presentationTransitionMilliseconds =
+          sessionRuntime.isPaused
+            ? humanPresentationTransitionMilliseconds
+            : Math.max(
+                humanPresentationTransitionMilliseconds,
+                (
+                  elapsedSimulationSeconds /
+                  sessionRuntime.simulationRateMultiplier
+                ) *
+                  1_000 +
+                  humanPresentationTransitionOverlapMilliseconds,
+              )
+
+        // Idle_Loop and Walk_Loop are each stable at full weight, but
+        // blending them on the retargeted body produces a transient visual
+        // deformation. Switch locomotion pose state atomically instead of
+        // crossfading between the two full-body clips.
+        const walkBlendTargetWeight =
+          1
+
+        const initialWalkBlendWeight =
+          walkBlendTargetWeight
+
+        const movementStartedFromStationary =
+          previousTransition
+            .walkBlendTargetWeight ===
+          0
+
+        const elapsedRealSeconds =
+          elapsedSimulationSeconds /
+          sessionRuntime.simulationRateMultiplier
+
+        const continuation:
+          LocalActorPresentationContinuation = {
+            velocity: {
+              eastMetersPerSecond:
+                (
+                  targetPosition.eastMeters -
+                  previousTransition
+                    .interpolation
+                    .target
+                    .eastMeters
+                ) /
+                elapsedRealSeconds,
+              verticalMetersPerSecond:
+                (
+                  targetPosition.verticalMeters -
+                  previousTransition
+                    .interpolation
+                    .target
+                    .verticalMeters
+                ) /
+                elapsedRealSeconds,
+              northMetersPerSecond:
+                (
+                  targetPosition.northMeters -
+                  previousTransition
+                    .interpolation
+                    .target
+                    .northMeters
+                ) /
+                elapsedRealSeconds,
+            },
+            // The first moving segment still consumes its authoritative
+            // displacement normally. Later moving snapshots preserve that
+            // measured velocity while correcting prediction error.
+            maintainVelocityDuringTransition:
+              !movementStartedFromStationary,
+          }
+
+        human.setWalkBlendWeight(
+          initialWalkBlendWeight,
+        )
+
+        human.setGaitPhase(
+          previousTransition
+            .gaitPhaseRadians,
+        )
+
+        playHumanPresentationTransitions.set(
+          person.personId,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                {
+                  eastMeters:
+                    human.root.position.x,
+                  verticalMeters:
+                    human.root.position.y,
+                  northMeters:
+                    human.root.position.z,
+                },
+                targetPosition,
+                presentationNowMilliseconds,
+                presentationTransitionMilliseconds,
+              ),
+            continuation,
+            gaitPhaseRadians:
+              previousTransition
+                .gaitPhaseRadians,
+            lastPresentationAdvanceMilliseconds:
+              presentationNowMilliseconds,
+            walkBlendWeight:
+              initialWalkBlendWeight,
+            walkBlendTargetWeight,
+            isComplete:
+              false,
+          },
+        )
+      } else {
+        const presentationNowMilliseconds =
+          performance.now()
+
+        human.root.position.set(
+          targetPosition.eastMeters,
+          targetPosition.verticalMeters,
+          targetPosition.northMeters,
+        )
+
+        const gaitPhaseRadians =
+          previousTransition
+            ?.gaitPhaseRadians ??
+          0
+
+        // Match the moving transition behavior: locomotion clips switch
+        // atomically because intermediate idle/walk blend weights visibly
+        // deform the retargeted human rig.
+        const walkBlendWeight =
+          0
+
+        human.setGaitPhase(
+          gaitPhaseRadians,
+        )
+
+        human.setWalkBlendWeight(
+          walkBlendWeight,
+        )
+
+        playHumanPresentationTransitions.set(
+          person.personId,
+          {
+            snapshotTimeSeconds:
+              world.currentTimeSeconds,
+            interpolation:
+              createLocalActorPresentationTransition(
+                targetPosition,
+                targetPosition,
+                presentationNowMilliseconds,
+                humanPresentationTransitionMilliseconds,
+              ),
+            gaitPhaseRadians,
+            lastPresentationAdvanceMilliseconds:
+              presentationNowMilliseconds,
+            walkBlendWeight,
+            walkBlendTargetWeight:
+              0,
+            isComplete:
+              true,
+          },
+        )
+      }
+    }
+
+    for (
+      const personId of
+      playHumanPresentations.keys()
+    ) {
+      if (
+        projectedHumanIds.has(
+          personId,
+        )
+      ) {
+        continue
+      }
+
+      playHumanMotionTracker.forget(
+        personId,
+      )
+
+      playHumanPresentationTransitions.delete(
+        personId,
       )
     }
 
@@ -7310,6 +7741,91 @@ if (sessionId) {
         )
     }
 
+    const advanceHumanPresentationTransitions = (
+      nowMilliseconds: number,
+    ) => {
+      for (
+        const [
+          personId,
+          transition,
+        ] of
+        playHumanPresentationTransitions
+      ) {
+        const human =
+          playHumanPresentations.get(
+            personId,
+          )
+
+        if (!human) {
+          playHumanPresentationTransitions.delete(
+            personId,
+          )
+
+          continue
+        }
+
+        const elapsedMilliseconds =
+          Math.max(
+            0,
+            nowMilliseconds -
+            transition
+              .lastPresentationAdvanceMilliseconds,
+          )
+
+        transition.lastPresentationAdvanceMilliseconds =
+          nowMilliseconds
+
+        if (!transition.isComplete) {
+          const sample =
+            sampleLocalActorPresentationTransition(
+              transition.interpolation,
+              nowMilliseconds,
+              transition.continuation,
+            )
+
+          human.root.position.set(
+            sample.position.eastMeters,
+            sample.position.verticalMeters,
+            sample.position.northMeters,
+          )
+
+          if (sample.isComplete) {
+            transition.isComplete =
+              true
+          }
+        }
+
+        // Locomotion state comes only from authoritative snapshots.
+        // Idle and Walk switch atomically because intermediate animation
+        // weights visibly deform the retargeted body.
+        transition.walkBlendWeight =
+          transition.walkBlendTargetWeight
+
+        if (
+          transition.walkBlendWeight >
+          0
+        ) {
+          transition.gaitPhaseRadians +=
+            (
+              elapsedMilliseconds /
+              humanPresentationWalkCycleMilliseconds
+            ) *
+            Math.PI *
+            2
+        }
+
+        human.setGaitPhase(
+          transition
+            .gaitPhaseRadians,
+        )
+
+        human.setWalkBlendWeight(
+          transition
+            .walkBlendWeight,
+        )
+      }
+    }
+
     const advanceWolfPresentationTransitions = (
       nowMilliseconds: number,
     ) => {
@@ -7450,6 +7966,10 @@ if (sessionId) {
     const advancePresentationMovement = (
       nowMilliseconds: number,
     ) => {
+      advanceHumanPresentationTransitions(
+        nowMilliseconds,
+      )
+
       advanceWolfPresentationTransitions(
         nowMilliseconds,
       )
@@ -8017,6 +8537,9 @@ if (sessionId) {
   let simulationPresentationRefreshInProgress =
     false
 
+  let simulationEcologyRefreshInProgress =
+    false
+
   let simulationExplicitAdvanceInProgress =
     false
 
@@ -8473,29 +8996,25 @@ if (sessionId) {
     )
   }
 
-  const refreshSimulationPresentation =
+  const refreshSimulationEcology =
     async (): Promise<void> => {
       if (
-        simulationPresentationRefreshInProgress
+        simulationEcologyRefreshInProgress
       ) {
         return
       }
 
-      simulationPresentationRefreshInProgress =
+      simulationEcologyRefreshInProgress =
         true
 
       try {
         const [
-          nextWorld,
           nextVegetation,
           nextInvertebrates,
           nextBirdFlocks,
           nextGrazerCohorts,
         ] =
           await Promise.all([
-            api.getWorld(
-              sessionId,
-            ),
             api.getPlanetVegetation(
               sessionId,
               planet.planetId,
@@ -8514,9 +9033,6 @@ if (sessionId) {
             ),
           ])
 
-        world =
-          nextWorld
-
         vegetation =
           nextVegetation
 
@@ -8529,19 +9045,55 @@ if (sessionId) {
         grazerCohorts =
           nextGrazerCohorts
 
-        simulationPresentationRefreshCount +=
-          1
-
-        if (
-          simulationPresentationRefreshCount %
-            10 ===
-          0
-        ) {
-          await refreshTimelineMetrics()
-        }
-
         updateVegetationCoverageState()
         updatePlanetVegetationCoverage()
+
+        if (!playMode) {
+          renderLivingWorld()
+        }
+
+        renderSimulationTelemetry()
+      } catch (error) {
+        console.error(
+          '[Est Babylon] live ecology presentation refresh failed',
+          error,
+        )
+
+        if (faunaStatus) {
+          faunaStatus.textContent =
+            'LIVE UPDATE ERROR · see browser console'
+        }
+      } finally {
+        simulationEcologyRefreshInProgress =
+          false
+      }
+    }
+
+  const refreshSimulationPresentation =
+    async (): Promise<void> => {
+      if (
+        simulationPresentationRefreshInProgress
+      ) {
+        return
+      }
+
+      simulationPresentationRefreshInProgress =
+        true
+
+      try {
+        // Person/root presentation is latency-sensitive. Do not make
+        // authoritative world snapshots wait for unrelated ecology
+        // presentation requests.
+        const nextWorld =
+          await api.getWorld(
+            sessionId,
+          )
+
+        world =
+          nextWorld
+
+        simulationPresentationRefreshCount +=
+          1
 
         if (playMode) {
           updatePlaySpacePositions()
@@ -8550,9 +9102,35 @@ if (sessionId) {
         }
 
         renderSimulationTelemetry()
+
+        // Ecology may be significantly heavier than the authoritative
+        // world snapshot. Refresh it independently so a slow ecology
+        // request cannot starve human/root locomotion updates.
+        void refreshSimulationEcology()
+
+        if (
+          simulationPresentationRefreshCount %
+            10 ===
+          0
+        ) {
+          void refreshTimelineMetrics()
+            .then(
+              () => {
+                renderSimulationTelemetry()
+              },
+            )
+            .catch(
+              error => {
+                console.error(
+                  '[Est Babylon] timeline metrics refresh failed',
+                  error,
+                )
+              },
+            )
+        }
       } catch (error) {
         console.error(
-          '[Est Babylon] live simulation presentation refresh failed',
+          '[Est Babylon] live world presentation refresh failed',
           error,
         )
 

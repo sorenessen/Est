@@ -14,7 +14,11 @@ public sealed class ReproductionSystem : ICausalSystem
         28 * 86_400;
     private const double PartnerSearchRadiusDegrees = 5d;
     private const double MatingDistanceDegrees = 0.12d;
-    private const double TravelDegreesPerDay = 0.25d;
+
+    // Mean usual outdoor walking speed reported for healthy adults.
+    // Locomotion is physical distance, not angular degrees per day.
+    private const double UsualWalkingSpeedMetersPerSecond = 1.31d;
+
     private const double MinimumEnergyReserve = 0.6d;
     private const double MinimumHealth = 0.6d;
 
@@ -50,8 +54,12 @@ public sealed class ReproductionSystem : ICausalSystem
                 nameof(elapsedSeconds));
         }
 
-        if (!world.Planets.Any(
-                planet => planet.Id == _planetId))
+        var planet =
+            world.Planets.FirstOrDefault(
+                candidate =>
+                    candidate.Id == _planetId);
+
+        if (planet is null)
         {
             throw new InvalidOperationException(
                 "The target planet does not exist in this world.");
@@ -199,6 +207,7 @@ public sealed class ReproductionSystem : ICausalSystem
                     MoveToward(
                         person,
                         partner,
+                        planet,
                         elapsedSeconds);
 
                 nextPopulation.Add(
@@ -530,54 +539,148 @@ public sealed class ReproductionSystem : ICausalSystem
     private static PersonState MoveToward(
         PersonState person,
         PersonState partner,
+        PlanetState planet,
         long elapsedSeconds)
     {
-        var latitudeDelta =
-            partner.LatitudeDegrees -
-            person.LatitudeDegrees;
-
-        var longitudeDelta =
-            WrappedLongitudeDelta(
-                person.LongitudeDegrees,
-                partner.LongitudeDegrees);
-
-        var distance =
-            Math.Sqrt(
-                latitudeDelta * latitudeDelta +
-                longitudeDelta * longitudeDelta);
-
-        if (distance <= 0)
+        if (elapsedSeconds <= 0)
         {
             return person;
         }
 
-        var elapsedDays =
-            elapsedSeconds / 86_400d;
+        var sourceLatitude =
+            person.LatitudeDegrees *
+            Math.PI /
+            180d;
 
-        var travelDistance =
-            Math.Min(
-                distance,
-                TravelDegreesPerDay *
-                elapsedDays);
+        var sourceLongitude =
+            person.LongitudeDegrees *
+            Math.PI /
+            180d;
 
-        var scale =
-            travelDistance / distance;
+        var targetLatitude =
+            partner.LatitudeDegrees *
+            Math.PI /
+            180d;
 
-        var latitude =
-            Math.Clamp(
-                person.LatitudeDegrees +
-                latitudeDelta * scale,
-                -89.999,
-                89.999);
+        var longitudeDelta =
+            WrappedLongitudeDelta(
+                person.LongitudeDegrees,
+                partner.LongitudeDegrees) *
+            Math.PI /
+            180d;
 
-        var longitude =
-            WrapLongitude(
-                person.LongitudeDegrees +
-                longitudeDelta * scale);
+        var targetLongitude =
+            sourceLongitude +
+            longitudeDelta;
+
+        var haversine =
+            Math.Pow(
+                Math.Sin(
+                    (targetLatitude -
+                     sourceLatitude) /
+                    2),
+                2) +
+            Math.Cos(
+                sourceLatitude) *
+            Math.Cos(
+                targetLatitude) *
+            Math.Pow(
+                Math.Sin(
+                    longitudeDelta /
+                    2),
+                2);
+
+        var angularDistance =
+            2 *
+            Math.Asin(
+                Math.Min(
+                    1,
+                    Math.Sqrt(
+                        Math.Max(
+                            0,
+                            haversine))));
+
+        if (angularDistance <= 0)
+        {
+            return person;
+        }
+
+        var targetDistanceMeters =
+            angularDistance *
+            planet.MeanRadiusMeters;
+
+        var maximumTravelMeters =
+            UsualWalkingSpeedMetersPerSecond *
+            elapsedSeconds;
+
+        if (maximumTravelMeters >=
+            targetDistanceMeters)
+        {
+            return person.MoveTo(
+                partner.LatitudeDegrees,
+                partner.LongitudeDegrees);
+        }
+
+        var travelAngle =
+            maximumTravelMeters /
+            planet.MeanRadiusMeters;
+
+        var bearing =
+            Math.Atan2(
+                Math.Sin(
+                    targetLongitude -
+                    sourceLongitude) *
+                Math.Cos(
+                    targetLatitude),
+                Math.Cos(
+                    sourceLatitude) *
+                Math.Sin(
+                    targetLatitude) -
+                Math.Sin(
+                    sourceLatitude) *
+                Math.Cos(
+                    targetLatitude) *
+                Math.Cos(
+                    targetLongitude -
+                    sourceLongitude));
+
+        var destinationLatitude =
+            Math.Asin(
+                Math.Sin(
+                    sourceLatitude) *
+                Math.Cos(
+                    travelAngle) +
+                Math.Cos(
+                    sourceLatitude) *
+                Math.Sin(
+                    travelAngle) *
+                Math.Cos(
+                    bearing));
+
+        var destinationLongitude =
+            sourceLongitude +
+            Math.Atan2(
+                Math.Sin(
+                    bearing) *
+                Math.Sin(
+                    travelAngle) *
+                Math.Cos(
+                    sourceLatitude),
+                Math.Cos(
+                    travelAngle) -
+                Math.Sin(
+                    sourceLatitude) *
+                Math.Sin(
+                    destinationLatitude));
 
         return person.MoveTo(
-            latitude,
-            longitude);
+            destinationLatitude *
+            180d /
+            Math.PI,
+            WrapLongitude(
+                destinationLongitude *
+                180d /
+                Math.PI));
     }
 
     private PersonState CreateChild(

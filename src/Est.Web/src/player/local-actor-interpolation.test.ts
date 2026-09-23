@@ -124,6 +124,140 @@ describe(
     )
 
     it(
+      'maintains authoritative velocity while correcting a moving prediction',
+      () => {
+        const transition =
+          createLocalActorPresentationTransition(
+            start,
+            target,
+            100,
+            400,
+          )
+
+        const continuation = {
+          velocity: {
+            eastMetersPerSecond:
+              2,
+            verticalMetersPerSecond:
+              -1,
+            northMetersPerSecond:
+              4,
+          },
+          maintainVelocityDuringTransition:
+            true,
+        }
+
+        expect(
+          sampleLocalActorPresentationTransition(
+            transition,
+            300,
+            continuation,
+          ),
+        ).toEqual({
+          position: {
+            eastMeters:
+              3.4,
+            verticalMeters:
+              3.8,
+            northMeters:
+              7.8,
+          },
+          progress:
+            0.5,
+          isComplete:
+            false,
+        })
+
+        expect(
+          sampleLocalActorPresentationTransition(
+            transition,
+            1_000,
+            continuation,
+          ),
+        ).toEqual({
+          position: {
+            eastMeters:
+              6.8,
+            verticalMeters:
+              5.1,
+            northMeters:
+              14.6,
+          },
+          progress:
+            1,
+          isComplete:
+            false,
+        })
+      },
+    )
+
+    it(
+      'continues at authoritative velocity until a newer snapshot replaces it',
+      () => {
+        const transition =
+          createLocalActorPresentationTransition(
+            start,
+            target,
+            100,
+            400,
+          )
+
+        const continuation = {
+          velocity: {
+            eastMetersPerSecond:
+              2,
+            verticalMetersPerSecond:
+              -1,
+            northMetersPerSecond:
+              4,
+          },
+        }
+
+        expect(
+          sampleLocalActorPresentationTransition(
+            transition,
+            1_000,
+            continuation,
+          ),
+        ).toEqual({
+          position: {
+            eastMeters:
+              6,
+            verticalMeters:
+              5.5,
+            northMeters:
+              13,
+          },
+          progress:
+            1,
+          isComplete:
+            false,
+        })
+
+        expect(
+          sampleLocalActorPresentationTransition(
+            transition,
+            5_000,
+            continuation,
+          ),
+        ).toEqual({
+          position: {
+            eastMeters:
+              14,
+            verticalMeters:
+              1.5,
+            northMeters:
+              29,
+          },
+          progress:
+            1,
+          isComplete:
+            false,
+        })
+      },
+    )
+
+    it(
       'rejects non-positive transition duration',
       () => {
         expect(

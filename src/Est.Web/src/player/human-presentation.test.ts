@@ -8,7 +8,10 @@ import {
   humanPresentationAnimationAssetPath,
   humanPresentationAssetPaths,
   humanPresentationIdleAnimationName,
+  humanPresentationWalkAnimationName,
   resolveHumanBodyVariant,
+  resolveHumanGaitFrame,
+  resolveHumanPresentationRotationY,
 } from './human-presentation'
 
 describe(
@@ -94,6 +97,82 @@ describe(
           humanPresentationIdleAnimationName,
         ).toBe(
           'Idle_Loop',
+        )
+      },
+    )
+
+    it(
+      'uses the in-place walk animation for observed locomotion',
+      () => {
+        expect(
+          humanPresentationWalkAnimationName,
+        ).toBe(
+          'Walk_Loop',
+        )
+      },
+    )
+
+    it(
+      'maps Est heading onto Babylon Y rotation',
+      () => {
+        expect(
+          resolveHumanPresentationRotationY(
+            0,
+          ),
+        ).toBeCloseTo(
+          0,
+        )
+
+        expect(
+          resolveHumanPresentationRotationY(
+            Math.PI / 2,
+          ),
+        ).toBeCloseTo(
+          -Math.PI / 2,
+        )
+
+        expect(
+          () =>
+            resolveHumanPresentationRotationY(
+              Number.NaN,
+            ),
+        ).toThrow(
+          'Human presentation heading must be finite.',
+        )
+      },
+    )
+
+    it(
+      'maps periodic gait phase onto the walk clip frame range',
+      () => {
+        expect(
+          resolveHumanGaitFrame(
+            0,
+            10,
+            50,
+          ),
+        ).toBe(
+          10,
+        )
+
+        expect(
+          resolveHumanGaitFrame(
+            Math.PI,
+            10,
+            50,
+          ),
+        ).toBe(
+          30,
+        )
+
+        expect(
+          resolveHumanGaitFrame(
+            Math.PI * 2,
+            10,
+            50,
+          ),
+        ).toBe(
+          10,
         )
       },
     )

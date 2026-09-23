@@ -77,6 +77,60 @@ public sealed class ReproductionSystemTests
     }
 
     [Fact]
+    public void Step_DistantEligiblePartnerMovesAtUsualHumanWalkingSpeed()
+    {
+        var planet = CreateEarth();
+
+        var female =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Female,
+                0,
+                0);
+
+        var male =
+            CreateAdult(
+                planet.Id,
+                PersonSex.Male,
+                0,
+                1);
+
+        var world =
+            CreateWorld(
+                planet,
+                female,
+                male);
+
+        var result =
+            SimulationStepRunner.Step(
+                world,
+                1,
+                CreateSystem(
+                    planet.Id,
+                    conceptionProbability: 1));
+
+        var movedFemale =
+            result.World.Population.Single(
+                person =>
+                    person.Id == female.Id);
+
+        var traveledMeters =
+            movedFemale.LongitudeDegrees *
+            Math.PI /
+            180d *
+            planet.MeanRadiusMeters;
+
+        Assert.Equal(
+            PersonActivity.SeekingPartner,
+            movedFemale.Activity);
+
+        Assert.InRange(
+            traveledMeters,
+            1.309999,
+            1.310001);
+    }
+
+    [Fact]
     public void Step_NearbyEligiblePartnersWithoutConceptionOpportunityDoNotReportMating()
     {
         var planet = CreateEarth();

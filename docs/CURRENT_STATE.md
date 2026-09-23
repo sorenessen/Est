@@ -207,6 +207,13 @@ the renderer.
 Current local presentation includes:
 
 - animated humans keyed by stable `PersonId`;
+- human locomotion and heading derived from successive authoritative person
+  snapshots;
+- authored human idle/walk animation with gait phase advanced in presentation
+  time;
+- velocity-preserving human presentation interpolation and short-term
+  continuation between authoritative snapshots without creating simulation
+  truth;
 - individually authoritative animated wolves keyed by stable `AnimalId`;
 - deterministic cohort-backed grazer representatives without invented
   `AnimalId`;
@@ -214,9 +221,9 @@ Current local presentation includes:
 - bounded fauna presentation interpolation without renderer-authored simulation
   movement.
 
-Authoritative human locomotion/orientation presentation is not yet implemented;
-the animated human presentation currently establishes durable visual identity
-without claiming that movement capability.
+Human partner-seeking movement is authoritative simulation behavior expressed
+as physical surface distance. Human rendering consumes that movement and
+orientation while keeping geographic position ownership in simulation state.
 
 The returning-Ester recognition proof is active authoritative behavior. A
 manifested Ester can approach a simulated person, create an authoritative
